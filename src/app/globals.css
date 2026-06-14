@@ -1,0 +1,96 @@
+@import "tailwindcss";
+@import "../design-system/tokens/merchantile-m3-tokens.css";
+
+@theme inline {
+  --color-primary: var(--m3-color-primary);
+  --color-primary-container: var(--m3-color-primary-container);
+  --color-on-primary: var(--m3-color-on-primary);
+  --color-secondary: var(--m3-color-secondary);
+  --color-secondary-container: var(--m3-color-secondary-container);
+  --color-on-secondary: var(--m3-color-on-secondary);
+  --color-surface: var(--m3-color-surface);
+  --color-surface-container: var(--m3-color-surface-container);
+  --color-surface-container-lowest: var(--m3-color-surface-container-lowest);
+  --color-surface-container-high: var(--m3-color-surface-container-high);
+  --color-on-surface: var(--m3-color-on-surface);
+  --color-on-surface-variant: var(--m3-color-on-surface-variant);
+  --color-outline: var(--m3-color-outline);
+  --color-outline-variant: var(--m3-color-outline-variant);
+  --color-error: var(--m3-color-error);
+  --color-error-container: var(--m3-color-error-container);
+  --color-success: var(--m3-color-success);
+  --color-success-container: var(--m3-color-success-container);
+  --color-warning: var(--m3-color-warning);
+  --color-warning-container: var(--m3-color-warning-container);
+  --font-sans: var(--m3-font-family);
+  --radius-sm: var(--m3-shape-sm);
+  --radius-md: var(--m3-shape-md);
+  --radius-lg: var(--m3-shape-lg);
+  --radius-xl: var(--m3-shape-xl);
+  --shadow-elevation-1: var(--m3-elevation-1);
+  --shadow-elevation-2: var(--m3-elevation-2);
+}
+
+body {
+  background: var(--m3-color-surface);
+  color: var(--m3-color-on-surface);
+  font: var(--m3-type-body-md);
+  font-family: var(--m3-font-family);
+}
+
+.m3-card {
+  background: var(--m3-color-surface-container-lowest);
+  border: 1px solid var(--m3-color-outline-variant);
+  border-radius: var(--m3-shape-lg);
+  box-shadow: var(--m3-elevation-1);
+}
+
+.m3-card-gold {
+  background: var(--m3-color-surface-container-lowest);
+  border: 1px solid var(--m3-color-outline-variant);
+  border-radius: var(--m3-shape-lg);
+  box-shadow: var(--m3-elevation-2);
+  border-top: 3px solid transparent;
+  border-image: var(--m3-gradient-gold) 1;
+}
+
+.m3-btn-primary {
+  background: var(--m3-color-primary);
+  color: var(--m3-color-on-primary);
+  border-radius: var(--m3-shape-full);
+  font: var(--m3-type-title-sm);
+  transition: opacity var(--m3-motion-duration-short) var(--m3-motion-ease-standard);
+}
+
+.m3-btn-primary:hover {
+  opacity: 0.9;
+}
+
+.m3-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.m3-input {
+  background: var(--m3-color-surface-container-lowest);
+  border: 1px solid var(--m3-color-outline);
+  border-radius: var(--m3-shape-sm);
+  color: var(--m3-color-on-surface);
+  font: var(--m3-type-body-md);
+  transition: border-color var(--m3-motion-duration-short) var(--m3-motion-ease-standard);
+}
+
+.m3-input:focus {
+  outline: none;
+  border-color: var(--m3-color-primary);
+}
+
+.m3-label {
+  font: var(--m3-type-label-sm);
+  color: var(--m3-color-on-surface-variant);
+}
+
+.m3-error {
+  font: var(--m3-type-body-sm);
+  color: var(--m3-color-error);
+}
