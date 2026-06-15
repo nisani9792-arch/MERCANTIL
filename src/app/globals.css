@@ -94,3 +94,41 @@ body {
   font: var(--m3-type-body-sm);
   color: var(--m3-color-error);
 }
+
+.bank-canvas {
+  background: var(--m3-color-surface);
+  min-height: 100vh;
+}
+
+.m3-fab {
+  background: var(--m3-gradient-gold);
+  color: var(--m3-color-on-primary);
+}
+
+.bank-table tbody tr {
+  animation: bank-row-in var(--m3-motion-duration-medium) var(--m3-motion-ease-emphasized) both;
+}
+
+.bank-table tbody tr:nth-child(1) { animation-delay: 0ms; }
+.bank-table tbody tr:nth-child(2) { animation-delay: 40ms; }
+.bank-table tbody tr:nth-child(3) { animation-delay: 80ms; }
+.bank-table tbody tr:nth-child(4) { animation-delay: 120ms; }
+.bank-table tbody tr:nth-child(5) { animation-delay: 160ms; }
+.bank-table tbody tr:nth-child(6) { animation-delay: 200ms; }
+
+@keyframes bank-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bank-table tbody tr {
+    animation: none;
+  }
+}

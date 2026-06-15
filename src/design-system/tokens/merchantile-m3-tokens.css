@@ -1,12 +1,12 @@
 /**
- * Mercantil M3 — banking brand tokens (olive green + gold from logo)
+ * Mercantil M3 — banking brand tokens (bank green + gold + blue-grey canvas)
  */
 
 :root {
   color-scheme: light;
 
-  --m3-color-primary: #3d4f2f;
-  --m3-color-primary-container: rgba(61, 79, 47, 0.12);
+  --m3-color-primary: #2d6a3e;
+  --m3-color-primary-container: rgba(45, 106, 62, 0.12);
   --m3-color-on-primary: #ffffff;
   --m3-color-secondary: #b8860b;
   --m3-color-secondary-container: rgba(201, 162, 39, 0.14);
@@ -15,25 +15,25 @@
   --m3-color-tertiary-container: rgba(92, 107, 58, 0.1);
   --m3-gradient-gold: linear-gradient(135deg, #c9a227 0%, #d4af37 50%, #b8860b 100%);
 
-  --m3-color-surface: #f8f9f6;
-  --m3-color-surface-dim: #eef0ea;
-  --m3-color-surface-container: #eef0ea;
-  --m3-color-surface-container-low: #f3f5f0;
+  --m3-color-surface: #e4ecf4;
+  --m3-color-surface-dim: #d8e2ed;
+  --m3-color-surface-container: #dce4ed;
+  --m3-color-surface-container-low: #e8eef5;
   --m3-color-surface-container-lowest: #ffffff;
-  --m3-color-surface-container-high: rgba(255, 255, 255, 0.96);
+  --m3-color-surface-container-high: rgba(255, 255, 255, 0.97);
   --m3-color-surface-container-highest: rgba(255, 255, 255, 0.99);
 
-  --m3-color-on-surface: #1c2218;
-  --m3-color-on-surface-variant: #5a6354;
-  --m3-color-outline: rgba(61, 79, 47, 0.2);
-  --m3-color-outline-variant: rgba(61, 79, 47, 0.1);
+  --m3-color-on-surface: #1a2430;
+  --m3-color-on-surface-variant: #526070;
+  --m3-color-outline: rgba(45, 106, 62, 0.18);
+  --m3-color-outline-variant: rgba(45, 106, 62, 0.1);
 
   --m3-color-error: #b54a4a;
   --m3-color-error-container: rgba(181, 74, 74, 0.12);
   --m3-color-warning: #b07808;
   --m3-color-warning-container: rgba(176, 120, 8, 0.12);
-  --m3-color-success: #3d4f2f;
-  --m3-color-success-container: rgba(61, 79, 47, 0.12);
+  --m3-color-success: #2d6a3e;
+  --m3-color-success-container: rgba(45, 106, 62, 0.12);
 
   --m3-font-family: "Heebo", "Assistant", "Segoe UI", system-ui, sans-serif;
   --m3-type-display-sm: 600 1.375rem/1.25 var(--m3-font-family);
@@ -56,40 +56,33 @@
   --m3-motion-duration-medium: 280ms;
   --m3-motion-duration-long: 420ms;
 
-  --m3-elevation-1: 0 1px 2px rgba(61, 79, 47, 0.06), 0 1px 3px rgba(61, 79, 47, 0.08);
-  --m3-elevation-2: 0 2px 6px rgba(61, 79, 47, 0.08), 0 4px 12px rgba(61, 79, 47, 0.06);
+  --m3-elevation-1: 0 1px 2px rgba(26, 36, 48, 0.06), 0 1px 3px rgba(26, 36, 48, 0.08);
+  --m3-elevation-2: 0 2px 6px rgba(26, 36, 48, 0.08), 0 4px 12px rgba(26, 36, 48, 0.06);
 }
 
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --m3-color-primary: #8fa872;
-  --m3-color-primary-container: rgba(143, 168, 114, 0.18);
-  --m3-color-on-primary: #141a10;
+  --m3-color-primary: #6db87f;
+  --m3-color-primary-container: rgba(109, 184, 127, 0.18);
+  --m3-color-on-primary: #0a1a10;
   --m3-color-secondary: #d4af37;
   --m3-color-secondary-container: rgba(212, 175, 55, 0.16);
-  --m3-color-on-secondary: #1a1408;
 
-  --m3-color-surface: #121510;
-  --m3-color-surface-dim: #0e100c;
-  --m3-color-surface-container: #1a1e16;
-  --m3-color-surface-container-low: #161912;
-  --m3-color-surface-container-lowest: #0a0c08;
-  --m3-color-surface-container-high: rgba(26, 30, 22, 0.94);
-  --m3-color-surface-container-highest: rgba(32, 38, 28, 0.97);
+  --m3-color-surface: #0f1419;
+  --m3-color-surface-dim: #0a0e12;
+  --m3-color-surface-container: #161d24;
+  --m3-color-surface-container-low: #121820;
+  --m3-color-surface-container-lowest: #0a0e12;
+  --m3-color-surface-container-high: rgba(22, 29, 36, 0.94);
 
-  --m3-color-on-surface: #e8ebe4;
-  --m3-color-on-surface-variant: #a8aea0;
-  --m3-color-outline: rgba(232, 235, 228, 0.16);
-  --m3-color-outline-variant: rgba(232, 235, 228, 0.08);
+  --m3-color-on-surface: #e4e9ef;
+  --m3-color-on-surface-variant: #9aa8b5;
+  --m3-color-outline: rgba(228, 233, 239, 0.14);
+  --m3-color-outline-variant: rgba(228, 233, 239, 0.08);
 
   --m3-color-error: #f08080;
-  --m3-color-error-container: rgba(240, 128, 128, 0.14);
-  --m3-color-success: #8fa872;
-  --m3-color-success-container: rgba(143, 168, 114, 0.14);
-
-  --m3-elevation-1: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2);
-  --m3-elevation-2: 0 2px 8px rgba(0, 0, 0, 0.35), 0 4px 16px rgba(0, 0, 0, 0.2);
+  --m3-color-success: #6db87f;
 }
 
 @media (prefers-reduced-motion: reduce) {

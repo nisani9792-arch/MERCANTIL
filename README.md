@@ -2,43 +2,75 @@
 
 ניהול כלכלי חכם מבוסס AI. Next.js 16 + Neon PostgreSQL + Gemini.
 
-## התחלה מהירה
+## התקנה והפעלה מקומית
 
 ```bash
 npm install
 cp .env.local.example .env.local
-# מלא DATABASE_URL, SESSION_SECRET, GEMINI_API_KEY
+# מלא את המשתנים (ראה למטה)
 npm run db:init
 npm run dev
 ```
 
-## סטאק
+פתח http://localhost:3000
 
-| שכבה | טכנולוגיה |
-|------|-----------|
-| Frontend | Next.js 16, React 19, Tailwind v4, M3 |
-| DB | Neon PostgreSQL (`@neondatabase/serverless`) |
-| Auth | JWT sessions (httpOnly cookie) |
-| AI | Google Gemini API |
+## משתני סביבה (`.env.local`)
 
-## מבנה
+| משתנה | חובה | תיאור |
+|--------|------|--------|
+| `DATABASE_URL` | כן | Connection string מ-Neon PostgreSQL |
+| `SESSION_SECRET` | כן | מחרוזת אקראית 32+ תווים (לחתימת cookies) |
+| `GEMINI_API_KEY` | מומלץ | מפתח Google AI Studio לסיווג חכם |
+| `GEMINI_MODEL` | לא | ברירת מחדל: `gemini-2.0-flash` |
+| `SEED_USER_EMAIL` | לא | לייבוא ראשוני (ברירת מחדל: shin@mercantil.app) |
+| `SEED_USER_PASSWORD` | לא | סיסמה לייבוא ראשוני |
 
-- `src/app/(auth)/` — התחברות והרשמה
-- `src/app/(app)/` — routes מוגנים
-- `src/lib/db/` — Neon client
-- `src/lib/auth/` — sessions + users
-- `src/lib/ai/` — Gemini integration
-- `db/migrations/` — סכמת PostgreSQL
-- `public/logo.png` — לוגו מרכנטיל
-- `public/manifest.webmanifest` — PWA + קיצורי דרך
+### דוגמה
+
+```env
+DATABASE_URL=postgresql://user:pass@ep-xxx.neon.tech/neondb?sslmode=require
+SESSION_SECRET=your-random-secret-at-least-32-chars-long
+GEMINI_API_KEY=AIza...
+GEMINI_MODEL=gemini-2.0-flash
+```
+
+## ייבוא נתוני בנק (Excel)
+
+```bash
+npm run import:bank "C:\path\to\עובר ושב.xlsx"
+```
+
+או דרך הממשק: **ייבוא AI** → העלה קובץ xlsx
+
+## פריסה ל-Vercel
+
+1. דחוף ל-GitHub: `git push origin master`
+2. היכנס ל-[vercel.com](https://vercel.com) → Import Project → בחר `MERCANTIL`
+3. הוסף Environment Variables (אותם משתנים כמו `.env.local`)
+4. Deploy
+
+או CLI:
+
+```bash
+npx vercel --prod
+```
+
+## פקודות
+
+| פקודה | תיאור |
+|--------|--------|
+| `npm run dev` | שרת פיתוח |
+| `npm run build` | בנייה ל-production |
+| `npm start` | הרצה אחרי build |
+| `npm run db:init` | יצירת טבלאות + קטגוריות |
+| `npm run import:bank` | ייבוא xlsx + למידת AI |
 
 ## API
 
-- `POST /api/auth/login` — התחברות
-- `POST /api/auth/register` — הרשמה
-- `POST /api/auth/logout` — יציאה
-- `GET /api/ai/health` — בדיקת Neon + Gemini
+- `POST /api/import/xlsx` — ייבוא קובץ בנק
+- `POST /api/ai/categorize` — סיווג AI
+- `GET /api/ai/insights` — תובנות
 
 ## אבטחה
 
-**לעולם אל תעלה `.env.local` ל-Git.** אם מפתחות דלפו — החלף אותם ב-Neon וב-Google Cloud Console.
+**לעולם אל תעלה `.env.local` ל-Git.** החלף מפתחות אם דלפו.

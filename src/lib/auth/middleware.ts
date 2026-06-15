@@ -5,6 +5,7 @@ import { isDatabaseConfigured } from "@/lib/db/client";
 const PROTECTED_PREFIXES = [
   "/dashboard",
   "/transactions",
+  "/categories",
   "/import",
   "/insights",
 ];

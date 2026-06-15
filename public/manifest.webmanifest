@@ -42,6 +42,12 @@
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
+      "name": "קטגוריות",
+      "short_name": "קטגוריות",
+      "url": "/categories",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
       "name": "תובנות",
       "short_name": "תובנות",
       "url": "/insights",
