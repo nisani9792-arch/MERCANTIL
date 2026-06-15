@@ -13,11 +13,11 @@ export function BankNavSidebar() {
     <aside className="bank-sidebar hidden w-56 shrink-0 border-s border-outline-variant bg-surface-container-lowest lg:block">
       <div className="p-3">
         <Link
-          href="/transactions?action=add"
+          href="/month"
           className="mb-3 flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2.5 text-sm font-semibold text-on-primary transition-opacity hover:opacity-90"
         >
           <Plus className="h-4 w-4 shrink-0" />
-          <span>הוספת תנועה ידנית</span>
+          <span>ניהול החודש</span>
         </Link>
 
         <nav className="space-y-0.5">
@@ -44,7 +44,7 @@ export function BankNavSidebar() {
 
         <div className="my-4 border-t border-outline-variant px-3 pt-3">
           <p className="text-xs leading-relaxed text-on-surface-variant">
-            המערכת עוזרת להבין כמה נכנס וכמה יוצא בכל חודש — לא לעקוב אחרי כל חיוב קטן מהבנק.
+            תבניות קבועות → אתחול חודש → עריכה והוצאות משתנות. פשוט וברור.
           </p>
         </div>
       </div>
@@ -85,9 +85,9 @@ export function BankMobileNav() {
 export function BankMobileFab() {
   return (
     <Link
-      href="/transactions?action=add"
+      href="/month"
       className="m3-fab fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] start-4 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-elevation-2 transition-transform active:scale-95 lg:hidden"
-      aria-label="הוספת תנועה"
+      aria-label="ניהול חודש"
     >
       <Plus className="h-7 w-7" />
     </Link>

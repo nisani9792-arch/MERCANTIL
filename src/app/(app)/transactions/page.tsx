@@ -1,10 +1,5 @@
-import { Suspense } from "react";
-import { TransactionsWorkspace } from "@/components/bank/TransactionsWorkspace";
+import { redirect } from "next/navigation";
 
-export default function TransactionsPage() {
-  return (
-    <Suspense>
-      <TransactionsWorkspace />
-    </Suspense>
-  );
+export default function TransactionsRedirect() {
+  redirect("/month");
 }

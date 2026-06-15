@@ -1,7 +1,7 @@
 import {
   Home,
-  ArrowLeftRight,
-  Tags,
+  CalendarDays,
+  LayoutTemplate,
   type LucideIcon,
 } from "lucide-react";
 
@@ -12,9 +12,8 @@ export type NavItem = {
   mobileLabel?: string;
 };
 
-/** Lean nav — fixed monthly budget, not bank clone */
 export const navItems: NavItem[] = [
-  { href: "/dashboard", label: "סיכום חודשי", mobileLabel: "סיכום", icon: Home },
-  { href: "/transactions", label: "הוספה", mobileLabel: "הוספה", icon: ArrowLeftRight },
-  { href: "/categories", label: "קטגוריות", mobileLabel: "קטגוריות", icon: Tags },
+  { href: "/dashboard", label: "סיכום", mobileLabel: "סיכום", icon: Home },
+  { href: "/month", label: "ניהול חודש", mobileLabel: "חודש", icon: CalendarDays },
+  { href: "/templates", label: "תבניות", mobileLabel: "תבניות", icon: LayoutTemplate },
 ];

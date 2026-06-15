@@ -1,19 +1,23 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
-import { listCategories } from "@/lib/db/categories";
-import { getTransactionsForAi } from "@/lib/db/transactions";
-import { generateSmartInsights } from "@/lib/ai/categorize";
+import { generateBudgetInsights } from "@/lib/ai/budget-insights";
+import {
+  currentMonthKey,
+  getLedgerContextForAi,
+} from "@/lib/db/monthly-ledger";
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const [transactions, categories] = await Promise.all([
-    getTransactionsForAi(session.userId),
-    listCategories(session.userId),
-  ]);
+  const { searchParams } = new URL(request.url);
+  const monthKey = searchParams.get("month") ?? currentMonthKey();
 
-  const insights = await generateSmartInsights(transactions, categories);
+  const { summary, entries } = await getLedgerContextForAi(
+    session.userId,
+    monthKey,
+  );
 
-  return NextResponse.json({ insights });
+  const insights = await generateBudgetInsights(summary, entries);
+  return NextResponse.json({ insights, summary });
 }

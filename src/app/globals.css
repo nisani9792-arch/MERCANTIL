@@ -136,3 +136,34 @@ body {
 .safe-top{padding-top:env(safe-area-inset-top,0px)}.safe-bottom{padding-bottom:env(safe-area-inset-bottom,0px)}html{-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}body{overscroll-behavior-y:none}.m3-input,.m3-btn-primary,button,a{touch-action:manipulation}@media(max-width:640px){.m3-input{font-size:16px}}
 
 @keyframes pin-shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}.pin-shake{animation:pin-shake .45s ease-in-out}
+
+.m3-expressive-enter {
+  animation: m3-expressive-in var(--m3-motion-duration-long) var(--m3-motion-ease-emphasized) both;
+}
+
+.m3-expressive-enter-delay {
+  animation: m3-expressive-in var(--m3-motion-duration-long) var(--m3-motion-ease-emphasized) 120ms both;
+}
+
+.m3-ledger-row {
+  animation: m3-expressive-in var(--m3-motion-duration-medium) var(--m3-motion-ease-emphasized) both;
+}
+
+@keyframes m3-expressive-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .m3-expressive-enter,
+  .m3-expressive-enter-delay,
+  .m3-ledger-row {
+    animation: none;
+  }
+}

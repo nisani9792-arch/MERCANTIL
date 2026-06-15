@@ -1,14 +1,11 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
 import { isDatabaseConfigured } from "@/lib/db/client";
-import {
-  getFinancialSummary,
-  getFixedRecurringAverages,
-  getMonthlyCategoryBreakdown,
-} from "@/lib/db/transactions";
-import { BalanceOverview } from "@/components/bank/BalanceOverview";
-import { CategoryMonthlyOverview } from "@/components/bank/CategoryMonthlyOverview";
-import { FixedCashflowCard } from "@/components/bank/FixedCashflowCard";
+import { getMonthSummary } from "@/lib/db/monthly-ledger";
+import { seedDefaultTemplates } from "@/lib/db/recurring-templates";
+import { currentMonthKey } from "@/lib/utils/month";
+import { AiInsightsPanel } from "@/components/ledger/AiInsightsPanel";
+import { BudgetSummaryCard } from "@/components/ledger/BudgetSummaryCard";
 
 export default async function DashboardPage() {
   if (!isDatabaseConfigured()) redirect("/login?setup=database");
@@ -16,22 +13,22 @@ export default async function DashboardPage() {
   const session = await getSession();
   if (!session) redirect("/login");
 
-  const [summary, breakdown, fixedAvg] = await Promise.all([
-    getFinancialSummary(session.userId),
-    getMonthlyCategoryBreakdown(session.userId),
-    getFixedRecurringAverages(session.userId),
-  ]);
+  await seedDefaultTemplates(session.userId);
+  const monthKey = currentMonthKey();
+  const summary = await getMonthSummary(session.userId, monthKey);
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
-      <BalanceOverview summary={summary} />
-      <FixedCashflowCard averages={fixedAvg} />
-      <CategoryMonthlyOverview
-        income={breakdown.income}
-        expenses={breakdown.expenses}
-        monthIncome={summary.monthIncome}
-        monthExpense={summary.monthExpense}
-      />
+      <BudgetSummaryCard summary={summary} />
+      <AiInsightsPanel monthKey={monthKey} />
+      {!summary.initialized && (
+        <section className="m3-card m3-expressive-enter rounded-xl border-dashed border-primary/30 bg-primary-container/20 p-4 text-center text-sm text-on-surface-variant">
+          החודש עדיין לא אותחל.{" "}
+          <a href="/month" className="font-semibold text-primary underline">
+            לחץ כאן לפתיחת חודש
+          </a>
+        </section>
+      )}
     </div>
   );
 }

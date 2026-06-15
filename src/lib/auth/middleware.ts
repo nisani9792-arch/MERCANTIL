@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { verifySessionToken, SESSION_COOKIE } from "@/lib/auth/session";
 import { isDatabaseConfigured } from "@/lib/db/client";
 
-const PROTECTED_PREFIXES = ["/dashboard", "/transactions", "/categories"];
+const PROTECTED_PREFIXES = ["/dashboard", "/month", "/templates", "/transactions", "/categories"];
 const AUTH_ROUTES = ["/login", "/register"];
 const DEPRECATED = ["/import", "/insights"];
 
@@ -12,6 +12,18 @@ export async function updateSession(request: NextRequest) {
   if (pathname.startsWith("/register")) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
+    return NextResponse.redirect(url);
+  }
+
+  if (pathname.startsWith("/transactions")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/month";
+    return NextResponse.redirect(url);
+  }
+
+  if (pathname.startsWith("/categories")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/templates";
     return NextResponse.redirect(url);
   }
 

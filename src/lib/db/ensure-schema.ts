@@ -98,6 +98,42 @@ async function initSchema() {
     add column if not exists typical_amount numeric(12, 2)
   `.catch(() => undefined);
 
+  await sql`
+    create table if not exists recurring_templates (
+      id uuid primary key default gen_random_uuid(),
+      user_id uuid not null references users (id) on delete cascade,
+      name text not null,
+      type text not null check (type in ('income', 'expense')),
+      amount numeric(12, 2) not null check (amount >= 0),
+      frequency text not null default 'monthly' check (frequency in ('monthly', 'bi-monthly')),
+      day_of_month smallint check (day_of_month is null or day_of_month between 1 and 31),
+      is_active boolean not null default true,
+      sort_order int not null default 0,
+      created_at timestamptz not null default now(),
+      updated_at timestamptz not null default now()
+    )
+  `;
+
+  await sql`
+    create table if not exists monthly_ledger (
+      id uuid primary key default gen_random_uuid(),
+      user_id uuid not null references users (id) on delete cascade,
+      month_key text not null,
+      name text not null,
+      type text not null check (type in ('income', 'expense')),
+      amount numeric(12, 2) not null check (amount >= 0),
+      is_from_template boolean not null default false,
+      template_id uuid references recurring_templates (id) on delete set null,
+      is_variable boolean not null default false,
+      notes text,
+      created_at timestamptz not null default now(),
+      updated_at timestamptz not null default now()
+    )
+  `;
+
+  await sql`create index if not exists recurring_templates_user_idx on recurring_templates (user_id)`;
+  await sql`create index if not exists monthly_ledger_user_month_idx on monthly_ledger (user_id, month_key)`;
+
   await sql`create index if not exists transactions_user_date_idx on transactions (user_id, date desc)`;
   await sql`create index if not exists transactions_user_category_idx on transactions (user_id, category_id)`;
   await sql`create index if not exists transactions_fixed_recurring_idx on transactions (user_id, is_fixed_recurring) where is_fixed_recurring = true`;
