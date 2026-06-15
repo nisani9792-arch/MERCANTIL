@@ -1,75 +1,62 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Sparkles, AlertTriangle, Repeat, Lightbulb, TrendingDown } from "lucide-react";
-import { cn } from "@/lib/utils/cn";
-import type { SmartInsight } from "@/lib/ai/categorize";
-
-const iconMap = {
-  tip: Lightbulb,
-  warning: AlertTriangle,
-  recurring: Repeat,
-  duplicate: AlertTriangle,
-  saving: TrendingDown,
-};
-
-const severityClass = {
-  info: "border-outline-variant bg-surface-container-lowest",
-  warn: "border-warning/40 bg-warning-container/20",
-  success: "border-success/30 bg-success-container/20",
-};
+import { Lightbulb, Loader2, Sparkles } from "lucide-react";
+import { useMonthStore } from "@/stores/useMonthStore";
 
 export function AiInsightPanel() {
+  const monthKey = useMonthStore((s) => s.monthKey);
+
   const { data, isLoading } = useQuery({
-    queryKey: ["ai-insights"],
+    queryKey: ["ai-insights", monthKey],
     queryFn: async () => {
-      const res = await fetch("/api/ai/insights");
+      const res = await fetch(`/api/ai/insights?month=${monthKey}`);
       if (!res.ok) throw new Error("failed");
-      return (await res.json()) as { insights: SmartInsight[] };
+      return res.json() as Promise<{
+        insights: {
+          headline: string;
+          comparison: string;
+          savingsTips: string[];
+        };
+      }>;
     },
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false,
+    staleTime: 45_000,
   });
 
-  const insights = data?.insights ?? [];
+  const insights = data?.insights;
 
   return (
-    <section className="m3-card-gold overflow-hidden">
-      <div className="flex items-center gap-2 border-b border-outline-variant bg-surface-container px-4 py-2">
+    <section className="m3-card-gold m3-expressive-enter-delay overflow-hidden">
+      <div className="flex items-center gap-2 border-b border-outline-variant px-4 py-3">
         <Sparkles className="h-4 w-4 text-secondary" />
-        <h2 className="text-sm font-bold text-on-surface">תובנות AI</h2>
+        <h2 className="text-sm font-bold text-on-surface">תובנות AI — תקציב משתנה</h2>
       </div>
-      <div className="space-y-2 p-3">
+      <div className="space-y-3 p-4">
         {isLoading && (
-          <p className="py-4 text-center text-sm text-on-surface-variant">מנתח נתונים...</p>
+          <div className="flex items-center gap-2 py-4 text-sm text-on-surface-variant">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            מנתח הוצאות קבועות ותקציב משתנה...
+          </div>
         )}
-        {!isLoading && insights.length === 0 && (
-          <p className="py-4 text-center text-sm text-on-surface-variant">
-            הוסף תנועות כדי לקבל תובנות חכמות
-          </p>
+        {insights && (
+          <>
+            <p className="text-lg font-bold text-primary">{insights.headline}</p>
+            <p className="text-sm leading-relaxed text-on-surface">
+              {insights.comparison}
+            </p>
+            <ul className="space-y-2">
+              {insights.savingsTips.map((tip) => (
+                <li
+                  key={tip}
+                  className="flex items-start gap-2 rounded-xl bg-surface-container-low px-3 py-2.5 text-sm"
+                >
+                  <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-secondary" />
+                  {tip}
+                </li>
+              ))}
+            </ul>
+          </>
         )}
-        {insights.map((insight) => {
-          const Icon = iconMap[insight.type] ?? Lightbulb;
-          return (
-            <div
-              key={insight.id}
-              className={cn(
-                "rounded-xl border p-3 transition-transform hover:scale-[1.01]",
-                severityClass[insight.severity],
-              )}
-            >
-              <div className="flex items-start gap-2">
-                <Icon className="mt-0.5 h-4 w-4 shrink-0 text-secondary" />
-                <div>
-                  <p className="text-sm font-semibold text-on-surface">{insight.title}</p>
-                  <p className="mt-0.5 text-xs leading-relaxed text-on-surface-variant">
-                    {insight.body}
-                  </p>
-                </div>
-              </div>
-            </div>
-          );
-        })}
       </div>
     </section>
   );

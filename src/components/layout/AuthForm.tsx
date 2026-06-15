@@ -73,10 +73,10 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
           <Image
             src="/logo.png"
             alt="מרכנטיל — לירה לבנה ליום שחור"
-            width={280}
+            width={320}
             height={120}
             priority
-            className="h-auto w-full max-w-[260px] object-contain"
+            className="h-auto w-full max-w-[300px] rounded-2xl object-contain"
           />
           <p className="mt-4 text-on-surface">
             {isRegister ? "יצירת חשבון חדש" : "התחברות למערכת"}

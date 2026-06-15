@@ -2,7 +2,7 @@ export type LedgerItemType = "income" | "expense";
 
 export type RecurringFrequency = "monthly" | "bi-monthly";
 
-export type RecurringTemplate = {
+export type FixedTemplate = {
   id: string;
   user_id: string;
   name: string;
@@ -16,6 +16,9 @@ export type RecurringTemplate = {
   updated_at: string;
 };
 
+/** @deprecated use FixedTemplate */
+export type RecurringTemplate = FixedTemplate;
+
 export type MonthlyLedgerEntry = {
   id: string;
   user_id: string;
@@ -27,6 +30,7 @@ export type MonthlyLedgerEntry = {
   is_from_template: boolean;
   template_id: string | null;
   is_variable: boolean;
+  is_paid: boolean;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -36,8 +40,10 @@ export type MonthSummary = {
   monthKey: string;
   totalIncome: number;
   totalFixedExpenses: number;
+  fixedExpensesPaid: number;
   totalVariableExpenses: number;
   remainingForVariable: number;
+  disposableRemaining: number;
   netAfterAll: number;
   entryCount: number;
   initialized: boolean;

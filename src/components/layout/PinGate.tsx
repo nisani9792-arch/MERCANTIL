@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
 import { Delete } from "lucide-react";
+import { InstallPrompt } from "@/components/layout/InstallPrompt";
 import { cn } from "@/lib/utils/cn";
 
 const PIN_LENGTH = 4;
@@ -96,10 +97,10 @@ export function PinGate() {
           <Image
             src="/logo.png"
             alt="מרכנטיל"
-            width={220}
-            height={90}
+            width={280}
+            height={100}
             priority
-            className="h-auto w-full max-w-[200px] object-contain"
+            className="h-auto w-full max-w-[280px] rounded-2xl object-contain"
           />
           <p className="mt-3 text-sm font-semibold text-on-surface">קוד גישה</p>
         </div>
@@ -188,6 +189,7 @@ export function PinGate() {
           })}
         </div>
       </div>
+      <InstallPrompt />
     </div>
   );
 }

@@ -15,6 +15,7 @@ export async function PATCH(
     amount?: number;
     category?: string;
     notes?: string | null;
+    isPaid?: boolean;
   };
 
   const entry = await updateLedgerEntry(session.userId, id, body);

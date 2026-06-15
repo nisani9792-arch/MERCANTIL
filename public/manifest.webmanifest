@@ -1,11 +1,14 @@
 {
+  "id": "/",
   "name": "מרכנטיל — לירה לבנה ליום שחור",
   "short_name": "מרכנטיל",
   "description": "ניהול משק בית חכם — הכנסות והוצאות חודשיות",
   "lang": "he",
   "dir": "rtl",
   "start_url": "/dashboard",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait",
   "background_color": "#f8f9f6",
   "theme_color": "#3d4f2f",
   "icons": [
@@ -13,13 +16,19 @@
       "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "shortcuts": [
@@ -27,31 +36,19 @@
       "name": "סיכום חודשי",
       "short_name": "סיכום",
       "url": "/dashboard",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon-shortcut.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
-      "name": "תנועות",
-      "short_name": "תנועות",
-      "url": "/transactions",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "name": "ניהול חודש",
+      "short_name": "חודש",
+      "url": "/month",
+      "icons": [{ "src": "/icon-shortcut.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
-      "name": "ייבוא",
-      "short_name": "ייבוא",
-      "url": "/import",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
-    },
-    {
-      "name": "קטגוריות",
-      "short_name": "קטגוריות",
-      "url": "/categories",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
-    },
-    {
-      "name": "תובנות",
-      "short_name": "תובנות",
-      "url": "/insights",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "name": "תבניות קבועות",
+      "short_name": "תבניות",
+      "url": "/templates",
+      "icons": [{ "src": "/icon-shortcut.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]
 }

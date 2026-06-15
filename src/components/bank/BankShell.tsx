@@ -4,6 +4,7 @@ import {
   BankMobileNav,
   BankMobileFab,
 } from "@/components/bank/BankNavSidebar";
+import { InstallPrompt } from "@/components/layout/InstallPrompt";
 
 type BankShellProps = {
   children: React.ReactNode;
@@ -23,6 +24,7 @@ export function BankShell({ children, userName, userId }: BankShellProps) {
       </div>
       <BankMobileFab />
       <BankMobileNav />
+      <InstallPrompt />
     </div>
   );
 }

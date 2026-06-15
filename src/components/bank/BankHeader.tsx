@@ -29,8 +29,8 @@ export function BankHeader({ userName, userId }: BankHeaderProps) {
   return (
     <>
       <header className="bank-header safe-top z-20 shrink-0 border-b border-outline-variant bg-surface-container-lowest">
-        <div className="flex items-center justify-between gap-2 px-3 py-2 sm:px-4 lg:px-6">
-          <div className="flex min-w-0 items-center gap-2">
+        <div className="flex items-center justify-between gap-2 px-3 py-2.5 sm:px-4 lg:px-6">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
             <button
               type="button"
               className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container lg:hidden"
@@ -39,21 +39,21 @@ export function BankHeader({ userName, userId }: BankHeaderProps) {
             >
               <Menu className="h-6 w-6" />
             </button>
-            <Link href="/dashboard" className="shrink-0">
+            <Link href="/dashboard" className="mx-auto shrink-0 lg:mx-0">
               <Image
                 src="/logo.png"
                 alt="מרכנטיל"
-                width={140}
-                height={48}
-                className="h-9 w-auto object-contain sm:h-10 lg:h-11"
+                width={200}
+                height={72}
+                className="h-12 w-auto rounded-xl object-contain sm:h-14 lg:h-16"
                 priority
               />
             </Link>
           </div>
 
-          <div className="flex min-w-0 flex-col items-center text-center">
+          <div className="hidden min-w-0 flex-col items-center text-center sm:flex sm:flex-1">
             <span className="truncate text-sm font-bold text-primary">{userName}</span>
-            <span className="hidden text-xs text-on-surface-variant sm:block" dir="ltr">
+            <span className="text-xs text-on-surface-variant" dir="ltr">
               {shortUserId(userId)}
             </span>
           </div>
@@ -82,7 +82,13 @@ export function BankHeader({ userName, userId }: BankHeaderProps) {
           />
           <aside className="absolute inset-y-0 start-0 flex w-[min(100%,280px)] flex-col bg-surface-container-lowest shadow-elevation-2 safe-top safe-bottom">
             <div className="flex items-center justify-between border-b border-outline-variant px-4 py-3">
-              <span className="font-bold text-on-surface">תפריט</span>
+              <Image
+                src="/logo.png"
+                alt="מרכנטיל"
+                width={160}
+                height={56}
+                className="h-10 w-auto rounded-lg object-contain"
+              />
               <button
                 type="button"
                 className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-surface-container"

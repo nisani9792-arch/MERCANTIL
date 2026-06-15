@@ -21,6 +21,7 @@ function mapRow(row: Record<string, unknown>): MonthlyLedgerEntry {
     is_from_template: Boolean(row.is_from_template),
     template_id: row.template_id ? String(row.template_id) : null,
     is_variable: Boolean(row.is_variable),
+    is_paid: Boolean(row.is_paid),
     notes: row.notes ? String(row.notes) : null,
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),
@@ -51,16 +52,23 @@ export async function getMonthSummary(
   const fixedExpenses = entries
     .filter((e) => e.type === "expense" && !e.is_variable)
     .reduce((s, e) => s + e.amount, 0);
+  const fixedPaid = entries
+    .filter((e) => e.type === "expense" && !e.is_variable && e.is_paid)
+    .reduce((s, e) => s + e.amount, 0);
   const variableExpenses = entries
     .filter((e) => e.type === "expense" && e.is_variable)
     .reduce((s, e) => s + e.amount, 0);
+
+  const remainingForVariable = totalIncome - fixedExpenses;
 
   return {
     monthKey,
     totalIncome,
     totalFixedExpenses: fixedExpenses,
+    fixedExpensesPaid: fixedPaid,
     totalVariableExpenses: variableExpenses,
-    remainingForVariable: totalIncome - fixedExpenses,
+    remainingForVariable,
+    disposableRemaining: remainingForVariable - variableExpenses,
     netAfterAll: totalIncome - fixedExpenses - variableExpenses,
     entryCount: entries.length,
     initialized: entries.length > 0,
@@ -84,11 +92,11 @@ export async function initMonthFromTemplates(
     await sql`
       insert into monthly_ledger (
         user_id, month_key, name, type, amount, category,
-        is_from_template, template_id, is_variable, notes
+        is_from_template, template_id, is_variable, is_paid, notes
       )
       values (
         ${userId}, ${monthKey}, ${t.name}, ${t.type}, ${t.amount}, ${t.name},
-        true, ${t.id}, false, null
+        true, ${t.id}, false, false, null
       )
     `;
     created++;
@@ -114,12 +122,12 @@ export async function addLedgerEntry(
   const rows = await sql`
     insert into monthly_ledger (
       user_id, month_key, name, type, amount, category,
-      is_from_template, template_id, is_variable, notes
+      is_from_template, template_id, is_variable, is_paid, notes
     )
     values (
       ${userId}, ${input.monthKey}, ${input.name}, ${input.type},
       ${input.amount}, ${category}, false, null, ${input.isVariable ?? false},
-      ${input.notes ?? null}
+      false, ${input.notes ?? null}
     )
     returning *
   `;
@@ -129,7 +137,7 @@ export async function addLedgerEntry(
 export async function updateLedgerEntry(
   userId: string,
   id: string,
-  input: Partial<{ name: string; amount: number; category: string; notes: string | null }>,
+  input: Partial<{ name: string; amount: number; category: string; notes: string | null; isPaid: boolean }>,
 ): Promise<MonthlyLedgerEntry | null> {
   const sql = getSql();
   const existing = await sql`
@@ -143,6 +151,7 @@ export async function updateLedgerEntry(
     set name = ${input.name ?? cur.name},
         amount = ${input.amount ?? cur.amount},
         category = ${input.category ?? cur.category},
+        is_paid = ${input.isPaid !== undefined ? input.isPaid : cur.is_paid},
         notes = ${input.notes !== undefined ? input.notes : cur.notes},
         updated_at = now()
     where id = ${id} and user_id = ${userId}

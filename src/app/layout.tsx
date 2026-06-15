@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Heebo } from "next/font/google";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
+import { ServiceWorkerRegister } from "@/components/layout/ServiceWorkerRegister";
 import "./globals.css";
 
 const heebo = Heebo({
@@ -21,10 +22,10 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/logo.png", type: "image/png" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
       { url: "/favicon.svg", type: "image/svg+xml" },
     ],
-    apple: [{ url: "/icon-192.png", sizes: "192x192" }],
+    apple: [{ url: "/icon-192.png", sizes: "192x192", type: "image/png" }],
   },
 };
 
@@ -48,7 +49,10 @@ export default function RootLayout({
     <html lang="he" dir="rtl" className={`${heebo.variable} h-full`}>
       <body className="min-h-full antialiased">
         <ThemeProvider>
-          <QueryProvider>{children}</QueryProvider>
+          <QueryProvider>
+            <ServiceWorkerRegister />
+            {children}
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>

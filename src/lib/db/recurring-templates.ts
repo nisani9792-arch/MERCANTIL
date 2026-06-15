@@ -1,13 +1,15 @@
 import { getSql } from "@/lib/db/client";
-import { DEFAULT_RECURRING_TEMPLATES } from "@/lib/db/default-templates";
-import type { RecurringFrequency, RecurringTemplate } from "@/types/ledger";
+import { DEFAULT_FIXED_TEMPLATES } from "@/lib/db/default-templates";
+import type { FixedTemplate, RecurringFrequency } from "@/types/ledger";
 
-function mapRow(row: Record<string, unknown>): RecurringTemplate {
+const TABLE = "fixed_templates";
+
+function mapRow(row: Record<string, unknown>): FixedTemplate {
   return {
     id: String(row.id),
     user_id: String(row.user_id),
     name: String(row.name),
-    type: row.type as RecurringTemplate["type"],
+    type: row.type as FixedTemplate["type"],
     amount: Number(row.amount),
     frequency: row.frequency as RecurringFrequency,
     day_of_month: row.day_of_month ? Number(row.day_of_month) : null,
@@ -21,13 +23,13 @@ function mapRow(row: Record<string, unknown>): RecurringTemplate {
 export async function seedDefaultTemplates(userId: string): Promise<void> {
   const sql = getSql();
   const existing = await sql`
-    select count(*)::int as c from recurring_templates where user_id = ${userId}
+    select count(*)::int as c from fixed_templates where user_id = ${userId}
   `;
   if (Number((existing[0] as { c: number }).c) > 0) return;
 
-  for (const t of DEFAULT_RECURRING_TEMPLATES) {
+  for (const t of DEFAULT_FIXED_TEMPLATES) {
     await sql`
-      insert into recurring_templates (
+      insert into fixed_templates (
         user_id, name, type, amount, frequency, day_of_month, is_active, sort_order
       )
       values (
@@ -38,10 +40,10 @@ export async function seedDefaultTemplates(userId: string): Promise<void> {
   }
 }
 
-export async function listTemplates(userId: string): Promise<RecurringTemplate[]> {
+export async function listTemplates(userId: string): Promise<FixedTemplate[]> {
   const sql = getSql();
   const rows = await sql`
-    select * from recurring_templates
+    select * from fixed_templates
     where user_id = ${userId}
     order by type desc, sort_order, name
   `;
@@ -52,21 +54,21 @@ export async function createTemplate(
   userId: string,
   input: {
     name: string;
-    type: RecurringTemplate["type"];
+    type: FixedTemplate["type"];
     amount: number;
     frequency?: RecurringFrequency;
     dayOfMonth?: number | null;
   },
-): Promise<RecurringTemplate> {
+): Promise<FixedTemplate> {
   const sql = getSql();
   const rows = await sql`
-    insert into recurring_templates (
+    insert into fixed_templates (
       user_id, name, type, amount, frequency, day_of_month, is_active, sort_order
     )
     values (
       ${userId}, ${input.name}, ${input.type}, ${input.amount},
       ${input.frequency ?? "monthly"}, ${input.dayOfMonth ?? null}, true,
-      (select coalesce(max(sort_order), 0) + 1 from recurring_templates where user_id = ${userId})
+      (select coalesce(max(sort_order), 0) + 1 from fixed_templates where user_id = ${userId})
     )
     returning *
   `;
@@ -84,16 +86,16 @@ export async function updateTemplate(
     isActive: boolean;
     sortOrder: number;
   }>,
-): Promise<RecurringTemplate | null> {
+): Promise<FixedTemplate | null> {
   const sql = getSql();
   const existing = await sql`
-    select * from recurring_templates where id = ${id} and user_id = ${userId} limit 1
+    select * from fixed_templates where id = ${id} and user_id = ${userId} limit 1
   `;
   if (!existing.length) return null;
   const cur = mapRow(existing[0] as Record<string, unknown>);
 
   const rows = await sql`
-    update recurring_templates
+    update fixed_templates
     set name = ${input.name ?? cur.name},
         amount = ${input.amount ?? cur.amount},
         frequency = ${input.frequency ?? cur.frequency},
@@ -110,7 +112,7 @@ export async function updateTemplate(
 export async function deleteTemplate(userId: string, id: string): Promise<boolean> {
   const sql = getSql();
   const rows = await sql`
-    delete from recurring_templates where id = ${id} and user_id = ${userId} returning id
+    delete from fixed_templates where id = ${id} and user_id = ${userId} returning id
   `;
   return rows.length > 0;
 }

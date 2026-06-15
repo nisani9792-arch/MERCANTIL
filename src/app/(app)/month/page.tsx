@@ -1,10 +1,10 @@
 import { Suspense } from "react";
-import { MonthView } from "@/components/month/MonthView";
+import { MonthWorkspace } from "@/components/bank/MonthWorkspace";
 
 export default function MonthPage() {
   return (
     <Suspense>
-      <MonthView />
+      <MonthWorkspace />
     </Suspense>
   );
 }
