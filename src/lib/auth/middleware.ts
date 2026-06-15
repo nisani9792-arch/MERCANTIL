@@ -1,18 +1,20 @@
-import { NextResponse, type NextRequest } from "next/server";
+﻿import { NextResponse, type NextRequest } from "next/server";
 import { verifySessionToken, SESSION_COOKIE } from "@/lib/auth/session";
 import { isDatabaseConfigured } from "@/lib/db/client";
 
-const PROTECTED_PREFIXES = [
-  "/dashboard",
-  "/transactions",
-  "/categories",
-  "/import",
-  "/insights",
-];
+const PROTECTED_PREFIXES = ["/dashboard", "/transactions", "/categories"];
 const AUTH_ROUTES = ["/login", "/register"];
+const DEPRECATED = ["/import", "/insights"];
 
 export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  if (DEPRECATED.some((p) => pathname.startsWith(p))) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/dashboard";
+    return NextResponse.redirect(url);
+  }
+
   const isProtected = PROTECTED_PREFIXES.some((p) => pathname.startsWith(p));
   const isAuthRoute = AUTH_ROUTES.some((p) => pathname.startsWith(p));
 

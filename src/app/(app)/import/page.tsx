@@ -1,5 +1,5 @@
-import { ImportWorkspace } from "@/components/bank/ImportWorkspace";
+import { redirect } from "next/navigation";
 
 export default function ImportPage() {
-  return <ImportWorkspace />;
+  redirect("/dashboard");
 }
