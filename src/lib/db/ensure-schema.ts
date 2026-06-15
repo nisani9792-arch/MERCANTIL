@@ -134,6 +134,11 @@ async function initSchema() {
   await sql`create index if not exists recurring_templates_user_idx on recurring_templates (user_id)`;
   await sql`create index if not exists monthly_ledger_user_month_idx on monthly_ledger (user_id, month_key)`;
 
+  await sql`
+    alter table monthly_ledger
+    add column if not exists category text
+  `.catch(() => undefined);
+
   await sql`create index if not exists transactions_user_date_idx on transactions (user_id, date desc)`;
   await sql`create index if not exists transactions_user_category_idx on transactions (user_id, category_id)`;
   await sql`create index if not exists transactions_fixed_recurring_idx on transactions (user_id, is_fixed_recurring) where is_fixed_recurring = true`;

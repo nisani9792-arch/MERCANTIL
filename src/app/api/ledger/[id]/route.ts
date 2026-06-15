@@ -13,6 +13,7 @@ export async function PATCH(
   const body = (await request.json()) as {
     name?: string;
     amount?: number;
+    category?: string;
     notes?: string | null;
   };
 

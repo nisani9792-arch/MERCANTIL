@@ -163,7 +163,26 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .m3-expressive-enter,
   .m3-expressive-enter-delay,
-  .m3-ledger-row {
+  .m3-ledger-row,
+  .m3-bottom-sheet,
+  .m3-tx-card {
     animation: none;
   }
+}
+
+@keyframes m3-sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.m3-bottom-sheet {
+  animation: m3-sheet-up var(--m3-motion-duration-medium) var(--m3-motion-ease-emphasized) both;
+}
+
+.m3-tx-card {
+  animation: m3-expressive-in var(--m3-motion-duration-medium) var(--m3-motion-ease-emphasized) both;
 }

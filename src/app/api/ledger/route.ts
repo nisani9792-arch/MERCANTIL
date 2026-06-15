@@ -32,6 +32,7 @@ export async function POST(request: Request) {
     type?: "income" | "expense";
     amount?: number;
     isVariable?: boolean;
+    category?: string;
     notes?: string;
   };
 
@@ -45,6 +46,7 @@ export async function POST(request: Request) {
     type: body.type,
     amount: Math.abs(body.amount),
     isVariable: body.isVariable,
+    category: body.category,
     notes: body.notes,
   });
 

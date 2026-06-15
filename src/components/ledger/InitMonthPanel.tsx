@@ -23,7 +23,8 @@ export function InitMonthPanel({ monthKey, initialized }: InitMonthPanelProps) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["ledger", monthKey] });
-      qc.invalidateQueries({ queryKey: ["ai-insights", monthKey] });
+      qc.invalidateQueries({ queryKey: ["analytics", monthKey] });
+      qc.invalidateQueries({ queryKey: ["smart-insights", monthKey] });
     },
   });
 

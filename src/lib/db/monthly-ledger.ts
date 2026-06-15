@@ -17,6 +17,7 @@ function mapRow(row: Record<string, unknown>): MonthlyLedgerEntry {
     name: String(row.name),
     type: row.type as LedgerItemType,
     amount: Number(row.amount),
+    category: String(row.category ?? row.name),
     is_from_template: Boolean(row.is_from_template),
     template_id: row.template_id ? String(row.template_id) : null,
     is_variable: Boolean(row.is_variable),
@@ -82,11 +83,11 @@ export async function initMonthFromTemplates(
     if (!templateAppliesToMonth(t.frequency, monthKey)) continue;
     await sql`
       insert into monthly_ledger (
-        user_id, month_key, name, type, amount,
+        user_id, month_key, name, type, amount, category,
         is_from_template, template_id, is_variable, notes
       )
       values (
-        ${userId}, ${monthKey}, ${t.name}, ${t.type}, ${t.amount},
+        ${userId}, ${monthKey}, ${t.name}, ${t.type}, ${t.amount}, ${t.name},
         true, ${t.id}, false, null
       )
     `;
@@ -104,18 +105,20 @@ export async function addLedgerEntry(
     type: LedgerItemType;
     amount: number;
     isVariable?: boolean;
+    category?: string;
     notes?: string;
   },
 ): Promise<MonthlyLedgerEntry> {
   const sql = getSql();
+  const category = input.category ?? input.name;
   const rows = await sql`
     insert into monthly_ledger (
-      user_id, month_key, name, type, amount,
+      user_id, month_key, name, type, amount, category,
       is_from_template, template_id, is_variable, notes
     )
     values (
       ${userId}, ${input.monthKey}, ${input.name}, ${input.type},
-      ${input.amount}, false, null, ${input.isVariable ?? false},
+      ${input.amount}, ${category}, false, null, ${input.isVariable ?? false},
       ${input.notes ?? null}
     )
     returning *
@@ -126,7 +129,7 @@ export async function addLedgerEntry(
 export async function updateLedgerEntry(
   userId: string,
   id: string,
-  input: Partial<{ name: string; amount: number; notes: string | null }>,
+  input: Partial<{ name: string; amount: number; category: string; notes: string | null }>,
 ): Promise<MonthlyLedgerEntry | null> {
   const sql = getSql();
   const existing = await sql`
@@ -139,6 +142,7 @@ export async function updateLedgerEntry(
     update monthly_ledger
     set name = ${input.name ?? cur.name},
         amount = ${input.amount ?? cur.amount},
+        category = ${input.category ?? cur.category},
         notes = ${input.notes !== undefined ? input.notes : cur.notes},
         updated_at = now()
     where id = ${id} and user_id = ${userId}

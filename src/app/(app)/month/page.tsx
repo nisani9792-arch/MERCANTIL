@@ -1,10 +1,10 @@
 import { Suspense } from "react";
-import { LedgerEditor } from "@/components/ledger/LedgerEditor";
+import { MonthView } from "@/components/month/MonthView";
 
 export default function MonthPage() {
   return (
     <Suspense>
-      <LedgerEditor />
+      <MonthView />
     </Suspense>
   );
 }

@@ -131,6 +131,7 @@ async function main() {
 
   await sql`create index if not exists recurring_templates_user_idx on recurring_templates (user_id)`;
   await sql`create index if not exists monthly_ledger_user_month_idx on monthly_ledger (user_id, month_key)`;
+  await sql`alter table monthly_ledger add column if not exists category text`.catch(() => undefined);
 
   await sql`create index if not exists transactions_user_category_idx on transactions (user_id, category_id)`;
 

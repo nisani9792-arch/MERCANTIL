@@ -23,6 +23,7 @@ export type MonthlyLedgerEntry = {
   name: string;
   type: LedgerItemType;
   amount: number;
+  category: string;
   is_from_template: boolean;
   template_id: string | null;
   is_variable: boolean;
@@ -40,4 +41,31 @@ export type MonthSummary = {
   netAfterAll: number;
   entryCount: number;
   initialized: boolean;
+};
+
+export type MonthTrendPoint = {
+  monthKey: string;
+  income: number;
+  expense: number;
+  net: number;
+};
+
+export type ExpenseBreakdownItem = {
+  category: string;
+  amount: number;
+};
+
+export type HistoricalAverages = {
+  avgIncome: number;
+  avgExpense: number;
+  avgNet: number;
+  monthsIncluded: number;
+};
+
+export type AnalyticsPayload = {
+  monthKey: string;
+  summary: MonthSummary;
+  trend: MonthTrendPoint[];
+  expenseBreakdown: ExpenseBreakdownItem[];
+  averages: HistoricalAverages;
 };

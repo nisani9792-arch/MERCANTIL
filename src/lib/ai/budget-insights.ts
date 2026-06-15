@@ -1,66 +1,89 @@
 import { askGeminiJson, isGeminiConfigured } from "@/lib/ai/gemini";
-import type { MonthSummary, MonthlyLedgerEntry } from "@/types/ledger";
+import type {
+  HistoricalAverages,
+  MonthSummary,
+  MonthlyLedgerEntry,
+} from "@/types/ledger";
 
-export type BudgetInsight = {
+export type SmartInsight = {
   headline: string;
-  remainingAnalysis: string;
-  variableTrend: string;
-  dailyTips: string[];
+  comparison: string;
+  savingsTips: string[];
 };
 
-const FALLBACK: BudgetInsight = {
-  headline: "תקציב משתנה זמין לחודש",
-  remainingAnalysis:
-    "השאר יתרה לקניות, מסעדות וקניות חד-פעמיות אחרי כיסוי ההוצאות הקבועות.",
-  variableTrend: "עקוב אחרי הוצאות משתנות ברשימת החודש.",
-  dailyTips: [
-    "קבע תקרה שבועית למזון ודבק בה",
-    "דחה קניות לא דחופות לסוף החודש",
+const FALLBACK: SmartInsight = {
+  headline: "מעקב חודשי פעיל",
+  comparison: "השווה את החודש הנוכחי לממוצע ההיסטורי שלך.",
+  savingsTips: [
+    "קבע תקרה שבועית למזון",
     "בדוק מנויים שלא בשימוש",
+    "דחה קניות לא דחופות",
   ],
 };
 
-export async function generateBudgetInsights(
+export async function generateSmartInsights(
   summary: MonthSummary,
   entries: MonthlyLedgerEntry[],
-): Promise<BudgetInsight> {
+  averages: HistoricalAverages,
+  priorMonthExpense?: number,
+): Promise<SmartInsight> {
+  const totalExpense =
+    summary.totalFixedExpenses + summary.totalVariableExpenses;
+  const expenseDelta =
+    averages.avgExpense > 0
+      ? ((totalExpense - averages.avgExpense) / averages.avgExpense) * 100
+      : 0;
+
   if (!isGeminiConfigured()) {
-    const remaining = summary.remainingForVariable;
     return {
-      ...FALLBACK,
       headline:
-        remaining >= 0
-          ? `נשארו ${remaining.toFixed(0)} ₪ להוצאות משתנות`
-          : `חוסר של ${Math.abs(remaining).toFixed(0)} ₪ אחרי קבועים`,
-      remainingAnalysis: `הכנסות ${summary.totalIncome.toFixed(0)} ₪, קבועים ${summary.totalFixedExpenses.toFixed(0)} ₪, משתנות ${summary.totalVariableExpenses.toFixed(0)} ₪.`,
+        summary.netAfterAll >= 0
+          ? `נשארו ₪${summary.netAfterAll.toFixed(0)} בסוף החודש`
+          : `חוסר של ₪${Math.abs(summary.netAfterAll).toFixed(0)}`,
+      comparison:
+        expenseDelta > 5
+          ? `הוצאת ${expenseDelta.toFixed(0)}% יותר מהממוצע החודשי`
+          : expenseDelta < -5
+            ? `הוצאת ${Math.abs(expenseDelta).toFixed(0)}% פחות מהממוצע — כל הכבוד!`
+            : "ההוצאות קרובות לממוצע ההיסטורי שלך",
+      savingsTips: FALLBACK.savingsTips,
     };
   }
 
-  const variableItems = entries
-    .filter((e) => e.is_variable)
-    .map((e) => `${e.name}: ${e.amount}`)
-    .join("\n");
+  const variableByCat = entries
+    .filter((e) => e.type === "expense" && e.is_variable)
+    .map((e) => `${e.category}: ₪${e.amount}`)
+    .join(", ");
 
-  const prompt = `Month ${summary.monthKey} household budget:
-Income: ${summary.totalIncome} ILS
-Fixed expenses: ${summary.totalFixedExpenses} ILS
-Variable expenses so far: ${summary.totalVariableExpenses} ILS
-Remaining for variable: ${summary.remainingForVariable} ILS
-Net after all: ${summary.netAfterAll} ILS
+  const prompt = `Analyze this Hebrew household budget for month ${summary.monthKey}:
 
-Variable entries:
-${variableItems || "(none yet)"}
+Current month:
+- Income: ₪${summary.totalIncome}
+- Total expenses: ₪${totalExpense} (fixed ₪${summary.totalFixedExpenses}, variable ₪${summary.totalVariableExpenses})
+- Net balance: ₪${summary.netAfterAll}
 
-Respond in Hebrew JSON:
+Historical 6-month averages:
+- Avg income: ₪${averages.avgIncome.toFixed(0)}
+- Avg expenses: ₪${averages.avgExpense.toFixed(0)}
+- Avg net: ₪${averages.avgNet.toFixed(0)}
+
+${priorMonthExpense ? `Prior month total expenses: ₪${priorMonthExpense}` : ""}
+Variable spending: ${variableByCat || "none yet"}
+
+Give concrete, actionable Hebrew advice. Compare to averages. Mention specific % changes when relevant.
+
+JSON only:
 {
-  "headline": "short punchy summary",
-  "remainingAnalysis": "2-3 sentences on remaining budget",
-  "variableTrend": "comment on variable spending pattern",
-  "dailyTips": ["tip1", "tip2", "tip3"]
+  "headline": "one punchy line",
+  "comparison": "2 sentences comparing this month to historical average",
+  "savingsTips": ["specific tip 1", "specific tip 2", "specific tip 3"]
 }`;
 
   try {
-    return await askGeminiJson<BudgetInsight>(prompt, "You are a concise Hebrew household finance coach.");
+    return await askGeminiJson<SmartInsight>(
+      prompt,
+      "You are a friendly Hebrew personal finance coach. Be specific and actionable.",
+    );
   } catch {
     return FALLBACK;
   }
