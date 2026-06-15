@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { TransactionListEditor } from "@/components/bank/TransactionListEditor";
 import type { Category } from "@/types";
 
 export function TransactionsWorkspace() {
@@ -15,6 +16,7 @@ export function TransactionsWorkspace() {
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [isFixedRecurring, setIsFixedRecurring] = useState(true);
 
   const { data: catData } = useQuery({
     queryKey: ["categories"],
@@ -35,6 +37,7 @@ export function TransactionsWorkspace() {
           date,
           categoryId,
           notes: notes || undefined,
+          isFixedRecurring,
         }),
       });
       if (!res.ok) throw new Error("failed");
@@ -118,6 +121,15 @@ export function TransactionsWorkspace() {
                 onChange={(e) => setNotes(e.target.value)}
               />
             </div>
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-on-surface">
+              <input
+                type="checkbox"
+                checked={isFixedRecurring}
+                onChange={(e) => setIsFixedRecurring(e.target.checked)}
+                className="h-4 w-4 rounded border-outline-variant accent-primary"
+              />
+              הוצאה/הכנסה קבועה וחוזרת
+            </label>
           </div>
           <button
             type="button"
@@ -133,6 +145,8 @@ export function TransactionsWorkspace() {
           )}
         </section>
       )}
+
+      <TransactionListEditor />
 
       <p className="text-center text-xs text-on-surface-variant">
         חזרה ל

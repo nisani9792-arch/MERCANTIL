@@ -23,6 +23,7 @@ export async function POST(request: Request) {
     categoryId?: string;
     accountSource?: string;
     notes?: string;
+    isFixedRecurring?: boolean;
   };
 
   if (!body.amount || !body.date || !body.categoryId) {
@@ -35,6 +36,7 @@ export async function POST(request: Request) {
     categoryId: body.categoryId,
     accountSource: body.accountSource,
     notes: body.notes,
+    isFixedRecurring: body.isFixedRecurring ?? true,
   });
 
   return NextResponse.json({ transaction }, { status: 201 });

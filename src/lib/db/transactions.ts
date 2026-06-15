@@ -68,6 +68,26 @@ function mapRow(row: Record<string, unknown>): TransactionWithCategory {
   };
 }
 
+export async function getTransactionById(
+  userId: string,
+  transactionId: string,
+): Promise<TransactionWithCategory | null> {
+  const sql = getSql();
+  const rows = await sql`
+    select
+      t.id, t.user_id, t.amount, t.date, t.category_id,
+      t.account_source, t.notes, t.import_hash, t.is_fixed_recurring,
+      t.created_at, t.updated_at,
+      c.name as category_name, c.type as category_type, c.icon as category_icon
+    from transactions t
+    join categories c on c.id = t.category_id
+    where t.id = ${transactionId} and t.user_id = ${userId}
+    limit 1
+  `;
+  const row = rows[0] as Record<string, unknown> | undefined;
+  return row ? mapRow(row) : null;
+}
+
 export async function createTransaction(
   userId: string,
   input: {
@@ -76,28 +96,60 @@ export async function createTransaction(
     categoryId: string;
     accountSource?: string;
     notes?: string;
+    isFixedRecurring?: boolean;
   },
 ): Promise<Transaction> {
   const sql = getSql();
+  const fixed = input.isFixedRecurring ?? true;
   const rows = await sql`
-    insert into transactions (user_id, amount, date, category_id, account_source, notes)
+    insert into transactions (
+      user_id, amount, date, category_id, account_source, notes, is_fixed_recurring
+    )
     values (
       ${userId},
       ${input.amount},
       ${input.date}::date,
       ${input.categoryId},
       ${input.accountSource ?? "ידני"},
-      ${input.notes ?? null}
+      ${input.notes ?? null},
+      ${fixed}
     )
     returning id, user_id, amount, date, category_id, account_source, notes,
-              import_hash, created_at, updated_at
+              import_hash, is_fixed_recurring, created_at, updated_at
   `;
   const row = rows[0] as Record<string, unknown>;
   return {
     ...row,
     amount: Number(row.amount),
     date: String(row.date).slice(0, 10),
+    is_fixed_recurring: Boolean(row.is_fixed_recurring),
   } as Transaction;
+}
+
+export async function updateTransaction(
+  userId: string,
+  transactionId: string,
+  input: { categoryId?: string; isFixedRecurring?: boolean },
+): Promise<TransactionWithCategory | null> {
+  const existing = await getTransactionById(userId, transactionId);
+  if (!existing) return null;
+
+  const categoryId = input.categoryId ?? existing.category_id;
+  const isFixed =
+    input.isFixedRecurring !== undefined
+      ? input.isFixedRecurring
+      : existing.is_fixed_recurring;
+
+  const sql = getSql();
+  await sql`
+    update transactions
+    set category_id = ${categoryId},
+        is_fixed_recurring = ${isFixed},
+        updated_at = now()
+    where id = ${transactionId} and user_id = ${userId}
+  `;
+
+  return getTransactionById(userId, transactionId);
 }
 
 export async function updateTransactionCategory(
@@ -105,13 +157,8 @@ export async function updateTransactionCategory(
   transactionId: string,
   categoryId: string,
 ): Promise<boolean> {
-  const sql = getSql();
-  const rows = await sql`
-    update transactions set category_id = ${categoryId}, updated_at = now()
-    where id = ${transactionId} and user_id = ${userId}
-    returning id
-  `;
-  return rows.length > 0;
+  const updated = await updateTransaction(userId, transactionId, { categoryId });
+  return updated !== null;
 }
 
 export type MonthlySnapshot = {
@@ -277,3 +324,67 @@ export async function getTransactionsForAi(userId: string, limit = 100) {
 
 /** Exported for scripts — keep SQL filter in sync */
 export { RELEVANT_WHERE };
+
+export type FixedRecurringAverages = {
+  avgIncome: number;
+  avgExpense: number;
+  avgNet: number;
+  monthsIncluded: number;
+  monthlyTrend: MonthlySnapshot[];
+};
+
+export async function getFixedRecurringAverages(
+  userId: string,
+): Promise<FixedRecurringAverages> {
+  const sql = getSql();
+
+  const monthRows = await sql`
+    select
+      to_char(date_trunc('month', t.date), 'YYYY-MM') as month,
+      coalesce(sum(case when c.type = 'income' then t.amount else 0 end), 0) as income,
+      coalesce(sum(case when c.type = 'expense' then t.amount else 0 end), 0) as expense
+    from transactions t
+    join categories c on c.id = t.category_id
+    where t.user_id = ${userId}
+      and t.is_fixed_recurring = true
+      and t.date >= (date_trunc('month', now()) - interval '5 months')
+    group by 1
+    order by 1 asc
+  `;
+
+  const byMonth = new Map<string, { income: number; expense: number }>();
+  for (const row of monthRows as Record<string, unknown>[]) {
+    byMonth.set(String(row.month), {
+      income: Number(row.income),
+      expense: Number(row.expense),
+    });
+  }
+
+  const monthlyTrend: MonthlySnapshot[] = [];
+  const now = new Date();
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const m = byMonth.get(key) ?? { income: 0, expense: 0 };
+    monthlyTrend.push({
+      month: key,
+      income: m.income,
+      expense: m.expense,
+      net: m.income - m.expense,
+    });
+  }
+
+  const divisor = monthlyTrend.length || 1;
+  const avgIncome =
+    monthlyTrend.reduce((s, m) => s + m.income, 0) / divisor;
+  const avgExpense =
+    monthlyTrend.reduce((s, m) => s + m.expense, 0) / divisor;
+
+  return {
+    avgIncome,
+    avgExpense,
+    avgNet: avgIncome - avgExpense,
+    monthsIncluded: monthlyTrend.length,
+    monthlyTrend,
+  };
+}
