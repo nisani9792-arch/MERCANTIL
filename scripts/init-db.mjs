@@ -77,7 +77,8 @@ async function main() {
   `;
 
   await sql`create index if not exists transactions_user_date_idx on transactions (user_id, date desc)`;
-  await sql`alter table transactions add column if not exists is_fixed_recurring boolean not null default false`
+  await sql`alter table transactions add column if not exists is_fixed_recurring boolean not null default false`;
+  await sql`alter table transactions add column if not exists recurring_day_of_month smallint check (recurring_day_of_month is null or recurring_day_of_month between 1 and 31)`.catch(() => undefined);
 
   await sql`
     create table if not exists ai_learning_rules (
@@ -86,10 +87,14 @@ async function main() {
       text_pattern text not null,
       assigned_category_id uuid not null references categories (id),
       is_fixed_recurring boolean not null default false,
+      recurring_day_of_month smallint check (recurring_day_of_month is null or recurring_day_of_month between 1 and 31),
+      typical_amount numeric(12, 2),
       created_at timestamptz not null default now(),
       unique (user_id, text_pattern)
     )
   `;
+  await sql`alter table ai_learning_rules add column if not exists recurring_day_of_month smallint`.catch(() => undefined);
+  await sql`alter table ai_learning_rules add column if not exists typical_amount numeric(12, 2)`.catch(() => undefined);
 
   await sql`create index if not exists transactions_user_category_idx on transactions (user_id, category_id)`;
 

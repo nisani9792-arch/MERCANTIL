@@ -19,6 +19,7 @@ export async function listTransactions(
         select
           t.id, t.user_id, t.amount, t.date, t.category_id,
           t.account_source, t.notes, t.import_hash, t.is_fixed_recurring,
+          t.recurring_day_of_month,
           t.created_at, t.updated_at,
           c.name as category_name, c.type as category_type, c.icon as category_icon
         from transactions t
@@ -35,6 +36,7 @@ export async function listTransactions(
         select
           t.id, t.user_id, t.amount, t.date, t.category_id,
           t.account_source, t.notes, t.import_hash, t.is_fixed_recurring,
+          t.recurring_day_of_month,
           t.created_at, t.updated_at,
           c.name as category_name, c.type as category_type, c.icon as category_icon
         from transactions t
@@ -58,6 +60,9 @@ function mapRow(row: Record<string, unknown>): TransactionWithCategory {
     notes: row.notes as string | null,
     import_hash: row.import_hash as string | null,
     is_fixed_recurring: Boolean(row.is_fixed_recurring),
+    recurring_day_of_month: row.recurring_day_of_month
+      ? Number(row.recurring_day_of_month)
+      : null,
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),
     category: {
@@ -77,6 +82,7 @@ export async function getTransactionById(
     select
       t.id, t.user_id, t.amount, t.date, t.category_id,
       t.account_source, t.notes, t.import_hash, t.is_fixed_recurring,
+      t.recurring_day_of_month,
       t.created_at, t.updated_at,
       c.name as category_name, c.type as category_type, c.icon as category_icon
     from transactions t
@@ -97,13 +103,16 @@ export async function createTransaction(
     accountSource?: string;
     notes?: string;
     isFixedRecurring?: boolean;
+    recurringDayOfMonth?: number | null;
   },
 ): Promise<Transaction> {
   const sql = getSql();
-  const fixed = input.isFixedRecurring ?? true;
+  const fixed = input.isFixedRecurring ?? input.recurringDayOfMonth != null;
+  const day = input.recurringDayOfMonth ?? null;
   const rows = await sql`
     insert into transactions (
-      user_id, amount, date, category_id, account_source, notes, is_fixed_recurring
+      user_id, amount, date, category_id, account_source, notes,
+      is_fixed_recurring, recurring_day_of_month
     )
     values (
       ${userId},
@@ -112,10 +121,12 @@ export async function createTransaction(
       ${input.categoryId},
       ${input.accountSource ?? "ידני"},
       ${input.notes ?? null},
-      ${fixed}
+      ${fixed},
+      ${day}
     )
     returning id, user_id, amount, date, category_id, account_source, notes,
-              import_hash, is_fixed_recurring, created_at, updated_at
+              import_hash, is_fixed_recurring, recurring_day_of_month,
+              created_at, updated_at
   `;
   const row = rows[0] as Record<string, unknown>;
   return {
@@ -123,13 +134,16 @@ export async function createTransaction(
     amount: Number(row.amount),
     date: String(row.date).slice(0, 10),
     is_fixed_recurring: Boolean(row.is_fixed_recurring),
+    recurring_day_of_month: row.recurring_day_of_month
+      ? Number(row.recurring_day_of_month)
+      : null,
   } as Transaction;
 }
 
 export async function updateTransaction(
   userId: string,
   transactionId: string,
-  input: { categoryId?: string; isFixedRecurring?: boolean },
+  input: { categoryId?: string; isFixedRecurring?: boolean; recurringDayOfMonth?: number | null },
 ): Promise<TransactionWithCategory | null> {
   const existing = await getTransactionById(userId, transactionId);
   if (!existing) return null;
@@ -139,12 +153,17 @@ export async function updateTransaction(
     input.isFixedRecurring !== undefined
       ? input.isFixedRecurring
       : existing.is_fixed_recurring;
+  const day =
+    input.recurringDayOfMonth !== undefined
+      ? input.recurringDayOfMonth
+      : existing.recurring_day_of_month;
 
   const sql = getSql();
   await sql`
     update transactions
     set category_id = ${categoryId},
         is_fixed_recurring = ${isFixed},
+        recurring_day_of_month = ${day},
         updated_at = now()
     where id = ${transactionId} and user_id = ${userId}
   `;

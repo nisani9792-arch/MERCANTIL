@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
-import { upsertLearningRule } from "@/lib/db/learning-rules";
+import { learnFromEntry, upsertLearningRule } from "@/lib/db/learning-rules";
 import {
   getTransactionById,
   updateTransaction,
@@ -9,6 +9,7 @@ import {
 type PatchBody = {
   categoryId?: string;
   isFixedRecurring?: boolean;
+  recurringDayOfMonth?: number | null;
 };
 
 export async function PATCH(
@@ -29,11 +30,20 @@ export async function PATCH(
   const updated = await updateTransaction(session.userId, id, {
     categoryId: body.categoryId,
     isFixedRecurring: body.isFixedRecurring,
+    recurringDayOfMonth: body.recurringDayOfMonth,
   });
 
   if (!updated) {
     return NextResponse.json({ error: "עדכון נכשל" }, { status: 400 });
   }
+
+  await learnFromEntry(session.userId, {
+    notes: existing.notes,
+    categoryId: updated.category_id,
+    amount: updated.amount,
+    recurringDayOfMonth: updated.recurring_day_of_month,
+    isFixedRecurring: updated.is_fixed_recurring,
+  }).catch(() => undefined);
 
   const pattern = (existing.notes ?? existing.account_source)
     .trim()
@@ -44,6 +54,9 @@ export async function PATCH(
       textPattern: pattern,
       categoryId: body.categoryId ?? existing.category_id,
       isFixedRecurring: body.isFixedRecurring ?? existing.is_fixed_recurring,
+      recurringDayOfMonth:
+        body.recurringDayOfMonth ?? existing.recurring_day_of_month,
+      typicalAmount: existing.amount,
     }).catch(() => undefined);
   }
 

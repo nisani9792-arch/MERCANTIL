@@ -7,7 +7,6 @@ import {
   getMonthlyCategoryBreakdown,
 } from "@/lib/db/transactions";
 import { BalanceOverview } from "@/components/bank/BalanceOverview";
-import { BrainDumpPanel } from "@/components/bank/BrainDumpPanel";
 import { CategoryMonthlyOverview } from "@/components/bank/CategoryMonthlyOverview";
 import { FixedCashflowCard } from "@/components/bank/FixedCashflowCard";
 
@@ -27,7 +26,6 @@ export default async function DashboardPage() {
     <div className="mx-auto max-w-2xl space-y-4">
       <BalanceOverview summary={summary} />
       <FixedCashflowCard averages={fixedAvg} />
-      <BrainDumpPanel />
       <CategoryMonthlyOverview
         income={breakdown.income}
         expenses={breakdown.expenses}

@@ -92,6 +92,9 @@ export function TransactionListEditor() {
                 </p>
                 <p className="text-xs text-on-surface-variant">
                   {formatDate(tx.date)}
+                  {tx.recurring_day_of_month
+                    ? ` · יום ${tx.recurring_day_of_month} בחודש`
+                    : ""}
                 </p>
               </div>
 

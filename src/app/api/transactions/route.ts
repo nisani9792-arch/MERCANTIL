@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
+import { learnFromEntry } from "@/lib/db/learning-rules";
 import { createTransaction, listTransactions } from "@/lib/db/transactions";
 
 export async function GET(request: Request) {
@@ -24,11 +25,19 @@ export async function POST(request: Request) {
     accountSource?: string;
     notes?: string;
     isFixedRecurring?: boolean;
+    recurringDayOfMonth?: number;
   };
 
   if (!body.amount || !body.date || !body.categoryId) {
     return NextResponse.json({ error: "נתונים חסרים" }, { status: 400 });
   }
+
+  const day =
+    body.recurringDayOfMonth != null &&
+    body.recurringDayOfMonth >= 1 &&
+    body.recurringDayOfMonth <= 31
+      ? body.recurringDayOfMonth
+      : null;
 
   const transaction = await createTransaction(session.userId, {
     amount: Math.abs(body.amount),
@@ -36,7 +45,16 @@ export async function POST(request: Request) {
     categoryId: body.categoryId,
     accountSource: body.accountSource,
     notes: body.notes,
-    isFixedRecurring: body.isFixedRecurring ?? true,
+    isFixedRecurring: body.isFixedRecurring ?? day != null,
+    recurringDayOfMonth: day,
+  });
+
+  await learnFromEntry(session.userId, {
+    notes: body.notes,
+    categoryId: body.categoryId,
+    amount: Math.abs(body.amount),
+    recurringDayOfMonth: day,
+    isFixedRecurring: body.isFixedRecurring ?? day != null,
   });
 
   return NextResponse.json({ transaction }, { status: 201 });
