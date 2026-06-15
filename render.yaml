@@ -3,14 +3,19 @@ services:
     name: mercantil
     runtime: node
     plan: free
-    buildCommand: npm install && npm run build && cp -r public .next/standalone/public && cp -r .next/static .next/standalone/.next/static
-    startCommand: node .next/standalone/server.js
+    healthCheckPath: /api/health
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
     envVars:
       - key: NODE_VERSION
         value: "20"
+      - key: HOSTNAME
+        value: "0.0.0.0"
       - key: DATABASE_URL
         sync: false
       - key: SESSION_SECRET
+        sync: false
+      - key: APP_PIN
         sync: false
       - key: GEMINI_API_KEY
         sync: false
