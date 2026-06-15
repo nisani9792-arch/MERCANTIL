@@ -1,10 +1,10 @@
 import { Suspense } from "react";
-import { AuthForm } from "@/components/layout/AuthForm";
+import { PinGate } from "@/components/layout/PinGate";
 
 export default function LoginPage() {
   return (
     <Suspense>
-      <AuthForm mode="login" />
+      <PinGate />
     </Suspense>
   );
 }

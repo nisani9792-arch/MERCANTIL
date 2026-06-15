@@ -1,4 +1,4 @@
-﻿import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { verifySessionToken, SESSION_COOKIE } from "@/lib/auth/session";
 import { isDatabaseConfigured } from "@/lib/db/client";
 
@@ -8,6 +8,12 @@ const DEPRECATED = ["/import", "/insights"];
 
 export async function updateSession(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  if (pathname.startsWith("/register")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    return NextResponse.redirect(url);
+  }
 
   if (DEPRECATED.some((p) => pathname.startsWith(p))) {
     const url = request.nextUrl.clone();
@@ -39,7 +45,7 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (session && isAuthRoute) {
+  if (session && pathname === "/login") {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);

@@ -1,10 +1,5 @@
-import { Suspense } from "react";
-import { AuthForm } from "@/components/layout/AuthForm";
+import { redirect } from "next/navigation";
 
 export default function RegisterPage() {
-  return (
-    <Suspense>
-      <AuthForm mode="register" />
-    </Suspense>
-  );
+  redirect("/login");
 }
