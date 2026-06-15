@@ -36,10 +36,8 @@ export function BalanceOverview({ summary, currency = "ILS" }: BalanceOverviewPr
   return (
     <section className="m3-card overflow-hidden">
       <div className="border-b border-outline-variant bg-surface-container px-3 py-2 sm:px-4">
-        <h2 className="text-sm font-bold text-on-surface">משק בית — סיכום חודשי</h2>
-        <p className="text-xs text-on-surface-variant">
-          ממוקד בהכנסות והוצאות משמעותיות
-        </p>
+        <h2 className="text-sm font-bold text-on-surface">משק בית — החודש</h2>
+        <p className="text-xs text-on-surface-variant">הכנסות והוצאות קבועות בלבד</p>
       </div>
       <div className="grid gap-3 p-3 sm:gap-4 sm:p-4 lg:grid-cols-[1fr_2fr]">
         <div className="rounded-xl border border-outline-variant bg-surface-container-low p-3 sm:border-0 sm:bg-transparent sm:p-0">

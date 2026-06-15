@@ -200,6 +200,54 @@ export async function getFinancialSummary(userId: string): Promise<FinancialSumm
   };
 }
 
+
+export type CategoryMonthlyRow = {
+  categoryId: string;
+  categoryName: string;
+  categoryType: "income" | "expense";
+  total: number;
+  count: number;
+};
+
+export async function getMonthlyCategoryBreakdown(userId: string) {
+  const sql = getSql();
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    .toISOString()
+    .slice(0, 10);
+
+  const rows = await sql`
+    select
+      c.id as category_id,
+      c.name as category_name,
+      c.type as category_type,
+      coalesce(sum(t.amount), 0) as total,
+      count(t.id)::int as count
+    from transactions t
+    join categories c on c.id = t.category_id
+    where t.user_id = ${userId}
+      and t.date >= ${monthStart}::date
+      and (t.notes is null or (
+        t.notes not ilike '%חיוב זמני%'
+        and t.notes not ilike '%temporary charge%'
+      ))
+    group by c.id, c.name, c.type
+    order by total desc
+  `;
+
+  const all = (rows as Record<string, unknown>[]).map((r) => ({
+    categoryId: String(r.category_id),
+    categoryName: String(r.category_name),
+    categoryType: r.category_type as "income" | "expense",
+    total: Number(r.total),
+    count: Number(r.count),
+  }));
+
+  return {
+    income: all.filter((r) => r.categoryType === "income"),
+    expenses: all.filter((r) => r.categoryType === "expense"),
+  };
+}
 export async function getTransactionsForAi(userId: string, limit = 100) {
   const sql = getSql();
   const rows = await sql`
