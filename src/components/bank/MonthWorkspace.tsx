@@ -10,6 +10,7 @@ import {
 } from "@/components/bank/LedgerBottomSheet";
 import { TransactionCard } from "@/components/bank/TransactionCard";
 import { MonthNavigator } from "@/components/ui/MonthNavigator";
+import { fetchLive, mutateLive } from "@/lib/api/fetch-live";
 import type { MonthlyLedgerEntry } from "@/types/ledger";
 import { useMonthStore } from "@/stores/useMonthStore";
 
@@ -27,19 +28,17 @@ export function MonthWorkspace() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["ledger", monthKey],
-    queryFn: async () => {
-      const res = await fetch(`/api/ledger?month=${monthKey}`);
-      if (!res.ok) throw new Error("failed");
-      return res.json() as Promise<LedgerResponse>;
-    },
+    queryFn: () => fetchLive<LedgerResponse>(`/api/ledger?month=${monthKey}`),
+    staleTime: 0,
   });
 
-  const invalidate = () => {
-    qc.invalidateQueries({ queryKey: ["ledger", monthKey] });
-    qc.invalidateQueries({ queryKey: ["analytics", monthKey] });
-    qc.invalidateQueries({ queryKey: ["smart-insights", monthKey] });
-    qc.invalidateQueries({ queryKey: ["ai-insights", monthKey] });
-  };
+  async function refetchAll() {
+    await Promise.all([
+      qc.refetchQueries({ queryKey: ["ledger", monthKey] }),
+      qc.refetchQueries({ queryKey: ["analytics", monthKey] }),
+      qc.refetchQueries({ queryKey: ["ai-insights", monthKey] }),
+    ]);
+  }
 
   const saveMut = useMutation({
     mutationFn: async (payload: {
@@ -51,7 +50,7 @@ export function MonthWorkspace() {
       isVariable: boolean;
     }) => {
       if (payload.id) {
-        const res = await fetch(`/api/ledger/${payload.id}`, {
+        const res = await mutateLive(`/api/ledger/${payload.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -62,7 +61,7 @@ export function MonthWorkspace() {
         });
         if (!res.ok) throw new Error("patch failed");
       } else {
-        const res = await fetch("/api/ledger", {
+        const res = await mutateLive("/api/ledger", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -77,31 +76,19 @@ export function MonthWorkspace() {
         if (!res.ok) throw new Error("post failed");
       }
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       setSheetOpen(false);
       setSheetMode(null);
-      invalidate();
+      await refetchAll();
     },
   });
 
   const deleteMut = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/ledger/${id}`, { method: "DELETE" });
+      const res = await mutateLive(`/api/ledger/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("delete failed");
     },
-    onSuccess: invalidate,
-  });
-
-  const markPaidMut = useMutation({
-    mutationFn: async ({ id, isPaid }: { id: string; isPaid: boolean }) => {
-      const res = await fetch(`/api/ledger/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isPaid }),
-      });
-      if (!res.ok) throw new Error("mark paid failed");
-    },
-    onSuccess: invalidate,
+    onSuccess: refetchAll,
   });
 
   const entries = data?.entries ?? [];
@@ -119,14 +106,7 @@ export function MonthWorkspace() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-4 pb-24">
-      <div>
-        <h1 className="text-2xl font-bold text-on-surface">החודש שלי</h1>
-        <p className="text-sm text-on-surface-variant">
-          ערוך רק את החודש הנבחר — התבנית הגלובלית לא משתנה
-        </p>
-      </div>
-
+    <div className="mx-auto max-w-2xl space-y-3 pb-24">
       <MonthNavigator />
 
       <InitMonthPanel
@@ -158,12 +138,6 @@ export function MonthWorkspace() {
                 entry={e}
                 onTap={() => openEdit(e)}
                 onDelete={() => deleteMut.mutate(e.id)}
-                onMarkPaid={
-                  !e.is_variable
-                    ? () =>
-                        markPaidMut.mutate({ id: e.id, isPaid: !e.is_paid })
-                    : undefined
-                }
               />
             ))}
           </CardSection>

@@ -52,9 +52,6 @@ export async function getMonthSummary(
   const fixedExpenses = entries
     .filter((e) => e.type === "expense" && !e.is_variable)
     .reduce((s, e) => s + e.amount, 0);
-  const fixedPaid = entries
-    .filter((e) => e.type === "expense" && !e.is_variable && e.is_paid)
-    .reduce((s, e) => s + e.amount, 0);
   const variableExpenses = entries
     .filter((e) => e.type === "expense" && e.is_variable)
     .reduce((s, e) => s + e.amount, 0);
@@ -65,7 +62,7 @@ export async function getMonthSummary(
     monthKey,
     totalIncome,
     totalFixedExpenses: fixedExpenses,
-    fixedExpensesPaid: fixedPaid,
+    fixedExpensesPaid: fixedExpenses,
     totalVariableExpenses: variableExpenses,
     remainingForVariable,
     disposableRemaining: remainingForVariable - variableExpenses,
@@ -96,7 +93,7 @@ export async function initMonthFromTemplates(
       )
       values (
         ${userId}, ${monthKey}, ${t.name}, ${t.type}, ${t.amount}, ${t.name},
-        true, ${t.id}, false, false, null
+        true, ${t.id}, false, true, null
       )
     `;
     created++;
@@ -127,7 +124,7 @@ export async function addLedgerEntry(
     values (
       ${userId}, ${input.monthKey}, ${input.name}, ${input.type},
       ${input.amount}, ${category}, false, null, ${input.isVariable ?? false},
-      false, ${input.notes ?? null}
+      true, ${input.notes ?? null}
     )
     returning *
   `;
@@ -137,7 +134,7 @@ export async function addLedgerEntry(
 export async function updateLedgerEntry(
   userId: string,
   id: string,
-  input: Partial<{ name: string; amount: number; category: string; notes: string | null; isPaid: boolean }>,
+  input: Partial<{ name: string; amount: number; category: string; notes: string | null }>,
 ): Promise<MonthlyLedgerEntry | null> {
   const sql = getSql();
   const existing = await sql`
@@ -151,7 +148,7 @@ export async function updateLedgerEntry(
     set name = ${input.name ?? cur.name},
         amount = ${input.amount ?? cur.amount},
         category = ${input.category ?? cur.category},
-        is_paid = ${input.isPaid !== undefined ? input.isPaid : cur.is_paid},
+        is_paid = true,
         notes = ${input.notes !== undefined ? input.notes : cur.notes},
         updated_at = now()
     where id = ${id} and user_id = ${userId}

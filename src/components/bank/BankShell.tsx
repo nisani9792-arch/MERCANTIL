@@ -5,6 +5,7 @@ import {
   BankMobileFab,
 } from "@/components/bank/BankNavSidebar";
 import { InstallPrompt } from "@/components/layout/InstallPrompt";
+import { useRefetchOnVisible } from "@/hooks/useRefetchOnVisible";
 
 type BankShellProps = {
   children: React.ReactNode;
@@ -13,6 +14,8 @@ type BankShellProps = {
 };
 
 export function BankShell({ children, userName, userId }: BankShellProps) {
+  useRefetchOnVisible();
+
   return (
     <div className="bank-canvas flex min-h-[100dvh] flex-col">
       <BankHeader userName={userName} userId={userId} />

@@ -8,7 +8,6 @@ type TransactionsTableProps = {
   title?: string;
   onTap?: (entry: MonthlyLedgerEntry) => void;
   onDelete?: (id: string) => void;
-  onMarkPaid?: (id: string, isPaid: boolean) => void;
 };
 
 export function TransactionsTable({
@@ -16,7 +15,6 @@ export function TransactionsTable({
   title = "רישומי חודש",
   onTap,
   onDelete,
-  onMarkPaid,
 }: TransactionsTableProps) {
   return (
     <section className="m3-card overflow-hidden">
@@ -36,11 +34,6 @@ export function TransactionsTable({
                 entry={entry}
                 onTap={() => onTap?.(entry)}
                 onDelete={() => onDelete?.(entry.id)}
-                onMarkPaid={
-                  onMarkPaid && entry.type === "expense" && !entry.is_variable
-                    ? () => onMarkPaid(entry.id, !entry.is_paid)
-                    : undefined
-                }
               />
             </li>
           ))}

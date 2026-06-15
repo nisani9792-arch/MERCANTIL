@@ -19,7 +19,10 @@ export async function GET(request: Request) {
     getMonthSummary(session.userId, monthKey),
   ]);
 
-  return NextResponse.json({ entries, summary, monthKey });
+  return NextResponse.json(
+    { entries, summary, monthKey },
+    { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } },
+  );
 }
 
 export async function POST(request: Request) {

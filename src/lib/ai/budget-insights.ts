@@ -1,121 +1,154 @@
 import { askGeminiJson, isGeminiConfigured } from "@/lib/ai/gemini";
+import {
+  computeHealthScore,
+  detectAnomalies,
+  type DetectedAnomaly,
+} from "@/lib/ai/anomaly-detector";
 import type {
+  FixedTemplate,
   HistoricalAverages,
   MonthSummary,
+  MonthTrendPoint,
   MonthlyLedgerEntry,
 } from "@/types/ledger";
 
-export type SmartInsight = {
+export type BudgetAnalysis = {
   headline: string;
-  comparison: string;
-  savingsTips: string[];
+  verdict: string;
+  healthScore: number;
+  anomalies: Array<{
+    severity: "alert" | "warn" | "info";
+    title: string;
+    detail: string;
+    action?: string;
+  }>;
+  focusItems: string[];
 };
 
-const FALLBACK: SmartInsight = {
-  headline: "מעקב חודשי פעיל",
-  comparison: "השווה את החודש הנוכחי לממוצע ההיסטורי שלך.",
-  savingsTips: [
-    "קבע תקרה שבועית למזון",
-    "בדוק מנויים שלא בשימוש",
-    "דחה קניות לא דחופות",
-  ],
-};
+function formatEntries(entries: MonthlyLedgerEntry[]) {
+  const income = entries
+    .filter((e) => e.type === "income")
+    .map((e) => `${e.name}: ₪${e.amount}`)
+    .join(", ");
+  const fixed = entries
+    .filter((e) => e.type === "expense" && !e.is_variable)
+    .map((e) => `${e.name}: ₪${e.amount}`)
+    .join(", ");
+  const variable = entries
+    .filter((e) => e.type === "expense" && e.is_variable)
+    .map((e) => `${e.name} (${e.category}): ₪${e.amount}`)
+    .join(", ");
+  return { income, fixed, variable };
+}
 
-export async function generateSmartInsights(
+function ruleBasedAnalysis(
   summary: MonthSummary,
   entries: MonthlyLedgerEntry[],
   averages: HistoricalAverages,
-  priorMonthExpense?: number,
-): Promise<SmartInsight> {
-  const totalExpense =
-    summary.totalFixedExpenses + summary.totalVariableExpenses;
-  const expenseDelta =
-    averages.avgExpense > 0
-      ? ((totalExpense - averages.avgExpense) / averages.avgExpense) * 100
-      : 0;
+  trend: MonthTrendPoint[],
+  templates: FixedTemplate[],
+): BudgetAnalysis {
+  const detected = detectAnomalies(summary, entries, averages, trend, templates);
+  const healthScore = computeHealthScore(summary, detected);
+  const disposable = summary.disposableRemaining;
 
-  const fixedUnpaid = entries
-    .filter((e) => e.type === "expense" && !e.is_variable && !e.is_paid)
-    .map((e) => `${e.name}: ₪${e.amount}`)
-    .join(", ");
+  const anomalies = detected.map((d) => ({
+    ...d,
+    action:
+      d.severity === "alert"
+        ? "בדוק מיד אילו הוצאות ניתן לדחות או לצמצם החודש."
+        : d.severity === "warn"
+          ? "השווה לחודשים קודמים ולתבנית הבסיס."
+          : undefined,
+  }));
 
-  const fixedPaidPct =
-    summary.totalFixedExpenses > 0
-      ? (summary.fixedExpensesPaid / summary.totalFixedExpenses) * 100
-      : 0;
+  return {
+    headline:
+      disposable >= 0
+        ? `נשארו ₪${disposable.toFixed(0)} לגמישות החודש`
+        : `חריגה של ₪${Math.abs(disposable).toFixed(0)} מהתקציב`,
+    verdict:
+      anomalies.length > 0
+        ? `זיהיתי ${anomalies.length} נקודות שדורשות תשומת לב. מצב כללי: ${healthScore}/100.`
+        : `המצב מאוזן. ${healthScore}/100 — ההוצאות בקו עם ההכנסות והבסיס שלך.`,
+    healthScore,
+    anomalies,
+    focusItems: anomalies.slice(0, 3).map((a) => a.title),
+  };
+}
 
-  if (!isGeminiConfigured()) {
-    const disposable = summary.disposableRemaining;
-    return {
-      headline:
-        disposable >= 0
-          ? `נשארו ₪${disposable.toFixed(0)} להוצאות משתנות`
-          : `חרגת ב-₪${Math.abs(disposable).toFixed(0)} מהתקציב המשתנה`,
-      comparison:
-        summary.fixedExpensesPaid < summary.totalFixedExpenses
-          ? `שולמו ${fixedPaidPct.toFixed(0)}% מההוצאות הקבועות — נותרו ₪${(summary.totalFixedExpenses - summary.fixedExpensesPaid).toFixed(0)} לתשלום`
-          : expenseDelta > 5
-            ? `הוצאת ${expenseDelta.toFixed(0)}% יותר מהממוצע החודשי`
-            : "ההוצאות קרובות לממוצע ההיסטורי שלך",
-      savingsTips: FALLBACK.savingsTips,
-    };
-  }
+export async function generateBudgetAnalysis(
+  summary: MonthSummary,
+  entries: MonthlyLedgerEntry[],
+  averages: HistoricalAverages,
+  trend: MonthTrendPoint[],
+  templates: FixedTemplate[],
+): Promise<BudgetAnalysis> {
+  const detected = detectAnomalies(summary, entries, averages, trend, templates);
+  const healthScore = computeHealthScore(summary, detected);
+  const { income, fixed, variable } = formatEntries(entries);
 
-  const variableByCat = entries
-    .filter((e) => e.type === "expense" && e.is_variable)
-    .map((e) => `${e.category}: ₪${e.amount}`)
-    .join(", ");
+  const fallback = ruleBasedAnalysis(
+    summary,
+    entries,
+    averages,
+    trend,
+    templates,
+  );
 
-  const fixedEntries = entries
-    .filter((e) => e.type === "expense" && !e.is_variable)
-    .map((e) => `${e.name}: ₪${e.amount}${e.is_paid ? " (paid)" : " (unpaid)"}`)
-    .join(", ");
+  if (!isGeminiConfigured()) return fallback;
 
-  const prompt = `You are monitoring a Hebrew household MonthlyLedger focused on FIXED recurring expenses and disposable income for variable spending.
+  const detectedJson = JSON.stringify(detected, null, 0);
+  const trendJson = trend
+    .map((t) => `${t.monthKey}: הכנסה ₪${t.income} הוצאה ₪${t.expense}`)
+    .join(" | ");
 
-Month: ${summary.monthKey}
+  const prompt = `אתה יועץ פיננסי אישי חכם (2026) למשק בית ישראלי. נתח את הנתונים ותתערב — אל תחזור נתונים יבשים.
 
-INCOME & FIXED BASELINE:
-- Total income: ₪${summary.totalIncome}
-- Total fixed expenses (budgeted): ₪${summary.totalFixedExpenses}
-- Fixed expenses PAID so far: ₪${summary.fixedExpensesPaid} (${fixedPaidPct.toFixed(0)}%)
-- Unpaid fixed: ${fixedUnpaid || "none"}
+חודש: ${summary.monthKey}
+הכנסות: ₪${summary.totalIncome} | קבועות: ₪${summary.totalFixedExpenses} | משתנות: ₪${summary.totalVariableExpenses}
+נשאר לגמישות: ₪${summary.disposableRemaining} | נטו: ₪${summary.netAfterAll}
 
-DISPOSABLE / VARIABLE BUDGET:
-- Budget for variable expenses (income minus fixed): ₪${summary.remainingForVariable}
-- Variable expenses spent: ₪${summary.totalVariableExpenses}
-- REMAINING for variable expenses: ₪${summary.disposableRemaining}
-- Net after all: ₪${summary.netAfterAll}
+שורות הכנסה: ${income || "—"}
+שורות קבועות: ${fixed || "—"}
+שורות משתנות: ${variable || "—"}
 
-Fixed expense line items: ${fixedEntries || "none"}
-Variable spending: ${variableByCat || "none yet"}
+ממוצע 6 חודשים: הכנסה ₪${averages.avgIncome.toFixed(0)}, הוצאה ₪${averages.avgExpense.toFixed(0)}
+מגמה: ${trendJson}
 
-Historical 6-month averages:
-- Avg income: ₪${averages.avgIncome.toFixed(0)}
-- Avg expenses: ₪${averages.avgExpense.toFixed(0)}
-- Avg net: ₪${averages.avgNet.toFixed(0)}
-${priorMonthExpense ? `Prior month total expenses: ₪${priorMonthExpense}` : ""}
+חריגות שזוהו אוטומטית (הרחב, אל תתעלם):
+${detectedJson}
 
-Your job:
-1. Warn if fixed expenses are creeping up vs historical average or if unpaid fixed items are piling up.
-2. Assess whether the remaining variable budget (₪${summary.disposableRemaining}) is healthy or at risk.
-3. Suggest 3 concrete ways to optimize the remaining variable budget.
+כתוב בעברית. היה חד, אישי, ומצביע על חריגות אמיתיות. כל anomaly חייב action קונקרטי.
+healthScore התחלתי: ${healthScore} (תקן אם צריך).
 
-Respond in Hebrew. Be specific with ₪ amounts and percentages.
-
-JSON only:
+JSON בלבד:
 {
-  "headline": "one punchy line about disposable income or fixed-expense risk",
-  "comparison": "2 sentences about fixed expense creep, unpaid items, or variable budget health vs historical average",
-  "savingsTips": ["specific tip 1", "specific tip 2", "specific tip 3"]
+  "headline": "משפט אחד חד על המצב",
+  "verdict": "2 משפטים — מה טוב ומה מדאיג",
+  "healthScore": 0-100,
+  "anomalies": [
+    { "severity": "alert|warn|info", "title": "...", "detail": "...", "action": "מה לעשות עכשיו" }
+  ],
+  "focusItems": ["3 דברים לעקוב אחריהם השבוע"]
 }`;
 
   try {
-    return await askGeminiJson<SmartInsight>(
+    const ai = await askGeminiJson<BudgetAnalysis>(
       prompt,
-      "You are a friendly Hebrew personal finance coach focused on fixed recurring expenses and disposable income. Be specific and actionable.",
+      "You are an assertive Hebrew household CFO AI. Flag real anomalies. Never just repeat numbers — interpret and intervene.",
     );
+    return {
+      ...ai,
+      healthScore: Math.max(0, Math.min(100, ai.healthScore ?? healthScore)),
+      anomalies: ai.anomalies?.length ? ai.anomalies : fallback.anomalies,
+      focusItems: ai.focusItems?.length ? ai.focusItems : fallback.focusItems,
+    };
   } catch {
-    return FALLBACK;
+    return fallback;
   }
 }
+
+/** @deprecated */
+export type SmartInsight = BudgetAnalysis;
+export const generateSmartInsights = generateBudgetAnalysis;

@@ -15,7 +15,7 @@ export function DisposableIncomeHero({ summary }: DisposableIncomeHeroProps) {
   return (
     <section className="m3-card-gold m3-expressive-enter overflow-hidden rounded-3xl p-5 text-center">
       <p className="text-sm font-semibold text-on-surface-variant">
-        נשאר לך להוצאות משתנות החודש
+        פנוי להוצאות משתנות
       </p>
       <p
         className={cn(
@@ -25,11 +25,6 @@ export function DisposableIncomeHero({ summary }: DisposableIncomeHeroProps) {
         dir="ltr"
       >
         {formatCurrency(remaining)}
-      </p>
-      <p className="mt-3 text-xs leading-relaxed text-on-surface-variant">
-        הכנסות ₪{summary.totalIncome.toLocaleString("he-IL")} פחות קבועות ₪
-        {summary.totalFixedExpenses.toLocaleString("he-IL")} פחות משתנות ₪
-        {summary.totalVariableExpenses.toLocaleString("he-IL")}
       </p>
     </section>
   );

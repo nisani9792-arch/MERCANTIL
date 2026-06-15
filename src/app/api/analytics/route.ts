@@ -11,5 +11,7 @@ export async function GET(request: Request) {
   const monthKey = searchParams.get("month") ?? currentMonthKey();
 
   const analytics = await getAnalytics(session.userId, monthKey);
-  return NextResponse.json(analytics);
+  return NextResponse.json(analytics, {
+    headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
+  });
 }
