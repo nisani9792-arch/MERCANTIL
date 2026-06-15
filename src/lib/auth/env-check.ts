@@ -10,7 +10,7 @@ export function getAuthSetupError(): string | null {
     return "SESSION_SECRET לא מוגדר בשרת (מינימום 16 תווים).";
   }
   if (!isPinConfigured()) {
-    return "APP_PIN לא מוגדר (4–6 ספרות). הוסף ב-Render → Environment.";
+    return "קוד גישה לא תקין.";
   }
   return null;
 }

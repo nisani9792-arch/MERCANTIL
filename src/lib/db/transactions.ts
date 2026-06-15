@@ -18,7 +18,7 @@ export async function listTransactions(
     ? await sql`
         select
           t.id, t.user_id, t.amount, t.date, t.category_id,
-          t.account_source, t.notes, t.import_hash,
+          t.account_source, t.notes, t.import_hash, t.is_fixed_recurring,
           t.created_at, t.updated_at,
           c.name as category_name, c.type as category_type, c.icon as category_icon
         from transactions t
@@ -34,7 +34,7 @@ export async function listTransactions(
     : await sql`
         select
           t.id, t.user_id, t.amount, t.date, t.category_id,
-          t.account_source, t.notes, t.import_hash,
+          t.account_source, t.notes, t.import_hash, t.is_fixed_recurring,
           t.created_at, t.updated_at,
           c.name as category_name, c.type as category_type, c.icon as category_icon
         from transactions t
@@ -57,6 +57,7 @@ function mapRow(row: Record<string, unknown>): TransactionWithCategory {
     account_source: row.account_source as string,
     notes: row.notes as string | null,
     import_hash: row.import_hash as string | null,
+    is_fixed_recurring: Boolean(row.is_fixed_recurring),
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),
     category: {

@@ -70,12 +70,27 @@ async function main() {
       account_source text not null default 'כללי',
       notes text,
       import_hash text,
+      is_fixed_recurring boolean not null default false,
       created_at timestamptz not null default now(),
       updated_at timestamptz not null default now()
     )
   `;
 
   await sql`create index if not exists transactions_user_date_idx on transactions (user_id, date desc)`;
+  await sql`alter table transactions add column if not exists is_fixed_recurring boolean not null default false`
+
+  await sql`
+    create table if not exists ai_learning_rules (
+      id uuid primary key default gen_random_uuid(),
+      user_id uuid not null references users (id) on delete cascade,
+      text_pattern text not null,
+      assigned_category_id uuid not null references categories (id),
+      is_fixed_recurring boolean not null default false,
+      created_at timestamptz not null default now(),
+      unique (user_id, text_pattern)
+    )
+  `;
+
   await sql`create index if not exists transactions_user_category_idx on transactions (user_id, category_id)`;
 
   const categories = [

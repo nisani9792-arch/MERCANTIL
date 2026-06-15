@@ -2,10 +2,18 @@
 
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
+import { Delete } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
-const PIN_LENGTH = 6;
+const PIN_LENGTH = 4;
+
+const KEYPAD = [
+  ["1", "2", "3"],
+  ["4", "5", "6"],
+  ["7", "8", "9"],
+  ["back", "0", "enter"],
+] as const;
 
 export function PinGate() {
   const router = useRouter();
@@ -13,16 +21,14 @@ export function PinGate() {
   const redirect = searchParams.get("redirect") ?? "/dashboard";
   const needsSetup = searchParams.get("setup") === "database";
 
-  const [digits, setDigits] = useState<string[]>(Array(PIN_LENGTH).fill(""));
+  const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
-
-  const pinValue = digits.join("").replace(/\D/g, "");
+  const [shake, setShake] = useState(false);
 
   const submitPin = useCallback(
-    async (pin: string) => {
-      if (pin.length < 4) return;
+    async (value: string) => {
+      if (value.length !== PIN_LENGTH) return;
       setError(null);
       setLoading(true);
 
@@ -31,14 +37,15 @@ export function PinGate() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "same-origin",
-          body: JSON.stringify({ pin }),
+          body: JSON.stringify({ pin: value }),
         });
 
         const data = (await res.json()) as { error?: string };
         if (!res.ok) {
           setError(data.error ?? "קוד שגוי");
-          setDigits(Array(PIN_LENGTH).fill(""));
-          inputsRef.current[0]?.focus();
+          setPin("");
+          setShake(true);
+          setTimeout(() => setShake(false), 500);
           setLoading(false);
           return;
         }
@@ -54,114 +61,132 @@ export function PinGate() {
     [redirect, router],
   );
 
-  function handleChange(index: number, value: string) {
-    const char = value.replace(/\D/g, "").slice(-1);
-    const next = [...digits];
-    next[index] = char;
-    setDigits(next);
+  function pressKey(key: string) {
+    if (loading) return;
     setError(null);
 
-    if (char && index < PIN_LENGTH - 1) {
-      inputsRef.current[index + 1]?.focus();
+    if (key === "back") {
+      setPin((p) => p.slice(0, -1));
+      return;
     }
 
-    const assembled = next.join("");
-    if (assembled.length === PIN_LENGTH) {
-      void submitPin(assembled);
+    if (key === "enter") {
+      void submitPin(pin);
+      return;
     }
-  }
 
-  function handleKeyDown(index: number, e: React.KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Backspace" && !digits[index] && index > 0) {
-      inputsRef.current[index - 1]?.focus();
-    }
-    if (e.key === "Enter") {
-      void submitPin(pinValue);
-    }
-  }
-
-  function handlePaste(e: React.ClipboardEvent) {
-    e.preventDefault();
-    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, PIN_LENGTH);
-    if (!pasted) return;
-    const next = Array(PIN_LENGTH).fill("");
-    for (let i = 0; i < pasted.length; i++) next[i] = pasted[i];
-    setDigits(next);
-    if (pasted.length >= 4) void submitPin(pasted);
+    setPin((p) => {
+      if (p.length >= PIN_LENGTH) return p;
+      const next = p + key;
+      if (next.length === PIN_LENGTH) {
+        setTimeout(() => void submitPin(next), 120);
+      }
+      return next;
+    });
   }
 
   return (
-    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-surface px-4 py-6 safe-top safe-bottom">
+    <div
+      className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden bg-surface px-4 py-6 safe-top safe-bottom"
+      onContextMenu={(e) => e.preventDefault()}
+    >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(201,162,39,0.1),transparent_55%)]" />
-      <div className="m3-card relative w-full max-w-sm p-6 sm:p-8">
-        <div className="mb-6 flex flex-col items-center text-center">
+      <div className="m3-card relative w-full max-w-sm p-5 sm:p-8">
+        <div className="mb-5 flex flex-col items-center text-center">
           <Image
             src="/logo.png"
             alt="מרכנטיל"
-            width={240}
-            height={100}
+            width={220}
+            height={90}
             priority
-            className="h-auto w-full max-w-[220px] object-contain"
+            className="h-auto w-full max-w-[200px] object-contain"
           />
-          <p className="mt-4 text-sm font-semibold text-on-surface">הזן קוד גישה</p>
-          <p className="mt-1 text-xs text-on-surface-variant">
-            משק בית פרטי — כניסה מיידית
-          </p>
+          <p className="mt-3 text-sm font-semibold text-on-surface">קוד גישה</p>
         </div>
 
         {needsSetup && (
           <div className="mb-4 rounded-lg border border-warning bg-warning-container/30 p-3 text-xs text-on-surface">
-            הגדר DATABASE_URL, SESSION_SECRET ו-APP_PIN בשרת.
+            הגדר DATABASE_URL ו-SESSION_SECRET בשרת.
           </div>
         )}
 
+        {/* PIN dots — no keyboard focus */}
         <div
-          className="flex justify-center gap-2 sm:gap-3"
+          className={cn(
+            "mb-6 flex justify-center gap-3",
+            shake && "pin-shake",
+          )}
           dir="ltr"
-          onPaste={handlePaste}
+          aria-label="קוד גישה"
         >
-          {digits.map((d, i) => (
-            <input
+          {Array.from({ length: PIN_LENGTH }).map((_, i) => (
+            <div
               key={i}
-              ref={(el) => {
-                inputsRef.current[i] = el;
-              }}
-              type="password"
-              inputMode="numeric"
-              autoComplete={i === 0 ? "one-time-code" : "off"}
-              maxLength={1}
-              value={d}
-              disabled={loading}
-              aria-label={`ספרה ${i + 1}`}
               className={cn(
-                "h-12 w-10 rounded-xl border-2 bg-surface-container-low text-center text-lg font-bold text-on-surface transition-colors sm:h-14 sm:w-12 sm:text-xl",
-                "border-outline-variant focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20",
-                error && "border-error/50",
+                "h-3.5 w-3.5 rounded-full border-2 transition-all duration-150",
+                i < pin.length
+                  ? "scale-110 border-primary bg-primary"
+                  : "border-outline-variant bg-transparent",
+                error && i < pin.length && "border-error bg-error",
               )}
-              onChange={(e) => handleChange(i, e.target.value)}
-              onKeyDown={(e) => handleKeyDown(i, e)}
-              onFocus={(e) => e.target.select()}
             />
           ))}
         </div>
 
         {error && (
-          <p className="m3-error mt-4 text-center" role="alert">
+          <p className="m3-error mb-4 text-center text-sm" role="alert">
             {error}
           </p>
         )}
 
-        <button
-          type="button"
-          disabled={loading || pinValue.length < 4}
-          onClick={() => submitPin(pinValue)}
-          className={cn(
-            "m3-btn-primary mt-6 w-full min-h-[48px] py-2.5",
-            loading && "opacity-70",
-          )}
-        >
-          {loading ? "נכנס..." : "כניסה"}
-        </button>
+        {loading && (
+          <p className="mb-4 text-center text-sm text-secondary">נכנס...</p>
+        )}
+
+        {/* Built-in numeric keypad */}
+        <div className="grid grid-cols-3 gap-2" dir="ltr">
+          {KEYPAD.flat().map((key) => {
+            if (key === "back") {
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  disabled={loading || pin.length === 0}
+                  onClick={() => pressKey("back")}
+                  className="flex min-h-[52px] items-center justify-center rounded-2xl bg-surface-container text-on-surface-variant transition-colors active:bg-surface-container-high disabled:opacity-40"
+                  aria-label="מחק"
+                >
+                  <Delete className="h-5 w-5" />
+                </button>
+              );
+            }
+            if (key === "enter") {
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  disabled={loading || pin.length < PIN_LENGTH}
+                  onClick={() => pressKey("enter")}
+                  className="m3-btn-primary flex min-h-[52px] items-center justify-center rounded-2xl text-base font-bold disabled:opacity-40"
+                  aria-label="כניסה"
+                >
+                  ✓
+                </button>
+              );
+            }
+            return (
+              <button
+                key={key}
+                type="button"
+                disabled={loading}
+                onClick={() => pressKey(key)}
+                className="flex min-h-[52px] items-center justify-center rounded-2xl border border-outline-variant bg-surface-container-low text-xl font-semibold text-on-surface transition-all active:scale-95 active:bg-primary-container active:text-primary"
+              >
+                {key}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

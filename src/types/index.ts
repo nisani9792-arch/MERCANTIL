@@ -30,6 +30,7 @@ export type Transaction = {
   account_source: string;
   notes: string | null;
   import_hash: string | null;
+  is_fixed_recurring: boolean;
   created_at: string;
   updated_at: string;
 };
