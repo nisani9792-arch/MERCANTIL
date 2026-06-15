@@ -1,3 +1,5 @@
+"use client";
+
 import { BankHeader } from "@/components/bank/BankHeader";
 import {
   BankNavSidebar,
