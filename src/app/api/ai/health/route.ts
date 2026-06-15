@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 import { isGeminiConfigured, askGemini } from "@/lib/ai/gemini";
 import { getSql, isDatabaseConfigured } from "@/lib/db/client";
+import { isSessionConfigured } from "@/lib/auth/session";
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const full = searchParams.get("full") === "1";
+
   const status: Record<string, string> = {
     database: "not_configured",
-    gemini: "not_configured",
+    session: isSessionConfigured() ? "configured" : "missing",
+    gemini: "skipped",
   };
 
   if (isDatabaseConfigured()) {
@@ -18,7 +23,7 @@ export async function GET() {
     }
   }
 
-  if (isGeminiConfigured()) {
+  if (full && isGeminiConfigured()) {
     try {
       const reply = await askGemini(
         'Respond with exactly one word: "ready"',
@@ -30,10 +35,14 @@ export async function GET() {
     } catch {
       status.gemini = "error";
     }
+  } else if (isGeminiConfigured()) {
+    status.gemini = "configured";
   }
 
-  return NextResponse.json({
-    ok: status.database !== "error" && status.gemini !== "error",
-    services: status,
-  });
+  const ok =
+    status.database !== "error" &&
+    status.session === "configured" &&
+    status.gemini !== "error";
+
+  return NextResponse.json({ ok, services: status });
 }

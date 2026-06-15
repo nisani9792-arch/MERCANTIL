@@ -1,23 +1,48 @@
 import { getSql } from "@/lib/db/client";
 import type { Transaction, TransactionWithCategory } from "@/types";
 
+const RELEVANT_WHERE = `
+  (t.notes is null or (
+    t.notes not ilike '%חיוב זמני%'
+    and t.notes not ilike '%temporary charge%'
+  ))
+`;
+
 export async function listTransactions(
   userId: string,
   limit = 50,
+  relevantOnly = true,
 ): Promise<TransactionWithCategory[]> {
   const sql = getSql();
-  const rows = await sql`
-    select
-      t.id, t.user_id, t.amount, t.date, t.category_id,
-      t.account_source, t.notes, t.import_hash,
-      t.created_at, t.updated_at,
-      c.name as category_name, c.type as category_type, c.icon as category_icon
-    from transactions t
-    join categories c on c.id = t.category_id
-    where t.user_id = ${userId}
-    order by t.date desc, t.created_at desc
-    limit ${limit}
-  `;
+  const rows = relevantOnly
+    ? await sql`
+        select
+          t.id, t.user_id, t.amount, t.date, t.category_id,
+          t.account_source, t.notes, t.import_hash,
+          t.created_at, t.updated_at,
+          c.name as category_name, c.type as category_type, c.icon as category_icon
+        from transactions t
+        join categories c on c.id = t.category_id
+        where t.user_id = ${userId}
+          and (t.notes is null or (
+            t.notes not ilike '%חיוב זמני%'
+            and t.notes not ilike '%temporary charge%'
+          ))
+        order by t.date desc, t.created_at desc
+        limit ${limit}
+      `
+    : await sql`
+        select
+          t.id, t.user_id, t.amount, t.date, t.category_id,
+          t.account_source, t.notes, t.import_hash,
+          t.created_at, t.updated_at,
+          c.name as category_name, c.type as category_type, c.icon as category_icon
+        from transactions t
+        join categories c on c.id = t.category_id
+        where t.user_id = ${userId}
+        order by t.date desc, t.created_at desc
+        limit ${limit}
+      `;
 
   return (rows as Record<string, unknown>[]).map(mapRow);
 }
@@ -60,7 +85,7 @@ export async function createTransaction(
       ${input.amount},
       ${input.date}::date,
       ${input.categoryId},
-      ${input.accountSource ?? "כללי"},
+      ${input.accountSource ?? "ידני"},
       ${input.notes ?? null}
     )
     returning id, user_id, amount, date, category_id, account_source, notes,
@@ -88,17 +113,26 @@ export async function updateTransactionCategory(
   return rows.length > 0;
 }
 
+export type MonthlySnapshot = {
+  month: string;
+  income: number;
+  expense: number;
+  net: number;
+};
+
 export type FinancialSummary = {
   balance: number;
+  totalIncome: number;
+  totalExpense: number;
   monthIncome: number;
   monthExpense: number;
   monthNet: number;
+  /** @deprecated use totalIncome */
   depositsTotal: number;
+  recentMonths: MonthlySnapshot[];
 };
 
-export async function getFinancialSummary(
-  userId: string,
-): Promise<FinancialSummary> {
+export async function getFinancialSummary(userId: string): Promise<FinancialSummary> {
   const sql = getSql();
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
@@ -114,6 +148,27 @@ export async function getFinancialSummary(
     from transactions t
     join categories c on c.id = t.category_id
     where t.user_id = ${userId}
+      and (t.notes is null or (
+        t.notes not ilike '%חיוב זמני%'
+        and t.notes not ilike '%temporary charge%'
+      ))
+  `;
+
+  const monthRows = await sql`
+    select
+      to_char(date_trunc('month', t.date), 'YYYY-MM') as month,
+      coalesce(sum(case when c.type = 'income' then t.amount else 0 end), 0) as income,
+      coalesce(sum(case when c.type = 'expense' then t.amount else 0 end), 0) as expense
+    from transactions t
+    join categories c on c.id = t.category_id
+    where t.user_id = ${userId}
+      and t.date >= (date_trunc('month', now()) - interval '5 months')
+      and (t.notes is null or (
+        t.notes not ilike '%חיוב זמני%'
+        and t.notes not ilike '%temporary charge%'
+      ))
+    group by 1
+    order by 1 desc
   `;
 
   const r = rows[0] as Record<string, number>;
@@ -122,12 +177,26 @@ export async function getFinancialSummary(
   const monthIncome = Number(r.month_income);
   const monthExpense = Number(r.month_expense);
 
+  const recentMonths = (monthRows as Record<string, unknown>[]).map((m) => {
+    const income = Number(m.income);
+    const expense = Number(m.expense);
+    return {
+      month: String(m.month),
+      income,
+      expense,
+      net: income - expense,
+    };
+  });
+
   return {
     balance: totalIncome - totalExpense,
+    totalIncome,
+    totalExpense,
     monthIncome,
     monthExpense,
     monthNet: monthIncome - monthExpense,
     depositsTotal: totalIncome,
+    recentMonths,
   };
 }
 
@@ -139,6 +208,10 @@ export async function getTransactionsForAi(userId: string, limit = 100) {
     from transactions t
     join categories c on c.id = t.category_id
     where t.user_id = ${userId}
+      and (t.notes is null or (
+        t.notes not ilike '%חיוב זמני%'
+        and t.notes not ilike '%temporary charge%'
+      ))
     order by t.date desc
     limit ${limit}
   `;
@@ -152,3 +225,6 @@ export async function getTransactionsForAi(userId: string, limit = 100) {
     category_type: string;
   }[];
 }
+
+/** Exported for scripts — keep SQL filter in sync */
+export { RELEVANT_WHERE };

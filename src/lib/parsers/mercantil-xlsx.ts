@@ -1,4 +1,5 @@
 import ExcelJS from "exceljs";
+import { isRelevantTransaction } from "@/lib/filters/household-relevance";
 
 export type MercantilBankRow = {
   date: string;
@@ -89,6 +90,7 @@ export async function parseMercantilXlsx(
     const description = cellToString(row.getCell(3).value);
     const amount = cellToNumber(row.getCell(4).value);
     if (!description || amount === 0) continue;
+    if (!isRelevantTransaction(description)) continue;
 
     rows.push({
       date: cellToDate(row.getCell(1).value),

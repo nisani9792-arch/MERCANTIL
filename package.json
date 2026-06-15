@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -H 0.0.0.0",
     "lint": "eslint",
     "db:init": "node scripts/init-db.mjs",
     "import:bank": "node scripts/import-bank-xlsx.mjs"

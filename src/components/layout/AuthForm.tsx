@@ -25,36 +25,50 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
     setError(null);
     setLoading(true);
 
-    const endpoint = mode === "register" ? "/api/auth/register" : "/api/auth/login";
-    const res = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email,
-        password,
-        ...(mode === "register" && fullName ? { fullName } : {}),
-      }),
-    });
+    try {
+      const endpoint =
+        mode === "register" ? "/api/auth/register" : "/api/auth/login";
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+          ...(mode === "register" && fullName ? { fullName: fullName.trim() } : {}),
+        }),
+      });
 
-    const data = (await res.json()) as { error?: string };
+      let data: { error?: string } = {};
+      try {
+        data = (await res.json()) as { error?: string };
+      } catch {
+        setError(`שגיאת שרת (${res.status}). בדוק /api/health`);
+        setLoading(false);
+        return;
+      }
 
-    if (!res.ok) {
-      setError(data.error ?? "שגיאה בהתחברות");
+      if (!res.ok) {
+        setError(data.error ?? "שגיאה בהתחברות");
+        setLoading(false);
+        return;
+      }
+
+      router.push(redirect);
+      router.refresh();
+    } catch {
+      setError("לא ניתן להתחבר לשרת. נסה שוב.");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    router.push(redirect);
-    router.refresh();
-    setLoading(false);
   }
 
   const isRegister = mode === "register";
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-surface px-4">
+    <div className="relative flex min-h-[100dvh] items-center justify-center overflow-hidden bg-surface px-4 py-6 safe-top safe-bottom">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(201,162,39,0.08),transparent_60%)]" />
-      <div className="m3-card relative w-full max-w-md p-8">
+      <div className="m3-card relative w-full max-w-md p-5 sm:p-8">
         <div className="mb-6 flex flex-col items-center text-center">
           <Image
             src="/logo.png"
@@ -68,15 +82,14 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
             {isRegister ? "יצירת חשבון חדש" : "התחברות למערכת"}
           </p>
           <p className="mt-1 text-xs text-on-surface-variant">
-            ניהול כלכלי חכם מבוסס AI
+            ניהול משק בית — הכנסות והוצאות חודשיות
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {needsSetup && (
             <div className="rounded-lg border border-warning bg-warning-container/30 p-3 text-sm text-on-surface">
-              הגדר Neon: העתק <code dir="ltr">.env.local.example</code> ל-
-              <code dir="ltr">.env.local</code> ומלא DATABASE_URL + SESSION_SECRET.
+              הגדר Neon: הוסף DATABASE_URL + SESSION_SECRET ב-Render → Environment.
             </div>
           )}
 

@@ -9,14 +9,16 @@ export type SessionPayload = {
   email: string;
 };
 
+export function isSessionConfigured(): boolean {
+  const secret = process.env.SESSION_SECRET?.trim();
+  return !!secret && secret.length >= 16;
+}
+
 function getSecret() {
-  const secret = process.env.SESSION_SECRET;
-  if (!secret || secret.length < 16) {
-    throw new Error(
-      "SESSION_SECRET חסר או קצר מדי (מינימום 16 תווים).",
-    );
+  if (!isSessionConfigured()) {
+    throw new Error("SESSION_SECRET_MISSING");
   }
-  return new TextEncoder().encode(secret);
+  return new TextEncoder().encode(process.env.SESSION_SECRET!.trim());
 }
 
 export async function createSessionToken(payload: SessionPayload): Promise<string> {

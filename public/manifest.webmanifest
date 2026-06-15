@@ -1,7 +1,7 @@
 {
   "name": "מרכנטיל — לירה לבנה ליום שחור",
   "short_name": "מרכנטיל",
-  "description": "ניהול כלכלי חכם מבוסס AI",
+  "description": "ניהול משק בית חכם — הכנסות והוצאות חודשיות",
   "lang": "he",
   "dir": "rtl",
   "start_url": "/dashboard",
@@ -24,8 +24,8 @@
   ],
   "shortcuts": [
     {
-      "name": "לוח בקרה",
-      "short_name": "לוח בקרה",
+      "name": "סיכום חודשי",
+      "short_name": "סיכום",
       "url": "/dashboard",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
@@ -36,7 +36,7 @@
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
-      "name": "ייבוא AI",
+      "name": "ייבוא",
       "short_name": "ייבוא",
       "url": "/import",
       "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]

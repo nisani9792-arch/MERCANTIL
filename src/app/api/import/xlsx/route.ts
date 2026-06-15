@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth/session";
 import { listCategories, createCategory, findCategoryByName } from "@/lib/db/categories";
 import { classifyTransactions } from "@/lib/ai/categorize";
 import { parseMercantilXlsx, mercantilImportHash } from "@/lib/parsers/mercantil-xlsx";
+import { isRelevantTransaction } from "@/lib/filters/household-relevance";
 import { getSql } from "@/lib/db/client";
 import { ensurePatternsTable, learnPattern } from "@/lib/db/patterns";
 
@@ -28,10 +29,19 @@ export async function POST(request: Request) {
   const BATCH = 25;
   let imported = 0;
   let skipped = 0;
+  let filtered = 0;
   const sql = getSql();
 
   for (let i = 0; i < rows.length; i += BATCH) {
-    const batch = rows.slice(i, i + BATCH);
+    const batch = rows.slice(i, i + BATCH).filter((r) => {
+      if (!isRelevantTransaction(r.description)) {
+        filtered++;
+        return false;
+      }
+      return true;
+    });
+    if (batch.length === 0) continue;
+
     const { results } = await classifyTransactions(
       batch.map((r) => ({
         description: r.description,
@@ -85,6 +95,7 @@ export async function POST(request: Request) {
     ok: true,
     imported,
     skipped,
+    filtered,
     total: rows.length,
   });
 }

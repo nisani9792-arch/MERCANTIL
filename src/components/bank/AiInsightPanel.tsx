@@ -28,6 +28,7 @@ export function AiInsightPanel() {
       return (await res.json()) as { insights: SmartInsight[] };
     },
     staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const insights = data?.insights ?? [];
