@@ -1,4 +1,6 @@
 export type LedgerItemType = "income" | "expense";
+export type LedgerEntryKind = "transaction" | "cash_withdrawal";
+export type PaymentMethod = "bank" | "card" | "cash";
 
 export type RecurringFrequency = "monthly" | "bi-monthly";
 
@@ -31,6 +33,8 @@ export type MonthlyLedgerEntry = {
   template_id: string | null;
   is_variable: boolean;
   is_paid: boolean;
+  entry_kind: LedgerEntryKind;
+  payment_method: PaymentMethod;
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -45,6 +49,12 @@ export type MonthSummary = {
   remainingForVariable: number;
   disposableRemaining: number;
   netAfterAll: number;
+  actualIncome: number;
+  actualExpenses: number;
+  actualNet: number;
+  cashBalance: number;
+  cashWithdrawnThisMonth: number;
+  cashSpentThisMonth: number;
   entryCount: number;
   initialized: boolean;
 };

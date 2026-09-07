@@ -29,8 +29,8 @@ export async function getSixMonthTrend(
   const rows = await sql`
     select
       month_key,
-      coalesce(sum(case when type = 'income' then amount else 0 end), 0) as income,
-      coalesce(sum(case when type = 'expense' then amount else 0 end), 0) as expense
+      coalesce(sum(case when type = 'income' and entry_kind = 'transaction' then amount else 0 end), 0) as income,
+      coalesce(sum(case when type = 'expense' and entry_kind = 'transaction' then amount else 0 end), 0) as expense
     from monthly_ledger
     where user_id = ${userId}
       and month_key = any(${keys}::text[])
@@ -67,6 +67,7 @@ export async function getExpenseBreakdown(
     where user_id = ${userId}
       and month_key = ${monthKey}
       and type = 'expense'
+      and entry_kind = 'transaction'
     group by coalesce(category, name)
     order by amount desc
   `;

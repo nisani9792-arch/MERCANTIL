@@ -2,29 +2,19 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { LogOut, Menu, Settings, X } from "lucide-react";
+import { Menu, ShieldCheck, SlidersHorizontal, X } from "lucide-react";
 import { useState } from "react";
 import { useTheme } from "@/components/providers/ThemeProvider";
-import { shortUserId } from "@/lib/utils/format";
 import { navItems } from "@/components/bank/nav-items";
 import { cn } from "@/lib/utils/cn";
 
 type BankHeaderProps = {
   userName: string;
-  userId: string;
 };
 
-export function BankHeader({ userName, userId }: BankHeaderProps) {
-  const router = useRouter();
+export function BankHeader({ userName }: BankHeaderProps) {
   const { theme, toggleTheme } = useTheme();
   const [menuOpen, setMenuOpen] = useState(false);
-
-  async function handleSignOut() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
-    router.refresh();
-  }
 
   return (
     <>
@@ -41,8 +31,8 @@ export function BankHeader({ userName, userId }: BankHeaderProps) {
             </button>
             <Link href="/dashboard" className="mx-auto shrink-0 lg:mx-0">
               <Image
-                src="/logo.png"
-                alt="מרכנטיל"
+                src="/merkanpil.png"
+                alt="מרכנפיל"
                 width={200}
                 height={72}
                 className="h-12 w-auto rounded-xl object-contain sm:h-14 lg:h-16"
@@ -52,9 +42,9 @@ export function BankHeader({ userName, userId }: BankHeaderProps) {
           </div>
 
           <div className="hidden min-w-0 flex-col items-center text-center sm:flex sm:flex-1">
-            <span className="truncate text-sm font-bold text-primary">{userName}</span>
-            <span className="text-xs text-on-surface-variant" dir="ltr">
-              {shortUserId(userId)}
+            <span className="truncate text-sm font-bold text-primary">הכסף של {userName}</span>
+            <span className="flex items-center gap-1 text-xs text-on-surface-variant">
+              <ShieldCheck className="h-3.5 w-3.5" /> מערכת אישית
             </span>
           </div>
 
@@ -62,11 +52,8 @@ export function BankHeader({ userName, userId }: BankHeaderProps) {
             <HeaderIcon label={theme === "light" ? "מצב כהה" : "מצב בהיר"} onClick={toggleTheme}>
               <span className="text-base">{theme === "light" ? "🌙" : "☀️"}</span>
             </HeaderIcon>
-            <HeaderIcon label="הגדרות" href="/categories" className="hidden sm:flex">
-              <Settings className="h-5 w-5" />
-            </HeaderIcon>
-            <HeaderIcon label="יציאה" onClick={handleSignOut}>
-              <LogOut className="h-5 w-5" />
+            <HeaderIcon label="הגדרות קבועות" href="/templates">
+              <SlidersHorizontal className="h-5 w-5" />
             </HeaderIcon>
           </div>
         </div>
@@ -83,8 +70,8 @@ export function BankHeader({ userName, userId }: BankHeaderProps) {
           <aside className="absolute inset-y-0 start-0 flex w-[min(100%,280px)] flex-col bg-surface-container-lowest shadow-elevation-2 safe-top safe-bottom">
             <div className="flex items-center justify-between border-b border-outline-variant px-4 py-3">
               <Image
-                src="/logo.png"
-                alt="מרכנטיל"
+                src="/merkanpil.png"
+                alt="מרכנפיל"
                 width={160}
                 height={56}
                 className="h-10 w-auto rounded-lg object-contain"

@@ -111,7 +111,7 @@ export function detectAnomalies(
   }
 
   const bigItems = entries
-    .filter((e) => e.type === "expense")
+    .filter((e) => e.type === "expense" && e.entry_kind === "transaction")
     .sort((a, b) => b.amount - a.amount)
     .slice(0, 3);
 

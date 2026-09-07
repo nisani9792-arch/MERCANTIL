@@ -5,7 +5,7 @@
 :root {
   color-scheme: light;
 
-  --m3-color-primary: #2d6a3e;
+  --m3-color-primary: #087f5b;
   --m3-color-primary-container: rgba(45, 106, 62, 0.12);
   --m3-color-on-primary: #ffffff;
   --m3-color-secondary: #b8860b;
@@ -15,7 +15,7 @@
   --m3-color-tertiary-container: rgba(92, 107, 58, 0.1);
   --m3-gradient-gold: linear-gradient(135deg, #c9a227 0%, #d4af37 50%, #b8860b 100%);
 
-  --m3-color-surface: #e4ecf4;
+  --m3-color-surface: #f4f8fb;
   --m3-color-surface-dim: #d8e2ed;
   --m3-color-surface-container: #dce4ed;
   --m3-color-surface-container-low: #e8eef5;
@@ -39,7 +39,7 @@
   --m3-type-display-sm: 600 1.375rem/1.25 var(--m3-font-family);
   --m3-type-title-md: 700 1.0625rem/1.35 var(--m3-font-family);
   --m3-type-title-sm: 600 0.875rem/1.35 var(--m3-font-family);
-  --m3-type-body-md: 400 0.875rem/1.5 var(--m3-font-family);
+  --m3-type-body-md: 400 1rem/1.5 var(--m3-font-family);
   --m3-type-body-sm: 400 0.8125rem/1.45 var(--m3-font-family);
   --m3-type-label-sm: 600 0.6875rem/1.3 var(--m3-font-family);
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import { Banknote, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils/format";
 import type { MonthlyLedgerEntry } from "@/types/ledger";
 import { cn } from "@/lib/utils/cn";
@@ -13,6 +13,7 @@ type TransactionCardProps = {
 
 export function TransactionCard({ entry, onTap, onDelete }: TransactionCardProps) {
   const isIncome = entry.type === "income";
+  const isWithdrawal = entry.entry_kind === "cash_withdrawal";
 
   return (
     <article
@@ -25,21 +26,21 @@ export function TransactionCard({ entry, onTap, onDelete }: TransactionCardProps
       <div
         className={cn(
           "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-lg font-bold",
-          isIncome ? "bg-success-container text-success" : "bg-error-container text-error",
+          isWithdrawal ? "bg-primary-container text-primary" : isIncome ? "bg-success-container text-success" : "bg-error-container text-error",
         )}
       >
-        {isIncome ? "↑" : "↓"}
+        {isWithdrawal ? <Banknote className="h-5 w-5" /> : isIncome ? "↑" : "↓"}
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-base font-semibold text-on-surface">{entry.name}</p>
         <p className="text-xs text-on-surface-variant">
-          {entry.is_variable ? "משתנה" : "קבוע"}
+          {isWithdrawal ? "העברה בנק ← מזומן" : `${entry.is_variable ? "משתנה" : "קבוע"} · ${entry.payment_method === "cash" ? "מזומן" : entry.payment_method === "card" ? "אשראי" : "בנק"}`}
         </p>
       </div>
       <p
         className={cn(
           "shrink-0 text-base font-bold",
-          isIncome ? "text-success" : "text-on-surface",
+          isWithdrawal ? "text-primary" : isIncome ? "text-success" : "text-on-surface",
         )}
         dir="ltr"
       >
@@ -49,7 +50,7 @@ export function TransactionCard({ entry, onTap, onDelete }: TransactionCardProps
         type="button"
         onClick={(e) => {
           e.stopPropagation();
-          onDelete();
+            if (window.confirm('למחוק את הרישום?')) onDelete();
         }}
         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-on-surface-variant hover:bg-error-container hover:text-error"
         aria-label="מחק"

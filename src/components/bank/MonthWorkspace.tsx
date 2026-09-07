@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { Banknote, Plus } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { InitMonthPanel } from "@/components/ledger/InitMonthPanel";
 import {
@@ -48,6 +48,8 @@ export function MonthWorkspace() {
       type: "income" | "expense";
       category: string;
       isVariable: boolean;
+      entryKind: "transaction" | "cash_withdrawal";
+      paymentMethod: "bank" | "card" | "cash";
     }) => {
       if (payload.id) {
         const res = await mutateLive(`/api/ledger/${payload.id}`, {
@@ -57,6 +59,8 @@ export function MonthWorkspace() {
             name: payload.name,
             amount: payload.amount,
             category: payload.category,
+            paymentMethod: payload.paymentMethod,
+            isVariable: payload.isVariable,
           }),
         });
         if (!res.ok) throw new Error("patch failed");
@@ -71,6 +75,8 @@ export function MonthWorkspace() {
             amount: payload.amount,
             category: payload.category,
             isVariable: payload.isVariable,
+            entryKind: payload.entryKind,
+            paymentMethod: payload.paymentMethod,
           }),
         });
         if (!res.ok) throw new Error("post failed");
@@ -92,10 +98,20 @@ export function MonthWorkspace() {
   });
 
   const entries = data?.entries ?? [];
-  const income = entries.filter((e) => e.type === "income");
-  const expenses = entries.filter((e) => e.type === "expense");
+  const paidMut = useMutation({
+    mutationFn: async (entry: MonthlyLedgerEntry) => {
+      const res = await mutateLive(`/api/ledger/${entry.id}`, {
+        method: 'PATCH', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({isPaid: !entry.is_paid}),
+      });
+      if (!res.ok) throw new Error('לא ניתן לעדכן את הרישום');
+    }, onSuccess: refetchAll,
+  });
+  const income = entries.filter((e) => e.type === "income" && e.entry_kind === "transaction");
+  const expenses = entries.filter((e) => e.type === "expense" && e.entry_kind === "transaction");
+  const withdrawals = entries.filter((e) => e.entry_kind === "cash_withdrawal");
 
-  function openAdd(type: "income" | "expense") {
+  function openAdd(type: "income" | "expense" | "cash_withdrawal") {
     setSheetMode({ kind: "add", type });
     setSheetOpen(true);
   }
@@ -108,6 +124,8 @@ export function MonthWorkspace() {
   return (
     <div className="mx-auto max-w-2xl space-y-3 pb-24">
       <MonthNavigator />
+      {(saveMut.isError || deleteMut.isError || paidMut.isError) && <p role="alert" className="m3-error">השמירה נכשלה. הנתונים שהזנת נשמרו בטופס, אפשר לנסות שוב.</p>}
+      {entries.some(e => !e.is_paid) && <section className="m3-card p-4 space-y-2"><h2 className="font-bold">תכנון שטרם בוצע</h2><p>סמן רק לאחר שהכסף התקבל או שולם.</p>{entries.filter(e => !e.is_paid).map(e => <button disabled={paidMut.isPending} key={e.id} className="m3-btn-primary px-4 py-2 me-2" onClick={() => paidMut.mutate(e)}>סימון {e.name} כבוצע</button>)}</section>}
 
       <InitMonthPanel
         monthKey={monthKey}
@@ -141,27 +159,21 @@ export function MonthWorkspace() {
               />
             ))}
           </CardSection>
-
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => openAdd("income")}
-              className="flex min-h-[52px] items-center justify-center gap-2 rounded-2xl border border-success/30 bg-success-container font-semibold text-success"
-            >
-              <Plus className="h-5 w-5" />
-              הכנסה
-            </button>
-            <button
-              type="button"
-              onClick={() => openAdd("expense")}
-              className="flex min-h-[52px] items-center justify-center gap-2 rounded-2xl border border-error/30 bg-error-container font-semibold text-error"
-            >
-              <Plus className="h-5 w-5" />
-              הוצאה
-            </button>
-          </div>
+          {withdrawals.length > 0 && (
+            <CardSection title="העברות לארנק מזומן">
+              {withdrawals.map((e) => (
+                <TransactionCard key={e.id} entry={e} onTap={() => openEdit(e)} onDelete={() => deleteMut.mutate(e.id)} />
+              ))}
+            </CardSection>
+          )}
         </>
       )}
+
+      <section className="m3-card sticky bottom-[4.5rem] z-10 grid grid-cols-3 gap-2 p-2 lg:bottom-2">
+        <QuickButton label="הוצאה" icon={<Plus className="h-5 w-5" />} tone="expense" onClick={() => openAdd("expense")} />
+        <QuickButton label="הכנסה" icon={<Plus className="h-5 w-5" />} tone="income" onClick={() => openAdd("income")} />
+        <QuickButton label="משיכת מזומן" icon={<Banknote className="h-5 w-5" />} tone="cash" onClick={() => openAdd("cash_withdrawal")} />
+      </section>
 
       <LedgerBottomSheet
         open={sheetOpen}
@@ -179,6 +191,19 @@ export function MonthWorkspace() {
         }
       />
     </div>
+  );
+}
+
+function QuickButton({ label, icon, tone, onClick }: { label: string; icon: ReactNode; tone: "expense" | "income" | "cash"; onClick: () => void }) {
+  const styles = tone === "expense"
+    ? "border-error/30 bg-error-container text-error"
+    : tone === "income"
+      ? "border-success/30 bg-success-container text-success"
+      : "border-primary/30 bg-primary-container text-primary";
+  return (
+    <button type="button" onClick={onClick} className={`flex min-h-[58px] flex-col items-center justify-center gap-1 rounded-2xl border px-1 text-xs font-bold ${styles}`}>
+      {icon}{label}
+    </button>
   );
 }
 

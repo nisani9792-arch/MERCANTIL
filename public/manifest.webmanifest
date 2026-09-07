@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "מרכנטיל — לירה לבנה ליום שחור",
-  "short_name": "מרכנטיל",
+  "name": "מרכנפיל — לירה לבנה ליום שחור",
+  "short_name": "מרכנפיל",
   "description": "ניהול משק בית חכם — הכנסות והוצאות חודשיות",
   "lang": "he",
   "dir": "rtl",
@@ -13,22 +13,22 @@
   "theme_color": "#3d4f2f",
   "icons": [
     {
-      "src": "/icon-192.png",
-      "sizes": "192x192",
+      "src": "/merkanpil.png",
+      "sizes": "1254x1254",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
+      "src": "/merkanpil.png",
+      "sizes": "1254x1254",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-512.png",
-      "sizes": "512x512",
+      "src": "/merkanpil.png",
+      "sizes": "1254x1254",
       "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any"
     }
   ],
   "shortcuts": [
@@ -36,19 +36,19 @@
       "name": "סיכום חודשי",
       "short_name": "סיכום",
       "url": "/dashboard",
-      "icons": [{ "src": "/icon-shortcut.png", "sizes": "192x192", "type": "image/png" }]
+      "icons": [{ "src": "/merkanpil.png", "sizes": "1254x1254", "type": "image/png" }]
     },
     {
       "name": "ניהול חודש",
       "short_name": "חודש",
       "url": "/month",
-      "icons": [{ "src": "/icon-shortcut.png", "sizes": "192x192", "type": "image/png" }]
+      "icons": [{ "src": "/merkanpil.png", "sizes": "1254x1254", "type": "image/png" }]
     },
     {
       "name": "תבניות קבועות",
       "short_name": "תבניות",
       "url": "/templates",
-      "icons": [{ "src": "/icon-shortcut.png", "sizes": "192x192", "type": "image/png" }]
+      "icons": [{ "src": "/merkanpil.png", "sizes": "1254x1254", "type": "image/png" }]
     }
   ]
 }

@@ -20,7 +20,7 @@ export default async function AppLayout({
   if (!user) redirect("/login");
 
   return (
-    <BankShell userName={user.full_name ?? user.email} userId={user.id}>
+    <BankShell userName={user.full_name ?? user.email}>
       {children}
     </BankShell>
   );

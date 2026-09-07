@@ -4,9 +4,11 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { AiInsightPanel } from "@/components/bank/AiInsightPanel";
 import { BudgetStrip } from "@/components/bank/BudgetStrip";
+import { CashWalletCard } from "@/components/bank/CashWalletCard";
 import { DisposableIncomeHero } from "@/components/bank/DisposableIncomeHero";
 import { ExpenseOverviewList } from "@/components/bank/ExpenseOverviewList";
 import { MonthNavigator } from "@/components/ui/MonthNavigator";
+import { MonthlyShareButton } from "@/components/bank/MonthlyShareButton";
 import { fetchLive } from "@/lib/api/fetch-live";
 import type { AnalyticsPayload, MonthlyLedgerEntry } from "@/types/ledger";
 import { useMonthStore } from "@/stores/useMonthStore";
@@ -44,11 +46,13 @@ export function DashboardView() {
         <>
           <DisposableIncomeHero summary={data.summary} />
           <BudgetStrip summary={data.summary} />
+          <CashWalletCard summary={data.summary} />
           <ExpenseOverviewList
             entries={ledger?.entries ?? []}
             totalIncome={data.summary.totalIncome}
           />
           <AiInsightPanel />
+          <MonthlyShareButton summary={data.summary} />
           <Link
             href="/month"
             className="flex min-h-[48px] items-center justify-center rounded-2xl border border-outline-variant text-sm font-semibold text-primary"

@@ -37,20 +37,27 @@ export async function POST(request: Request) {
     isVariable?: boolean;
     category?: string;
     notes?: string;
+    entryKind?: "transaction" | "cash_withdrawal";
+    paymentMethod?: "bank" | "card" | "cash";
   };
 
-  if (!body.name || !body.type || body.amount == null) {
+  if (!body.name?.trim() || !['income','expense'].includes(body.type ?? '') || !Number.isFinite(body.amount) || Number(body.amount) <= 0 ||
+      (body.monthKey !== undefined && !/^\d{4}-(0[1-9]|1[0-2])$/.test(body.monthKey)) ||
+      (body.entryKind !== undefined && !['transaction','cash_withdrawal'].includes(body.entryKind)) ||
+      (body.paymentMethod !== undefined && !['bank','card','cash'].includes(body.paymentMethod))) {
     return NextResponse.json({ error: "נתונים חסרים" }, { status: 400 });
   }
 
   const entry = await addLedgerEntry(session.userId, {
     monthKey: body.monthKey ?? currentMonthKey(),
     name: body.name,
-    type: body.type,
-    amount: Math.abs(body.amount),
+    type: body.entryKind === 'cash_withdrawal' ? 'expense' : body.type!,
+    amount: Number(body.amount),
     isVariable: body.isVariable,
     category: body.category,
     notes: body.notes,
+    entryKind: body.entryKind,
+    paymentMethod: body.paymentMethod,
   });
 
   return NextResponse.json({ entry }, { status: 201 });

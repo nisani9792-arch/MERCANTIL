@@ -12,20 +12,20 @@ const heebo = Heebo({
 });
 
 export const metadata: Metadata = {
-  title: "מרכנטיל — לירה לבנה ליום שחור",
+  title: "מרכנפיל — לירה לבנה ליום שחור",
   description: "ניהול כלכלי חכם מבוסס AI — בנקאי, חכם, מבוסס Gemini",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "מרכנטיל",
+    title: "מרכנפיל",
     statusBarStyle: "default",
   },
   icons: {
     icon: [
-      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/merkanpil.png", sizes: "1254x1254", type: "image/png" },
+      { url: "/merkanpil.png", type: "image/svg+xml" },
     ],
-    apple: [{ url: "/icon-192.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/merkanpil.png", sizes: "1254x1254", type: "image/png" }],
   },
 };
 

@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { verifySessionToken, SESSION_COOKIE } from "@/lib/auth/session";
 import { isDatabaseConfigured } from "@/lib/db/client";
+import { verifySessionToken, SESSION_COOKIE } from "@/lib/auth/session";
 
 const PROTECTED_PREFIXES = ["/dashboard", "/month", "/templates", "/transactions", "/categories"];
 const AUTH_ROUTES = ["/login", "/register"];
@@ -49,15 +49,12 @@ export async function updateSession(request: NextRequest) {
 
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   const session = token ? await verifySessionToken(token) : null;
-
-  if (!session && isProtected) {
+  if (isProtected && !session) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    url.searchParams.set("redirect", pathname);
     return NextResponse.redirect(url);
   }
-
-  if (session && pathname === "/login") {
+  if (isAuthRoute && session) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);

@@ -150,6 +150,16 @@ async function initSchema() {
     add column if not exists is_paid boolean not null default false
   `.catch(() => undefined);
 
+  await sql`
+    alter table monthly_ledger
+    add column if not exists entry_kind text not null default 'transaction'
+  `.catch(() => undefined);
+
+  await sql`
+    alter table monthly_ledger
+    add column if not exists payment_method text not null default 'bank'
+  `.catch(() => undefined);
+
   await sql`create index if not exists transactions_user_date_idx on transactions (user_id, date desc)`;
   await sql`create index if not exists transactions_user_category_idx on transactions (user_id, category_id)`;
   await sql`create index if not exists transactions_fixed_recurring_idx on transactions (user_id, is_fixed_recurring) where is_fixed_recurring = true`;

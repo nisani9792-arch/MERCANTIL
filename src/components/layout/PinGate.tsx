@@ -95,8 +95,8 @@ export function PinGate() {
       <div className="m3-card relative w-full max-w-sm p-5 sm:p-8">
         <div className="mb-5 flex flex-col items-center text-center">
           <Image
-            src="/logo.png"
-            alt="מרכנטיל"
+            src="/merkanpil.png"
+            alt="מרכנפיל"
             width={280}
             height={100}
             priority

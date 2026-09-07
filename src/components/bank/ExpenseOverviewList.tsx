@@ -10,8 +10,8 @@ type ExpenseOverviewListProps = {
 };
 
 export function ExpenseOverviewList({ entries, totalIncome }: ExpenseOverviewListProps) {
-  const income = entries.filter((e) => e.type === "income");
-  const expenses = [...entries.filter((e) => e.type === "expense")].sort(
+  const income = entries.filter((e) => e.type === "income" && e.entry_kind === "transaction");
+  const expenses = [...entries.filter((e) => e.type === "expense" && e.entry_kind === "transaction")].sort(
     (a, b) => b.amount - a.amount,
   );
 

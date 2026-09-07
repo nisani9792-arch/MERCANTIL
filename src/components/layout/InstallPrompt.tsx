@@ -23,7 +23,7 @@ export function InstallPrompt() {
         aria-hidden
       />
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-bold text-on-surface">התקן את מרכנטיל</p>
+        <p className="text-sm font-bold text-on-surface">התקן את מרכנפיל</p>
         {isIos ? (
           <p className="text-xs text-on-surface-variant">
             Safari: <Share className="inline h-3.5 w-3.5" /> שיתוף → הוסף למסך הבית

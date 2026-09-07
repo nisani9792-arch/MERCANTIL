@@ -15,8 +15,17 @@ export async function PATCH(
     amount?: number;
     category?: string;
     notes?: string | null;
+    isPaid?: boolean;
+    paymentMethod?: 'bank' | 'card' | 'cash';
+    isVariable?: boolean;
   };
 
+  if ((body.amount !== undefined && (!Number.isFinite(body.amount) || body.amount <= 0)) ||
+      (body.paymentMethod !== undefined && !['bank','card','cash'].includes(body.paymentMethod)) ||
+      (body.isPaid !== undefined && typeof body.isPaid !== 'boolean') ||
+      (body.isVariable !== undefined && typeof body.isVariable !== 'boolean')) {
+    return NextResponse.json({error: 'נתונים לא תקינים'}, {status: 400});
+  }
   const entry = await updateLedgerEntry(session.userId, id, body);
   if (!entry) return NextResponse.json({ error: "לא נמצא" }, { status: 404 });
   return NextResponse.json({ entry });

@@ -3,10 +3,12 @@
 import { useEffect, useState } from "react";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { EXPENSE_CATEGORIES } from "@/lib/constants/budget";
-import type { LedgerItemType, MonthlyLedgerEntry } from "@/types/ledger";
+import type { LedgerEntryKind, LedgerItemType, MonthlyLedgerEntry, PaymentMethod } from "@/types/ledger";
+
+type AddType = LedgerItemType | "cash_withdrawal";
 
 export type LedgerSheetMode =
-  | { kind: "add"; type: LedgerItemType }
+  | { kind: "add"; type: AddType }
   | { kind: "edit"; entry: MonthlyLedgerEntry };
 
 type LedgerBottomSheetProps = {
@@ -19,6 +21,8 @@ type LedgerBottomSheetProps = {
     type: LedgerItemType;
     category: string;
     isVariable: boolean;
+    entryKind: LedgerEntryKind;
+    paymentMethod: PaymentMethod;
   }) => void;
   saving?: boolean;
 };
@@ -34,6 +38,7 @@ export function LedgerBottomSheet({
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("אחר");
   const [isVariable, setIsVariable] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
 
   useEffect(() => {
     if (!mode) return;
@@ -42,21 +47,33 @@ export function LedgerBottomSheet({
       setAmount(String(mode.entry.amount));
       setCategory(mode.entry.category);
       setIsVariable(mode.entry.is_variable);
+      setPaymentMethod(mode.entry.payment_method);
     } else {
       setName("");
       setAmount("");
       setCategory(mode.type === "expense" ? "מזון" : "הכנסה");
       setIsVariable(mode.type === "expense");
+      setPaymentMethod(mode.type === "expense" ? "card" : "bank");
     }
   }, [mode]);
 
   if (!mode) return null;
 
-  const type = mode.kind === "edit" ? mode.entry.type : mode.type;
+  const isWithdrawal =
+    (mode.kind === "add" && mode.type === "cash_withdrawal") ||
+    (mode.kind === "edit" && mode.entry.entry_kind === "cash_withdrawal");
+  const type: LedgerItemType =
+    mode.kind === "edit"
+      ? mode.entry.type
+      : mode.type === "cash_withdrawal"
+        ? "expense"
+        : mode.type;
   const title =
     mode.kind === "edit"
       ? "עריכת רישום"
-      : type === "income"
+      : isWithdrawal
+        ? "משיכת מזומן"
+        : type === "income"
         ? "הוספת הכנסה"
         : "הוספת הוצאה";
 
@@ -69,7 +86,7 @@ export function LedgerBottomSheet({
             className="m3-input mt-1 w-full px-3 py-3 text-base"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="למשל: סופר, משכורת..."
+            placeholder={isWithdrawal ? "למשל: משיכה מהכספומט" : "למשל: סופר, משכורת..."}
           />
         </div>
         <div>
@@ -83,8 +100,23 @@ export function LedgerBottomSheet({
             dir="ltr"
           />
         </div>
-        {type === "expense" && (
+        {type === "expense" && !isWithdrawal && (
           <>
+            <div>
+              <label className="m3-label">אמצעי תשלום</label>
+              <div className="mt-1 grid grid-cols-3 gap-2">
+                {([['card', 'אשראי'], ['cash', 'מזומן'], ['bank', 'בנק']] as const).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setPaymentMethod(value)}
+                    className={`min-h-[44px] rounded-xl border text-sm font-semibold ${paymentMethod === value ? 'border-primary bg-primary-container text-primary' : 'border-outline-variant text-on-surface-variant'}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div>
               <label className="m3-label">קטגוריה</label>
               <select
@@ -112,7 +144,7 @@ export function LedgerBottomSheet({
         )}
         <button
           type="button"
-          disabled={!name.trim() || !amount || saving}
+          disabled={!name.trim() || !Number.isFinite(Number(amount)) || Number(amount) <= 0 || saving}
           onClick={() =>
             onSave({
               name: name.trim(),
@@ -120,6 +152,8 @@ export function LedgerBottomSheet({
               type,
               category: type === "income" ? "הכנסה" : category,
               isVariable: type === "expense" && isVariable,
+              entryKind: isWithdrawal ? "cash_withdrawal" : "transaction",
+              paymentMethod: isWithdrawal ? "bank" : paymentMethod,
             })
           }
           className="m3-btn-primary mt-2 min-h-[52px] w-full py-3 text-base"

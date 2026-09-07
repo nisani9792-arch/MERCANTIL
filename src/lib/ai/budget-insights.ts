@@ -27,15 +27,15 @@ export type BudgetAnalysis = {
 
 function formatEntries(entries: MonthlyLedgerEntry[]) {
   const income = entries
-    .filter((e) => e.type === "income")
+    .filter((e) => e.type === "income" && e.entry_kind === "transaction")
     .map((e) => `${e.name}: ₪${e.amount}`)
     .join(", ");
   const fixed = entries
-    .filter((e) => e.type === "expense" && !e.is_variable)
+    .filter((e) => e.type === "expense" && e.entry_kind === "transaction" && !e.is_variable)
     .map((e) => `${e.name}: ₪${e.amount}`)
     .join(", ");
   const variable = entries
-    .filter((e) => e.type === "expense" && e.is_variable)
+    .filter((e) => e.type === "expense" && e.entry_kind === "transaction" && e.is_variable)
     .map((e) => `${e.name} (${e.category}): ₪${e.amount}`)
     .join(", ");
   return { income, fixed, variable };

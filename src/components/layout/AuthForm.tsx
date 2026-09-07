@@ -71,8 +71,8 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
       <div className="m3-card relative w-full max-w-md p-5 sm:p-8">
         <div className="mb-6 flex flex-col items-center text-center">
           <Image
-            src="/logo.png"
-            alt="מרכנטיל — לירה לבנה ליום שחור"
+            src="/merkanpil.png"
+            alt="מרכנפיל — לירה לבנה ליום שחור"
             width={320}
             height={120}
             priority

@@ -15,7 +15,7 @@ export function DisposableIncomeHero({ summary }: DisposableIncomeHeroProps) {
   return (
     <section className="m3-card-gold m3-expressive-enter overflow-hidden rounded-3xl p-5 text-center">
       <p className="text-sm font-semibold text-on-surface-variant">
-        פנוי להוצאות משתנות
+        יתרה חודשית משוערת
       </p>
       <p
         className={cn(
@@ -26,6 +26,8 @@ export function DisposableIncomeHero({ summary }: DisposableIncomeHeroProps) {
       >
         {formatCurrency(remaining)}
       </p>
+      <p className="mt-3 text-base">בפועל: {formatCurrency(summary.actualNet)}</p>
+      <p className="mt-1 text-sm text-on-surface-variant">התחזית כוללת רישומים מתוכננים. זו אינה יתרת חשבון הבנק.</p>
     </section>
   );
 }
