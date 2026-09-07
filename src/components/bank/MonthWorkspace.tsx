@@ -1,14 +1,16 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect -- deep-link action intentionally opens the requested editor */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Banknote, Plus } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { InitMonthPanel } from "@/components/ledger/InitMonthPanel";
 import {
   LedgerBottomSheet,
   type LedgerSheetMode,
 } from "@/components/bank/LedgerBottomSheet";
 import { TransactionCard } from "@/components/bank/TransactionCard";
+import { SmartEntryBar } from "@/components/bank/SmartEntryBar";
 import { MonthNavigator } from "@/components/ui/MonthNavigator";
 import { fetchLive, mutateLive } from "@/lib/api/fetch-live";
 import type { MonthlyLedgerEntry } from "@/types/ledger";
@@ -121,12 +123,19 @@ export function MonthWorkspace() {
     setSheetOpen(true);
   }
 
-  return (
-    <div className="mx-auto max-w-2xl space-y-3 pb-24">
-      <MonthNavigator />
-      {(saveMut.isError || deleteMut.isError || paidMut.isError) && <p role="alert" className="m3-error">השמירה נכשלה. הנתונים שהזנת נשמרו בטופס, אפשר לנסות שוב.</p>}
-      {entries.some(e => !e.is_paid) && <section className="m3-card p-4 space-y-2"><h2 className="font-bold">תכנון שטרם בוצע</h2><p>סמן רק לאחר שהכסף התקבל או שולם.</p>{entries.filter(e => !e.is_paid).map(e => <button disabled={paidMut.isPending} key={e.id} className="m3-btn-primary px-4 py-2 me-2" onClick={() => paidMut.mutate(e)}>סימון {e.name} כבוצע</button>)}</section>}
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("action") === "add") {
+      openAdd(params.get("kind") === "income" ? "income" : params.get("kind") === "cash" ? "cash_withdrawal" : "expense");
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
 
+  return (
+    <div className="mx-auto max-w-5xl space-y-4 pb-24">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs font-bold uppercase tracking-[.16em] text-primary">ניהול שוטף</p><h1 className="mt-1 text-2xl font-black">תנועות החודש</h1></div><div className="sm:w-72"><MonthNavigator /></div></div>
+      <SmartEntryBar onParsed={(mode) => { setSheetMode(mode); setSheetOpen(true); }} />
+      {(saveMut.isError || deleteMut.isError || paidMut.isError) && <p role="alert" className="m3-error">השמירה נכשלה. הנתונים שהזנת נשמרו בטופס, אפשר לנסות שוב.</p>}
       <InitMonthPanel
         monthKey={monthKey}
         initialized={data?.summary.initialized ?? false}
@@ -145,6 +154,7 @@ export function MonthWorkspace() {
                 entry={e}
                 onTap={() => openEdit(e)}
                 onDelete={() => deleteMut.mutate(e.id)}
+                onTogglePaid={() => paidMut.mutate(e)}
               />
             ))}
           </CardSection>
@@ -156,13 +166,14 @@ export function MonthWorkspace() {
                 entry={e}
                 onTap={() => openEdit(e)}
                 onDelete={() => deleteMut.mutate(e.id)}
+                onTogglePaid={() => paidMut.mutate(e)}
               />
             ))}
           </CardSection>
           {withdrawals.length > 0 && (
             <CardSection title="העברות לארנק מזומן">
               {withdrawals.map((e) => (
-                <TransactionCard key={e.id} entry={e} onTap={() => openEdit(e)} onDelete={() => deleteMut.mutate(e.id)} />
+                <TransactionCard key={e.id} entry={e} onTap={() => openEdit(e)} onDelete={() => deleteMut.mutate(e.id)} onTogglePaid={() => paidMut.mutate(e)} />
               ))}
             </CardSection>
           )}

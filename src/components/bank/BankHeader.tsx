@@ -31,11 +31,11 @@ export function BankHeader({ userName }: BankHeaderProps) {
             </button>
             <Link href="/dashboard" className="mx-auto shrink-0 lg:mx-0">
               <Image
-                src="/merkanpil.png"
+                src="/merkanpil-header.png"
                 alt="מרכנפיל"
                 width={200}
                 height={72}
-                className="h-12 w-auto rounded-xl object-contain sm:h-14 lg:h-16"
+                className="h-14 w-auto rounded-xl object-contain sm:h-16 lg:h-[72px]"
                 priority
               />
             </Link>
@@ -70,11 +70,11 @@ export function BankHeader({ userName }: BankHeaderProps) {
           <aside className="absolute inset-y-0 start-0 flex w-[min(100%,280px)] flex-col bg-surface-container-lowest shadow-elevation-2 safe-top safe-bottom">
             <div className="flex items-center justify-between border-b border-outline-variant px-4 py-3">
               <Image
-                src="/merkanpil.png"
+                src="/merkanpil-header.png"
                 alt="מרכנפיל"
                 width={160}
                 height={56}
-                className="h-10 w-auto rounded-lg object-contain"
+                className="h-12 w-auto rounded-xl object-contain"
               />
               <button
                 type="button"
@@ -103,7 +103,7 @@ export function BankHeader({ userName }: BankHeaderProps) {
             </nav>
             <div className="border-t border-outline-variant p-4">
               <Link
-                href="/transactions?action=add"
+                href="/month?action=add"
                 onClick={() => setMenuOpen(false)}
                 className="flex min-h-[48px] items-center justify-center rounded-full bg-primary px-4 py-3 text-sm font-semibold text-on-primary"
               >

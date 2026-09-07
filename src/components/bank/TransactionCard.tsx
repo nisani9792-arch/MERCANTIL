@@ -1,6 +1,6 @@
 "use client";
 
-import { Banknote, Trash2 } from "lucide-react";
+import { Banknote, CheckCircle2, Circle, Pencil, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils/format";
 import type { MonthlyLedgerEntry } from "@/types/ledger";
 import { cn } from "@/lib/utils/cn";
@@ -9,9 +9,10 @@ type TransactionCardProps = {
   entry: MonthlyLedgerEntry;
   onTap: () => void;
   onDelete: () => void;
+  onTogglePaid?: () => void;
 };
 
-export function TransactionCard({ entry, onTap, onDelete }: TransactionCardProps) {
+export function TransactionCard({ entry, onTap, onDelete, onTogglePaid }: TransactionCardProps) {
   const isIncome = entry.type === "income";
   const isWithdrawal = entry.entry_kind === "cash_withdrawal";
 
@@ -46,6 +47,8 @@ export function TransactionCard({ entry, onTap, onDelete }: TransactionCardProps
       >
         {formatCurrency(entry.amount)}
       </p>
+      {onTogglePaid && <button type="button" onClick={(e) => { e.stopPropagation(); onTogglePaid(); }} className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${entry.is_paid ? "bg-success-container text-success" : "bg-surface-container text-on-surface-variant"}`} aria-label={entry.is_paid ? "סומן כבוצע" : "סמן כבוצע"}>{entry.is_paid ? <CheckCircle2 className="h-5 w-5" /> : <Circle className="h-5 w-5" />}</button>}
+      <button type="button" onClick={(e) => { e.stopPropagation(); onTap(); }} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-primary hover:bg-primary-container" aria-label="ערוך שם ופרטים"><Pencil className="h-4 w-4" /></button>
       <button
         type="button"
         onClick={(e) => {

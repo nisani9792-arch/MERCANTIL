@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect -- reset form state when a different ledger item opens */
 
 import { useEffect, useState } from "react";
 import { BottomSheet } from "@/components/ui/BottomSheet";
@@ -8,7 +9,7 @@ import type { LedgerEntryKind, LedgerItemType, MonthlyLedgerEntry, PaymentMethod
 type AddType = LedgerItemType | "cash_withdrawal";
 
 export type LedgerSheetMode =
-  | { kind: "add"; type: AddType }
+  | { kind: "add"; type: AddType; draft?: Partial<{ name: string; amount: number; category: string; isVariable: boolean; paymentMethod: PaymentMethod }> }
   | { kind: "edit"; entry: MonthlyLedgerEntry };
 
 type LedgerBottomSheetProps = {
@@ -49,11 +50,11 @@ export function LedgerBottomSheet({
       setIsVariable(mode.entry.is_variable);
       setPaymentMethod(mode.entry.payment_method);
     } else {
-      setName("");
-      setAmount("");
-      setCategory(mode.type === "expense" ? "מזון" : "הכנסה");
-      setIsVariable(mode.type === "expense");
-      setPaymentMethod(mode.type === "expense" ? "card" : "bank");
+      setName(mode.draft?.name ?? "");
+      setAmount(mode.draft?.amount ? String(mode.draft.amount) : "");
+      setCategory(mode.draft?.category ?? (mode.type === "expense" ? "מזון" : "הכנסה"));
+      setIsVariable(mode.draft?.isVariable ?? mode.type === "expense");
+      setPaymentMethod(mode.draft?.paymentMethod ?? (mode.type === "expense" ? "card" : "bank"));
     }
   }, [mode]);
 

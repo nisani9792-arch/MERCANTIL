@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable react-hooks/set-state-in-effect -- browser-only install state is discovered after hydration */
 
 import { useCallback, useEffect, useState } from "react";
 

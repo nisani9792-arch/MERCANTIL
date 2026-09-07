@@ -2,8 +2,6 @@ import { getSql } from "@/lib/db/client";
 import { DEFAULT_FIXED_TEMPLATES } from "@/lib/db/default-templates";
 import type { FixedTemplate, RecurringFrequency } from "@/types/ledger";
 
-const TABLE = "fixed_templates";
-
 function mapRow(row: Record<string, unknown>): FixedTemplate {
   return {
     id: String(row.id),
@@ -79,6 +77,7 @@ export async function updateTemplate(
   userId: string,
   id: string,
   input: Partial<{
+    type: FixedTemplate["type"];
     name: string;
     amount: number;
     frequency: RecurringFrequency;
@@ -97,6 +96,7 @@ export async function updateTemplate(
   const rows = await sql`
     update fixed_templates
     set name = ${input.name ?? cur.name},
+        type = ${input.type ?? cur.type},
         amount = ${input.amount ?? cur.amount},
         frequency = ${input.frequency ?? cur.frequency},
         day_of_month = ${input.dayOfMonth !== undefined ? input.dayOfMonth : cur.day_of_month},

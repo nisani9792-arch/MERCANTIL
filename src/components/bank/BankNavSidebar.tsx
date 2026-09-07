@@ -85,7 +85,7 @@ export function BankMobileNav() {
 export function BankMobileFab() {
   return (
     <Link
-      href="/month"
+      href="/month?action=add"
       className="m3-fab fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] start-4 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-elevation-2 transition-transform active:scale-95 lg:hidden"
       aria-label="ניהול חודש"
     >

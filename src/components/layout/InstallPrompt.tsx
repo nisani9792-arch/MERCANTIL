@@ -15,7 +15,7 @@ export function InstallPrompt() {
       aria-label="התקנת אפליקציה"
     >
       <Image
-        src="/icon-shortcut.png"
+        src="/apple-touch-icon.png"
         alt=""
         width={48}
         height={48}

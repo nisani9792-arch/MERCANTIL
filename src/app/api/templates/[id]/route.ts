@@ -11,12 +11,21 @@ export async function PATCH(
 
   const { id } = await params;
   const body = (await request.json()) as {
+    type?: "income" | "expense";
     name?: string;
     amount?: number;
     frequency?: "monthly" | "bi-monthly";
     dayOfMonth?: number | null;
     isActive?: boolean;
   };
+
+  if ((body.name !== undefined && !body.name.trim()) ||
+      (body.type !== undefined && !["income", "expense"].includes(body.type)) ||
+      (body.amount !== undefined && (!Number.isFinite(body.amount) || body.amount <= 0)) ||
+      (body.frequency !== undefined && !["monthly", "bi-monthly"].includes(body.frequency)) ||
+      (body.dayOfMonth !== undefined && body.dayOfMonth !== null && (!Number.isInteger(body.dayOfMonth) || body.dayOfMonth < 1 || body.dayOfMonth > 31))) {
+    return NextResponse.json({ error: "נתונים לא תקינים" }, { status: 400 });
+  }
 
   const template = await updateTemplate(session.userId, id, body);
   if (!template) return NextResponse.json({ error: "לא נמצא" }, { status: 404 });

@@ -22,10 +22,12 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/merkanpil.png", sizes: "1254x1254", type: "image/png" },
-      { url: "/merkanpil.png", type: "image/svg+xml" },
+      { url: "/favicon-16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
     ],
-    apple: [{ url: "/merkanpil.png", sizes: "1254x1254", type: "image/png" }],
+    shortcut: [{ url: "/favicon.ico" }],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
 };
 
@@ -35,8 +37,8 @@ export const viewport: Viewport = {
   maximumScale: 5,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#3d4f2f" },
-    { media: "(prefers-color-scheme: dark)", color: "#121510" },
+    { media: "(prefers-color-scheme: light)", color: "#0b1728" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b1728" },
   ],
 };
 

@@ -21,3 +21,5 @@ services:
         sync: false
       - key: GEMINI_MODEL
         value: gemini-2.5-flash
+      - key: KEEP_ALIVE_ENABLED
+        value: "true"
