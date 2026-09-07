@@ -13,7 +13,7 @@ export type NavItem = {
 };
 
 export const navItems: NavItem[] = [
-  { href: "/dashboard", label: "סיכום", mobileLabel: "סיכום", icon: Home },
-  { href: "/month", label: "ניהול חודש", mobileLabel: "חודש", icon: CalendarDays },
-  { href: "/templates", label: "תבניות", mobileLabel: "תבניות", icon: LayoutTemplate },
+  { href: "/dashboard", label: "סקירה פיננסית", mobileLabel: "סקירה", icon: Home },
+  { href: "/month", label: "תנועות החודש", mobileLabel: "תנועות", icon: CalendarDays },
+  { href: "/templates", label: "תכנון קבוע", mobileLabel: "תכנון", icon: LayoutTemplate },
 ];

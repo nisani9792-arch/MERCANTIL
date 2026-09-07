@@ -10,11 +10,11 @@ export function BankNavSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="bank-sidebar hidden w-56 shrink-0 border-s border-outline-variant bg-surface-container-lowest lg:block">
-      <div className="p-3">
+    <aside className="bank-sidebar hidden w-64 shrink-0 lg:block">
+      <div className="p-4">
         <Link
           href="/month"
-          className="mb-3 flex w-full min-h-[44px] items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2.5 text-sm font-semibold text-on-primary transition-opacity hover:opacity-90"
+          className="mb-5 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl bg-white px-3 py-2.5 text-sm font-bold text-slate-950 transition-transform hover:-translate-y-0.5"
         >
           <Plus className="h-4 w-4 shrink-0" />
           <span>ניהול החודש</span>
@@ -31,8 +31,8 @@ export function BankNavSidebar() {
                 className={cn(
                   "flex min-h-[44px] items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all",
                   active
-                    ? "bg-primary font-semibold text-on-primary shadow-elevation-1"
-                    : "text-on-surface-variant hover:bg-surface-container",
+                    ? "bg-white/12 font-bold text-white"
+                    : "text-slate-400 hover:bg-white/7 hover:text-white",
                 )}
               >
                 <Icon className="h-5 w-5 shrink-0" />
@@ -42,9 +42,9 @@ export function BankNavSidebar() {
           })}
         </nav>
 
-        <div className="my-4 border-t border-outline-variant px-3 pt-3">
-          <p className="text-xs leading-relaxed text-on-surface-variant">
-            תבניות קבועות → אתחול חודש → עריכה והוצאות משתנות. פשוט וברור.
+        <div className="my-5 border-t border-white/10 px-3 pt-4">
+          <p className="text-xs leading-relaxed text-slate-500">
+            שליטה בתזרים, במזומן ובתכנון החודשי — במקום אחד.
           </p>
         </div>
       </div>

@@ -22,7 +22,7 @@ export function BankShell({ children, userName }: BankShellProps) {
       <BankHeader userName={userName} />
       <div className="flex min-h-0 flex-1">
         <BankNavSidebar />
-        <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-3 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:px-4 sm:py-4 lg:px-6 lg:py-6 lg:pb-6">
+        <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:px-5 lg:px-8 lg:py-7 lg:pb-7">
           {children}
         </main>
       </div>
