@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { isDatabaseConfigured } from "@/lib/db/client";
 import { verifySessionToken, SESSION_COOKIE } from "@/lib/auth/session";
 
-const PROTECTED_PREFIXES = ["/dashboard", "/month", "/templates", "/transactions", "/categories"];
+const PROTECTED_PREFIXES = ["/dashboard", "/month", "/templates", "/finance", "/transactions", "/categories"];
 const AUTH_ROUTES = ["/login", "/register"];
 const DEPRECATED = ["/import", "/insights"];
 
