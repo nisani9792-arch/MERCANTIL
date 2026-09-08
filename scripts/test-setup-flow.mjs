@@ -27,3 +27,9 @@ test("editing setup preserves identifiers and can update the current month", () 
   assert.match(setupRoute, /update monthly_ledger e/);
   assert.match(setupRoute, /Setup verification failed/);
 });
+
+test("setup JSON field names match the database recordset fields", () => {
+  assert.match(setupRoute, /is_variable: item\.type === "expense"/);
+  assert.match(setupRoute, /sort_order: index \+ 1/);
+  assert.match(setupRoute, /is_variable boolean, sort_order int/);
+});
