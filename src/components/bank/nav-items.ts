@@ -2,6 +2,7 @@ import {
   Home,
   CalendarDays,
   LayoutTemplate,
+  Landmark,
   SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
@@ -17,5 +18,6 @@ export const navItems: NavItem[] = [
   { href: "/dashboard", label: "סקירה פיננסית", mobileLabel: "סקירה", icon: Home },
   { href: "/month", label: "תנועות החודש", mobileLabel: "תנועות", icon: CalendarDays },
   { href: "/templates", label: "תכנון קבוע", mobileLabel: "תכנון", icon: LayoutTemplate },
+  { href: "/finance", label: "מידע פיננסי", mobileLabel: "מידע", icon: Landmark },
   { href: "/setup", label: "אשף הגדרה", mobileLabel: "הגדרה", icon: SlidersHorizontal },
 ];
