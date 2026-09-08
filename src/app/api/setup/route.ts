@@ -77,8 +77,10 @@ export async function POST(request: Request) {
     name: String(item.name ?? "").trim(),
     amount: Number(item.amount),
     type: item.type,
-    isVariable: item.type === "expense" && Boolean(item.isVariable),
-    sortOrder: index + 1,
+    // These names intentionally match jsonb_to_recordset below. PostgreSQL
+    // does not translate the browser's camelCase fields automatically.
+    is_variable: item.type === "expense" && Boolean(item.isVariable),
+    sort_order: index + 1,
   })).filter((item) => item.name && Number.isFinite(item.amount) && item.amount >= 0 && (item.type === "income" || item.type === "expense"));
 
   if (!items.some((item) => item.type === "income")) {
