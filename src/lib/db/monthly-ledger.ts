@@ -1,7 +1,4 @@
 import { getSql } from "@/lib/db/client";
-import {
-  seedDefaultTemplates,
-} from "@/lib/db/recurring-templates";
 import { currentMonthKey } from "@/lib/utils/month";
 import type { LedgerEntryKind, LedgerItemType, MonthSummary, MonthlyLedgerEntry, PaymentMethod } from "@/types/ledger";
 
@@ -105,7 +102,6 @@ export async function initMonthFromTemplates(
   userId: string,
   monthKey: string,
 ): Promise<{ created: number; skipped: boolean }> {
-  await seedDefaultTemplates(userId);
   const sql = getSql();
   // One atomic statement copies only missing templates. The unique index on
   // user/month/template also makes repeated or concurrent taps idempotent.

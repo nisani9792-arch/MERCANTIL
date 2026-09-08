@@ -1,5 +1,4 @@
 import { getSql } from "@/lib/db/client";
-import { DEFAULT_FIXED_TEMPLATES } from "@/lib/db/default-templates";
 import type { FixedTemplate, RecurringFrequency } from "@/types/ledger";
 
 function mapRow(row: Record<string, unknown>): FixedTemplate {
@@ -17,26 +16,6 @@ function mapRow(row: Record<string, unknown>): FixedTemplate {
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),
   };
-}
-
-export async function seedDefaultTemplates(userId: string): Promise<void> {
-  const sql = getSql();
-  const existing = await sql`
-    select count(*)::int as c from fixed_templates where user_id = ${userId}
-  `;
-  if (Number((existing[0] as { c: number }).c) > 0) return;
-
-  for (const t of DEFAULT_FIXED_TEMPLATES) {
-    await sql`
-      insert into fixed_templates (
-        user_id, name, type, amount, frequency, day_of_month, is_active, is_variable, sort_order
-      )
-      values (
-        ${userId}, ${t.name}, ${t.type}, ${t.amount},
-        ${t.frequency}, ${t.day_of_month}, true, ${"is_variable" in t ? Boolean(t.is_variable) : false}, ${t.sort_order}
-      )
-    `;
-  }
 }
 
 export async function listTemplates(userId: string): Promise<FixedTemplate[]> {

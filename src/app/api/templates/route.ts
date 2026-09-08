@@ -3,14 +3,12 @@ import { getSession } from "@/lib/auth/session";
 import {
   createTemplate,
   listTemplates,
-  seedDefaultTemplates,
 } from "@/lib/db/recurring-templates";
 
 export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  await seedDefaultTemplates(session.userId);
   const templates = await listTemplates(session.userId);
   return NextResponse.json({ templates });
 }

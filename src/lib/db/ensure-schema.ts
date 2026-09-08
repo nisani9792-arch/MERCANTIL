@@ -15,6 +15,13 @@ export function ensureAppSchema(): Promise<void> {
 async function initSchema() {
   const sql = getSql();
 
+  await sql`
+    create table if not exists app_schema_migrations (
+      name text primary key,
+      applied_at timestamptz not null default now()
+    )
+  `;
+
   await sql`create type category_type as enum ('income', 'expense')`.catch(
     () => undefined,
   );
@@ -125,21 +132,33 @@ async function initSchema() {
 
   // Older installations used recurring_templates. Keep their ids when moving
   // to fixed_templates so existing monthly rows remain valid.
-  const legacyTemplateTable = await sql`
-    select to_regclass('public.recurring_templates') is not null as exists
+  const legacyTemplateState = await sql`
+    select
+      to_regclass('public.recurring_templates') is not null as exists,
+      exists (
+        select 1 from app_schema_migrations
+        where name = 'recurring_templates_to_fixed_templates_v1'
+      ) as migrated
   `;
-  if (Boolean(legacyTemplateTable[0]?.exists)) {
+  if (Boolean(legacyTemplateState[0]?.exists) && !Boolean(legacyTemplateState[0]?.migrated)) {
     await sql`alter table recurring_templates add column if not exists is_variable boolean not null default false`;
-    await sql`
-      insert into fixed_templates (
-        id, user_id, name, type, amount, frequency, day_of_month,
-        is_active, is_variable, sort_order, created_at, updated_at
-      )
-      select id, user_id, name, type, amount, frequency, day_of_month,
-        is_active, is_variable, sort_order, created_at, updated_at
-      from recurring_templates
-      on conflict (id) do nothing
-    `;
+    await sql.transaction([
+      sql`
+        insert into fixed_templates (
+          id, user_id, name, type, amount, frequency, day_of_month,
+          is_active, is_variable, sort_order, created_at, updated_at
+        )
+        select id, user_id, name, type, amount, frequency, day_of_month,
+          is_active, is_variable, sort_order, created_at, updated_at
+        from recurring_templates
+        on conflict (id) do nothing
+      `,
+      sql`
+        insert into app_schema_migrations (name)
+        values ('recurring_templates_to_fixed_templates_v1')
+        on conflict (name) do nothing
+      `,
+    ]);
   }
 
   await sql`
