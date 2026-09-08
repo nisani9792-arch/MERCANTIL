@@ -5,11 +5,23 @@ import { listTemplates } from "@/lib/db/recurring-templates";
 import { currentMonthKey } from "@/lib/utils/month";
 
 type SetupItem = {
+  id?: string;
   name?: string;
   amount?: number;
   type?: "income" | "expense";
   isVariable?: boolean;
 };
+
+function databaseFailureCode(error: unknown) {
+  const code = typeof error === "object" && error !== null && "code" in error
+    ? String((error as { code?: unknown }).code ?? "")
+    : "";
+  if (code === "23503") return "FOREIGN_KEY";
+  if (code === "23505") return "DUPLICATE";
+  if (code === "23514") return "CONSTRAINT";
+  if (code === "22003") return "AMOUNT_RANGE";
+  return "DATABASE_WRITE";
+}
 
 async function getOptionalTables() {
   const sql = getSql();
@@ -54,10 +66,14 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({})) as {
     items?: SetupItem[];
     openingCash?: number;
+    applyToCurrentMonth?: boolean;
   };
   const rawItems = Array.isArray(body.items) ? body.items.slice(0, 60) : [];
+  const sql = getSql();
+  const existingTemplates = await listTemplates(session.userId);
+  const existingIds = new Set(existingTemplates.map((item) => item.id));
   const items = rawItems.map((item, index) => ({
-    id: crypto.randomUUID(),
+    id: item.id && existingIds.has(item.id) ? item.id : crypto.randomUUID(),
     name: String(item.name ?? "").trim(),
     amount: Number(item.amount),
     type: item.type,
@@ -70,18 +86,15 @@ export async function POST(request: Request) {
   }
 
   const openingCash = Math.max(0, Number(body.openingCash) || 0);
+  const applyToCurrentMonth = existingTemplates.length === 0 || body.applyToCurrentMonth === true;
   const monthKey = currentMonthKey();
-  const sql = getSql();
-  const [{ hasLegacyTemplates }, ledgerRows] = await Promise.all([
-    getOptionalTables(),
+  const [ledgerRows] = await Promise.all([
     sql`select count(*)::int as count from monthly_ledger where user_id = ${session.userId}`,
   ]);
   const isFirstSetup = Number(ledgerRows[0]?.count ?? 0) === 0;
   const itemsJson = JSON.stringify(items);
 
   const queries = [
-    ...(hasLegacyTemplates ? [sql`delete from recurring_templates where user_id = ${session.userId}`] : []),
-    sql`delete from fixed_templates where user_id = ${session.userId}`,
     sql`
       insert into fixed_templates (
         id, user_id, name, type, amount, frequency, day_of_month,
@@ -93,22 +106,74 @@ export async function POST(request: Request) {
         id uuid, name text, amount numeric, type text,
         is_variable boolean, sort_order int
       )
+      on conflict (id) do update set
+        name = excluded.name,
+        type = excluded.type,
+        amount = excluded.amount,
+        frequency = excluded.frequency,
+        day_of_month = excluded.day_of_month,
+        is_active = excluded.is_active,
+        is_variable = excluded.is_variable,
+        sort_order = excluded.sort_order,
+        updated_at = now()
+      where fixed_templates.user_id = ${session.userId}
     `,
-    ...(isFirstSetup ? [sql`
-      insert into monthly_ledger (
-        user_id, month_key, name, type, amount, category,
-        is_from_template, template_id, is_variable, is_paid,
-        entry_kind, payment_method
-      )
-      select ${session.userId}, ${monthKey}, x.name, x.type, x.amount,
-        case when x.type = 'income' then 'הכנסה' else x.name end,
-        true, x.id, x.is_variable, false, 'transaction',
-        case when x.type = 'income' then 'bank' else 'card' end
-      from jsonb_to_recordset(${itemsJson}::jsonb) as x(
-        id uuid, name text, amount numeric, type text,
-        is_variable boolean, sort_order int
-      )
-    `] : []),
+    ...(applyToCurrentMonth ? [
+      sql`
+        delete from monthly_ledger e
+        where e.user_id = ${session.userId}
+          and e.month_key = ${monthKey}
+          and e.is_from_template = true
+          and e.template_id is not null
+          and not exists (
+            select 1 from jsonb_to_recordset(${itemsJson}::jsonb) as x(id uuid)
+            where x.id = e.template_id
+          )
+      `,
+      sql`
+        update monthly_ledger e
+        set name = t.name,
+            type = t.type,
+            amount = t.amount,
+            category = case when t.type = 'income' then 'הכנסה' else t.name end,
+            is_variable = t.is_variable,
+            updated_at = now()
+        from fixed_templates t
+        where e.user_id = ${session.userId}
+          and e.month_key = ${monthKey}
+          and e.template_id = t.id
+          and t.user_id = ${session.userId}
+      `,
+      sql`
+        insert into monthly_ledger (
+          user_id, month_key, name, type, amount, category,
+          is_from_template, template_id, is_variable, is_paid,
+          entry_kind, payment_method
+        )
+        select t.user_id, ${monthKey}, t.name, t.type, t.amount,
+          case when t.type = 'income' then 'הכנסה' else t.name end,
+          true, t.id, t.is_variable, false, 'transaction',
+          case when t.type = 'income' then 'bank' else 'card' end
+        from fixed_templates t
+        where t.user_id = ${session.userId}
+          and t.id in (select x.id from jsonb_to_recordset(${itemsJson}::jsonb) as x(id uuid))
+          and not exists (
+            select 1 from monthly_ledger e
+            where e.user_id = ${session.userId}
+              and e.month_key = ${monthKey}
+              and e.template_id = t.id
+          )
+        on conflict do nothing
+      `,
+    ] : []),
+    sql`
+      delete from fixed_templates t
+      where t.user_id = ${session.userId}
+        and not exists (
+          select 1 from jsonb_to_recordset(${itemsJson}::jsonb) as x(id uuid)
+          where x.id = t.id
+        )
+    `,
     ...(isFirstSetup && openingCash > 0 ? [sql`
       insert into monthly_ledger (
         user_id, month_key, name, type, amount, category,
@@ -118,20 +183,30 @@ export async function POST(request: Request) {
         ${openingCash}, 'מזומן', false, false, true, 'cash_withdrawal', 'bank'
       )
     `] : []),
+    sql`select count(*)::int as count from fixed_templates where user_id = ${session.userId}`,
   ];
 
   try {
-    await sql.transaction(queries);
+    const results = await sql.transaction(queries);
+    const verificationRows = results.at(-1) as Array<{ count?: number }> | undefined;
+    if (Number(verificationRows?.[0]?.count ?? -1) !== items.length) {
+      throw new Error("Setup verification failed");
+    }
     return NextResponse.json({
       ok: true,
       monthKey,
       templatesCreated: items.length,
       historyPreserved: !isFirstSetup,
+      currentMonthUpdated: applyToCurrentMonth,
     });
   } catch (error) {
     const incidentId = crypto.randomUUID().slice(0, 8);
-    console.error(`[setup-save:${incidentId}]`, error);
-    return NextResponse.json({ error: "שמירת ההגדרות נכשלה", incidentId }, { status: 500 });
+    const failureCode = databaseFailureCode(error);
+    console.error(`[setup-save:${incidentId}:${failureCode}]`, error);
+    return NextResponse.json(
+      { error: "שמירת ההגדרות נכשלה", incidentId, failureCode },
+      { status: 500, headers: { "Cache-Control": "no-store" } },
+    );
   }
 }
 
