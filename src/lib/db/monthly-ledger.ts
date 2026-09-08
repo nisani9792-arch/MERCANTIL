@@ -101,8 +101,11 @@ export async function getMonthSummary(
 export async function initMonthFromTemplates(
   userId: string,
   monthKey: string,
+  templateIds?: string[],
 ): Promise<{ created: number; skipped: boolean }> {
   const sql = getSql();
+  const chosenIds = Array.from(new Set((templateIds ?? []).filter((id) => /^[0-9a-f-]{36}$/i.test(id))));
+  if (templateIds && chosenIds.length === 0) return { created: 0, skipped: true };
   // One atomic statement copies only missing templates. The unique index on
   // user/month/template also makes repeated or concurrent taps idempotent.
   const rows = await sql`insert into monthly_ledger (
@@ -112,6 +115,7 @@ export async function initMonthFromTemplates(
       true, t.id, t.is_variable, false, null
     from fixed_templates t
     where t.user_id = ${userId} and t.is_active = true
+      and (${chosenIds.length} = 0 or t.id = any(${chosenIds}::uuid[]))
       and (t.frequency = 'monthly' or ${Number(monthKey.slice(5))} % 2 = 1)
       and not exists (select 1 from monthly_ledger e
         where e.user_id = ${userId} and e.month_key = ${monthKey} and e.template_id = t.id)
