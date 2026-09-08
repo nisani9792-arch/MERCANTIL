@@ -4,7 +4,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useMonthStore } from "@/stores/useMonthStore";
 
-/** Refetch budget data when the PWA/tab becomes visible (critical on mobile). */
+/**
+ * The database is the single source of truth. Besides focus/restore events we
+ * refresh active screens while they are visible, so an open phone and desktop
+ * stay aligned without relying on fragile browser-local state.
+ */
 export function useRefetchOnVisible() {
   const qc = useQueryClient();
   const monthKey = useMonthStore((s) => s.monthKey);
@@ -14,6 +18,8 @@ export function useRefetchOnVisible() {
       void qc.refetchQueries({ queryKey: ["ledger", monthKey] });
       void qc.refetchQueries({ queryKey: ["analytics", monthKey] });
       void qc.refetchQueries({ queryKey: ["ai-insights", monthKey] });
+      void qc.refetchQueries({ queryKey: ["templates"] });
+      void qc.refetchQueries({ queryKey: ["financial-snapshot"] });
     }
 
     function onVisible() {
@@ -27,11 +33,15 @@ export function useRefetchOnVisible() {
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", refetchAll);
     window.addEventListener("pageshow", onPageShow);
+    const syncTimer = window.setInterval(() => {
+      if (document.visibilityState === "visible") refetchAll();
+    }, 15_000);
 
     return () => {
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", refetchAll);
       window.removeEventListener("pageshow", onPageShow);
+      window.clearInterval(syncTimer);
     };
   }, [qc, monthKey]);
 }
