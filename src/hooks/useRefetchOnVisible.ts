@@ -20,15 +20,18 @@ export function useRefetchOnVisible() {
       if (document.visibilityState === "visible") refetchAll();
     }
 
+    function onPageShow(event: PageTransitionEvent) {
+      if (event.persisted) refetchAll();
+    }
+
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", refetchAll);
-    window.addEventListener("pageshow", (e) => {
-      if (e.persisted) refetchAll();
-    });
+    window.addEventListener("pageshow", onPageShow);
 
     return () => {
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("focus", refetchAll);
+      window.removeEventListener("pageshow", onPageShow);
     };
   }, [qc, monthKey]);
 }
