@@ -128,15 +128,6 @@ export function MonthWorkspace() {
   });
 
   const entries = data?.entries ?? [];
-  const paidMut = useMutation({
-    mutationFn: async (entry: MonthlyLedgerEntry) => {
-      const res = await mutateLive(`/api/ledger/${entry.id}`, {
-        method: 'PATCH', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({isPaid: !entry.is_paid}),
-      });
-      if (!res.ok) throw new Error('לא ניתן לעדכן את הרישום');
-    }, onSuccess: refetchAll,
-  });
   const income = entries.filter((e) => e.type === "income" && e.entry_kind === "transaction");
   const expenses = entries.filter((e) => e.type === "expense" && e.entry_kind === "transaction");
   const withdrawals = entries.filter((e) => e.entry_kind === "cash_withdrawal");
@@ -164,7 +155,7 @@ export function MonthWorkspace() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs font-bold uppercase tracking-[.16em] text-primary">ניהול שוטף</p><h1 className="mt-1 text-2xl font-black">תנועות החודש</h1></div><div className="sm:w-72"><MonthNavigator /></div></div>
       <SmartEntryBar onParsed={(mode) => { setSheetMode(mode); setSheetOpen(true); }} />
       {saveMessage && <p role="status" className="rounded-xl bg-success-container px-4 py-3 text-sm font-bold text-success">{saveMessage}</p>}
-      {(saveMut.isError || deleteMut.isError || paidMut.isError) && <p role="alert" className="m3-error">השמירה נכשלה. הנתונים שהזנת נשמרו בטופס, אפשר לנסות שוב.</p>}
+      {(saveMut.isError || deleteMut.isError) && <p role="alert" className="m3-error">השמירה נכשלה. הנתונים שהזנת נשמרו בטופס, אפשר לנסות שוב.</p>}
       <InitMonthPanel
         monthKey={monthKey}
         initialized={data?.summary.initialized ?? false}
@@ -185,7 +176,6 @@ export function MonthWorkspace() {
                 entry={e}
                 onTap={() => openEdit(e)}
                 onDelete={() => deleteMut.mutate(e.id)}
-                onTogglePaid={() => paidMut.mutate(e)}
               />
             ))}
           </CardSection>
@@ -197,14 +187,13 @@ export function MonthWorkspace() {
                 entry={e}
                 onTap={() => openEdit(e)}
                 onDelete={() => deleteMut.mutate(e.id)}
-                onTogglePaid={() => paidMut.mutate(e)}
               />
             ))}
           </CardSection>
           {withdrawals.length > 0 && (
             <CardSection title="העברות לארנק מזומן">
               {withdrawals.map((e) => (
-                <TransactionCard key={e.id} entry={e} onTap={() => openEdit(e)} onDelete={() => deleteMut.mutate(e.id)} onTogglePaid={() => paidMut.mutate(e)} />
+                <TransactionCard key={e.id} entry={e} onTap={() => openEdit(e)} onDelete={() => deleteMut.mutate(e.id)} />
               ))}
             </CardSection>
           )}
