@@ -14,6 +14,9 @@ const heebo = Heebo({
 export const metadata: Metadata = {
   title: "מרכנפיל. מבינים אותך מצונן.",
   description: "ניהול כלכלי חכם מבוסס AI — בנקאי, חכם, מבוסס Gemini",
+  other: {
+    "app-build": process.env.RENDER_GIT_COMMIT?.slice(0, 12) ?? "local",
+  },
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
