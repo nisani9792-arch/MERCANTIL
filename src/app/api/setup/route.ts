@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { getSql } from "@/lib/db/client";
 import { listTemplates } from "@/lib/db/recurring-templates";
-import { currentMonthKey } from "@/lib/utils/month";
 
 type SetupItem = {
   id?: string;
@@ -66,7 +65,6 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({})) as {
     items?: SetupItem[];
     openingCash?: number;
-    applyToCurrentMonth?: boolean;
   };
   const rawItems = Array.isArray(body.items) ? body.items.slice(0, 60) : [];
   const sql = getSql();
@@ -87,13 +85,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "יש להזין לפחות הכנסה אחת" }, { status: 400 });
   }
 
-  const openingCash = Math.max(0, Number(body.openingCash) || 0);
-  const applyToCurrentMonth = existingTemplates.length === 0 || body.applyToCurrentMonth === true;
-  const monthKey = currentMonthKey();
-  const [ledgerRows] = await Promise.all([
-    sql`select count(*)::int as count from monthly_ledger where user_id = ${session.userId}`,
-  ]);
-  const isFirstSetup = Number(ledgerRows[0]?.count ?? 0) === 0;
+  // The setup wizard owns only the reusable library. It must never rewrite a
+  // current month: the user chooses what to bring into every new month.
+  void body.openingCash;
   const itemsJson = JSON.stringify(items);
 
   const queries = [
@@ -120,54 +114,6 @@ export async function POST(request: Request) {
         updated_at = now()
       where fixed_templates.user_id = ${session.userId}
     `,
-    ...(applyToCurrentMonth ? [
-      sql`
-        delete from monthly_ledger e
-        where e.user_id = ${session.userId}
-          and e.month_key = ${monthKey}
-          and e.is_from_template = true
-          and e.template_id is not null
-          and not exists (
-            select 1 from jsonb_to_recordset(${itemsJson}::jsonb) as x(id uuid)
-            where x.id = e.template_id
-          )
-      `,
-      sql`
-        update monthly_ledger e
-        set name = t.name,
-            type = t.type,
-            amount = t.amount,
-            category = case when t.type = 'income' then 'הכנסה' else t.name end,
-            is_variable = t.is_variable,
-            updated_at = now()
-        from fixed_templates t
-        where e.user_id = ${session.userId}
-          and e.month_key = ${monthKey}
-          and e.template_id = t.id
-          and t.user_id = ${session.userId}
-      `,
-      sql`
-        insert into monthly_ledger (
-          user_id, month_key, name, type, amount, category,
-          is_from_template, template_id, is_variable, is_paid,
-          entry_kind, payment_method
-        )
-        select t.user_id, ${monthKey}, t.name, t.type, t.amount,
-          case when t.type = 'income' then 'הכנסה' else t.name end,
-          true, t.id, t.is_variable, false, 'transaction',
-          case when t.type = 'income' then 'bank' else 'card' end
-        from fixed_templates t
-        where t.user_id = ${session.userId}
-          and t.id in (select x.id from jsonb_to_recordset(${itemsJson}::jsonb) as x(id uuid))
-          and not exists (
-            select 1 from monthly_ledger e
-            where e.user_id = ${session.userId}
-              and e.month_key = ${monthKey}
-              and e.template_id = t.id
-          )
-        on conflict do nothing
-      `,
-    ] : []),
     sql`
       delete from fixed_templates t
       where t.user_id = ${session.userId}
@@ -176,15 +122,6 @@ export async function POST(request: Request) {
           where x.id = t.id
         )
     `,
-    ...(isFirstSetup && openingCash > 0 ? [sql`
-      insert into monthly_ledger (
-        user_id, month_key, name, type, amount, category,
-        is_from_template, is_variable, is_paid, entry_kind, payment_method
-      ) values (
-        ${session.userId}, ${monthKey}, 'יתרת מזומן התחלתית', 'expense',
-        ${openingCash}, 'מזומן', false, false, true, 'cash_withdrawal', 'bank'
-      )
-    `] : []),
     sql`select count(*)::int as count from fixed_templates where user_id = ${session.userId}`,
   ];
 
@@ -196,10 +133,9 @@ export async function POST(request: Request) {
     }
     return NextResponse.json({
       ok: true,
-      monthKey,
       templatesCreated: items.length,
-      historyPreserved: !isFirstSetup,
-      currentMonthUpdated: applyToCurrentMonth,
+      historyPreserved: true,
+      currentMonthUpdated: false,
     });
   } catch (error) {
     const incidentId = crypto.randomUUID().slice(0, 8);
