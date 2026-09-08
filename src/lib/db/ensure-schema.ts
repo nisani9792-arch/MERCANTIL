@@ -302,6 +302,26 @@ async function initSchema() {
   await sql`create index if not exists transactions_fixed_recurring_idx on transactions (user_id, is_fixed_recurring) where is_fixed_recurring = true`;
   await sql`create index if not exists ai_learning_rules_user_idx on ai_learning_rules (user_id)`;
 
+  // This module is deliberately independent from the monthly ledger: balances,
+  // deposits and reminders are private reference data, not monthly expenses.
+  await sql`
+    create table if not exists financial_snapshot_items (
+      id uuid primary key default gen_random_uuid(),
+      user_id uuid not null references users (id) on delete cascade,
+      kind text not null check (kind in ('account', 'savings', 'deposit', 'planned_expense', 'reminder')),
+      name text not null,
+      institution text,
+      amount numeric(12, 2),
+      due_date date,
+      notes text,
+      is_active boolean not null default true,
+      created_at timestamptz not null default now(),
+      updated_at timestamptz not null default now()
+    )
+  `;
+  await sql`create index if not exists financial_snapshot_items_user_kind_idx on financial_snapshot_items (user_id, kind, is_active)`;
+  await sql`create index if not exists financial_snapshot_items_user_due_idx on financial_snapshot_items (user_id, due_date) where due_date is not null`;
+
   const categories = [
     ["משכורת", "income", "briefcase", 1],
     ["פרילנס", "income", "laptop", 2],
