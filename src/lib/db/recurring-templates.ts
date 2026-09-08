@@ -12,6 +12,7 @@ function mapRow(row: Record<string, unknown>): FixedTemplate {
     frequency: row.frequency as RecurringFrequency,
     day_of_month: row.day_of_month ? Number(row.day_of_month) : null,
     is_active: Boolean(row.is_active),
+    is_variable: Boolean(row.is_variable),
     sort_order: Number(row.sort_order),
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),
@@ -28,11 +29,11 @@ export async function seedDefaultTemplates(userId: string): Promise<void> {
   for (const t of DEFAULT_FIXED_TEMPLATES) {
     await sql`
       insert into fixed_templates (
-        user_id, name, type, amount, frequency, day_of_month, is_active, sort_order
+        user_id, name, type, amount, frequency, day_of_month, is_active, is_variable, sort_order
       )
       values (
         ${userId}, ${t.name}, ${t.type}, ${t.amount},
-        ${t.frequency}, ${t.day_of_month}, true, ${t.sort_order}
+        ${t.frequency}, ${t.day_of_month}, true, ${"is_variable" in t ? Boolean(t.is_variable) : false}, ${t.sort_order}
       )
     `;
   }
@@ -56,16 +57,17 @@ export async function createTemplate(
     amount: number;
     frequency?: RecurringFrequency;
     dayOfMonth?: number | null;
+    isVariable?: boolean;
   },
 ): Promise<FixedTemplate> {
   const sql = getSql();
   const rows = await sql`
     insert into fixed_templates (
-      user_id, name, type, amount, frequency, day_of_month, is_active, sort_order
+      user_id, name, type, amount, frequency, day_of_month, is_active, is_variable, sort_order
     )
     values (
       ${userId}, ${input.name}, ${input.type}, ${input.amount},
-      ${input.frequency ?? "monthly"}, ${input.dayOfMonth ?? null}, true,
+      ${input.frequency ?? "monthly"}, ${input.dayOfMonth ?? null}, true, ${input.isVariable ?? false},
       (select coalesce(max(sort_order), 0) + 1 from fixed_templates where user_id = ${userId})
     )
     returning *
@@ -83,6 +85,7 @@ export async function updateTemplate(
     frequency: RecurringFrequency;
     dayOfMonth: number | null;
     isActive: boolean;
+    isVariable: boolean;
     sortOrder: number;
   }>,
 ): Promise<FixedTemplate | null> {
@@ -101,6 +104,7 @@ export async function updateTemplate(
         frequency = ${input.frequency ?? cur.frequency},
         day_of_month = ${input.dayOfMonth !== undefined ? input.dayOfMonth : cur.day_of_month},
         is_active = ${input.isActive !== undefined ? input.isActive : cur.is_active},
+        is_variable = ${input.isVariable !== undefined ? input.isVariable : cur.is_variable},
         sort_order = ${input.sortOrder ?? cur.sort_order},
         updated_at = now()
     where id = ${id} and user_id = ${userId}

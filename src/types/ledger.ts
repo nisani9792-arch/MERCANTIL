@@ -13,6 +13,7 @@ export type FixedTemplate = {
   frequency: RecurringFrequency;
   day_of_month: number | null;
   is_active: boolean;
+  is_variable: boolean;
   sort_order: number;
   created_at: string;
   updated_at: string;

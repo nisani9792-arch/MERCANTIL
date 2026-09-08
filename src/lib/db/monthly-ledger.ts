@@ -113,7 +113,7 @@ export async function initMonthFromTemplates(
       user_id, month_key, name, type, amount, category,
       is_from_template, template_id, is_variable, is_paid, notes
     ) select t.user_id, ${monthKey}, t.name, t.type, t.amount, t.name,
-      true, t.id, false, false, null
+      true, t.id, t.is_variable, false, null
     from fixed_templates t
     where t.user_id = ${userId} and t.is_active = true
       and (t.frequency = 'monthly' or ${Number(monthKey.slice(5))} % 2 = 1)

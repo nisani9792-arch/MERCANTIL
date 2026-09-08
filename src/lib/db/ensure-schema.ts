@@ -108,6 +108,7 @@ async function initSchema() {
       frequency text not null default 'monthly' check (frequency in ('monthly', 'bi-monthly')),
       day_of_month smallint check (day_of_month is null or day_of_month between 1 and 31),
       is_active boolean not null default true,
+      is_variable boolean not null default false,
       sort_order int not null default 0,
       created_at timestamptz not null default now(),
       updated_at timestamptz not null default now()
@@ -120,17 +121,20 @@ async function initSchema() {
     select to_regclass('public.recurring_templates') is not null as exists
   `;
   if (Boolean(legacyTemplateTable[0]?.exists)) {
+    await sql`alter table recurring_templates add column if not exists is_variable boolean not null default false`;
     await sql`
       insert into fixed_templates (
         id, user_id, name, type, amount, frequency, day_of_month,
-        is_active, sort_order, created_at, updated_at
+        is_active, is_variable, sort_order, created_at, updated_at
       )
       select id, user_id, name, type, amount, frequency, day_of_month,
-        is_active, sort_order, created_at, updated_at
+        is_active, is_variable, sort_order, created_at, updated_at
       from recurring_templates
       on conflict (id) do nothing
     `;
   }
+
+  await sql`alter table fixed_templates add column if not exists is_variable boolean not null default false`;
 
   await sql`
     create table if not exists monthly_ledger (

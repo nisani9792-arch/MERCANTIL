@@ -25,6 +25,7 @@ export async function POST(request: Request) {
     amount?: number;
     frequency?: "monthly" | "bi-monthly";
     dayOfMonth?: number | null;
+    isVariable?: boolean;
   };
 
   if (!body.name || !body.type || body.amount == null) {
@@ -37,6 +38,7 @@ export async function POST(request: Request) {
     amount: Math.abs(body.amount),
     frequency: body.frequency,
     dayOfMonth: body.dayOfMonth,
+    isVariable: body.isVariable,
   });
 
   return NextResponse.json({ template }, { status: 201 });
