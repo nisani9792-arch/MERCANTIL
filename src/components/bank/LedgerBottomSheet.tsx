@@ -28,6 +28,7 @@ type LedgerBottomSheetProps = {
     paymentMethod: PaymentMethod;
   }) => void;
   saving?: boolean;
+  error?: string;
 };
 
 export function LedgerBottomSheet({
@@ -36,6 +37,7 @@ export function LedgerBottomSheet({
   onClose,
   onSave,
   saving,
+  error,
 }: LedgerBottomSheetProps) {
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
@@ -83,10 +85,34 @@ export function LedgerBottomSheet({
         ? "הוספת הכנסה"
         : "הוספת הוצאה";
   const categoryGuess = inferExpenseCategory(name);
+  const valid = Boolean(name.trim()) && Number.isFinite(Number(amount)) && Number(amount) > 0;
+  const dirty = mode.kind === "edit"
+    ? name !== mode.entry.name || amount !== String(mode.entry.amount) || category !== mode.entry.category || isVariable !== mode.entry.is_variable || paymentMethod !== mode.entry.payment_method
+    : Boolean(name.trim() || amount);
+
+  const saveButton = (
+    <button
+      type="button"
+      disabled={!valid || saving}
+      onClick={() => onSave({
+        name: name.trim(),
+        amount: Number(amount),
+        type,
+        category: type === "income" ? "הכנסה" : category,
+        isVariable: type === "expense" && isVariable,
+        entryKind: isWithdrawal ? "cash_withdrawal" : "transaction",
+        paymentMethod: isWithdrawal ? "bank" : paymentMethod,
+      })}
+      className="m3-btn-primary min-h-[54px] w-full py-3 text-base shadow-elevation-1"
+    >
+      {saving ? "שומר שינויים…" : mode.kind === "edit" ? "שמירת השינויים" : "שמירת התנועה"}
+    </button>
+  );
 
   return (
-    <BottomSheet open={open} onClose={onClose} title={title}>
+    <BottomSheet open={open} onClose={onClose} title={title} dirty={dirty && !saving} footer={saveButton}>
       {mode.kind === "edit" && <p className="mb-4 rounded-xl bg-primary-container p-3 text-sm text-primary">השינוי בשם ובסכום נשמר לחודש הזה בלבד. התבנית הקבועה לא תשתנה.</p>}
+      {error && <p role="alert" className="mb-4 rounded-xl bg-error-container p-3 text-sm font-semibold text-error">{error}</p>}
       <div className="grid gap-3">
         <div>
           <label className="m3-label">שם</label>
@@ -165,24 +191,6 @@ export function LedgerBottomSheet({
             </label>
           </>
         )}
-        <button
-          type="button"
-          disabled={!name.trim() || !Number.isFinite(Number(amount)) || Number(amount) <= 0 || saving}
-          onClick={() =>
-            onSave({
-              name: name.trim(),
-              amount: Number(amount),
-              type,
-              category: type === "income" ? "הכנסה" : category,
-              isVariable: type === "expense" && isVariable,
-              entryKind: isWithdrawal ? "cash_withdrawal" : "transaction",
-              paymentMethod: isWithdrawal ? "bank" : paymentMethod,
-            })
-          }
-          className="m3-btn-primary mt-2 min-h-[52px] w-full py-3 text-base"
-        >
-          {saving ? "שומר..." : "שמור"}
-        </button>
       </div>
     </BottomSheet>
   );

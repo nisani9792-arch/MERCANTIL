@@ -27,6 +27,7 @@ export function MonthWorkspace() {
   const monthKey = useMonthStore((s) => s.monthKey);
   const [sheetMode, setSheetMode] = useState<LedgerSheetMode | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -66,7 +67,9 @@ export function MonthWorkspace() {
             isVariable: payload.isVariable,
           }),
         });
-        if (!res.ok) throw new Error("patch failed");
+        const data = await res.json().catch(() => ({})) as { entry?: MonthlyLedgerEntry; error?: string };
+        if (!res.ok || !data.entry) throw new Error(data.error || "השמירה לא אושרה על ידי השרת");
+        return data.entry;
       } else {
         const res = await mutateLive("/api/ledger", {
           method: "POST",
@@ -82,12 +85,26 @@ export function MonthWorkspace() {
             paymentMethod: payload.paymentMethod,
           }),
         });
-        if (!res.ok) throw new Error("post failed");
+        const data = await res.json().catch(() => ({})) as { entry?: MonthlyLedgerEntry; error?: string };
+        if (!res.ok || !data.entry) throw new Error(data.error || "השמירה לא אושרה על ידי השרת");
+        return data.entry;
       }
     },
-    onSuccess: async () => {
+    onSuccess: async (savedEntry) => {
+      qc.setQueryData<LedgerResponse>(["ledger", monthKey], (current) => {
+        if (!current) return current;
+        const exists = current.entries.some((entry) => entry.id === savedEntry.id);
+        return {
+          ...current,
+          entries: exists
+            ? current.entries.map((entry) => entry.id === savedEntry.id ? savedEntry : entry)
+            : [...current.entries, savedEntry],
+        };
+      });
       setSheetOpen(false);
       setSheetMode(null);
+      setSaveMessage("השינויים נשמרו בהצלחה");
+      window.setTimeout(() => setSaveMessage(""), 2500);
       await refetchAll();
     },
   });
@@ -136,6 +153,7 @@ export function MonthWorkspace() {
     <div className="mx-auto max-w-5xl space-y-4 pb-24">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs font-bold uppercase tracking-[.16em] text-primary">ניהול שוטף</p><h1 className="mt-1 text-2xl font-black">תנועות החודש</h1></div><div className="sm:w-72"><MonthNavigator /></div></div>
       <SmartEntryBar onParsed={(mode) => { setSheetMode(mode); setSheetOpen(true); }} />
+      {saveMessage && <p role="status" className="rounded-xl bg-success-container px-4 py-3 text-sm font-bold text-success">{saveMessage}</p>}
       {(saveMut.isError || deleteMut.isError || paidMut.isError) && <p role="alert" className="m3-error">השמירה נכשלה. הנתונים שהזנת נשמרו בטופס, אפשר לנסות שוב.</p>}
       <InitMonthPanel
         monthKey={monthKey}
@@ -197,6 +215,7 @@ export function MonthWorkspace() {
           setSheetMode(null);
         }}
         saving={saveMut.isPending}
+        error={saveMut.isError ? saveMut.error.message : undefined}
         onSave={(d) =>
           saveMut.mutate({
             id: sheetMode?.kind === "edit" ? sheetMode.entry.id : undefined,
