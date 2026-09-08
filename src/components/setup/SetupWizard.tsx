@@ -17,15 +17,16 @@ import { useEffect, useMemo, useState } from "react";
 import { formatCurrency } from "@/lib/utils/format";
 import type { RecurringTemplate } from "@/types/ledger";
 
-type Item = { id: string; name: string; amount: string; isVariable?: boolean };
+type Item = { id: string; templateId?: string; name: string; amount: string; isVariable?: boolean };
 type SetupResponse = {
   configured: boolean;
   templates: RecurringTemplate[];
   history: { entries: number; months: number };
 };
 
-const makeItem = (name = "", amount = "", isVariable = false): Item => ({
+const makeItem = (name = "", amount = "", isVariable = false, templateId?: string): Item => ({
   id: crypto.randomUUID(),
+  templateId,
   name,
   amount,
   isVariable,
@@ -46,6 +47,7 @@ export function SetupWizard() {
   const [incomes, setIncomes] = useState<Item[]>(starterIncomes);
   const [expenses, setExpenses] = useState<Item[]>(starterExpenses);
   const [openingCash, setOpeningCash] = useState("");
+  const [applyToCurrentMonth, setApplyToCurrentMonth] = useState(true);
   const [configured, setConfigured] = useState(false);
   const [history, setHistory] = useState({ entries: 0, months: 0 });
   const [loading, setLoading] = useState(true);
@@ -66,10 +68,10 @@ export function SetupWizard() {
         if (data.templates.length) {
           setIncomes(data.templates
             .filter((item) => item.type === "income")
-            .map((item) => makeItem(item.name, String(item.amount))));
+            .map((item) => makeItem(item.name, String(item.amount), false, item.id)));
           setExpenses(data.templates
             .filter((item) => item.type === "expense")
-            .map((item) => makeItem(item.name, String(item.amount), item.is_variable)));
+            .map((item) => makeItem(item.name, String(item.amount), item.is_variable, item.id)));
         }
       })
       .catch((cause) => active && setError(cause instanceof Error ? cause.message : "לא ניתן לטעון את ההגדרות"))
@@ -101,6 +103,7 @@ export function SetupWizard() {
     ]
       .filter((item) => item.name.trim() && item.amount.trim() !== "")
       .map((item) => ({
+        id: item.templateId,
         name: item.name,
         amount: Number(item.amount),
         type: item.type,
@@ -111,15 +114,26 @@ export function SetupWizard() {
       const response = await fetch("/api/setup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ items, openingCash: Number(openingCash) || 0 }),
+        body: JSON.stringify({
+          items,
+          openingCash: Number(openingCash) || 0,
+          applyToCurrentMonth: !configured || applyToCurrentMonth,
+        }),
       });
       const data = await response.json().catch(() => ({})) as {
         error?: string;
         incidentId?: string;
+        failureCode?: string;
         historyPreserved?: boolean;
+        currentMonthUpdated?: boolean;
       };
       if (!response.ok) {
-        throw new Error(`${data.error || "לא ניתן להשלים את ההגדרה"}${data.incidentId ? ` (${data.incidentId})` : ""}`);
+        const hint = data.failureCode === "CONSTRAINT"
+          ? " מבנה הנתונים הישן חסם ערך; המערכת תנסה לתקן אותו בפריסה החדשה."
+          : data.failureCode === "AMOUNT_RANGE"
+            ? " אחד הסכומים גדול מדי."
+            : "";
+        throw new Error(`${data.error || "לא ניתן להשלים את ההגדרה"}${data.incidentId ? ` (${data.incidentId})` : ""}.${hint}`);
       }
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["templates"] }),
@@ -129,7 +143,9 @@ export function SetupWizard() {
       ]);
       setConfigured(true);
       setMessage(data.historyPreserved
-        ? "התכנון נשמר. החודשים הקודמים נשארו ללא שינוי."
+        ? data.currentMonthUpdated
+          ? "התכנון והחודש הנוכחי נשמרו. חודשים קודמים נשארו ללא שינוי."
+          : "התכנון נשמר. החודשים הקודמים נשארו ללא שינוי."
         : "ההגדרה נשמרה והחודש הראשון נפתח.");
       router.push("/month");
       router.refresh();
@@ -169,6 +185,7 @@ export function SetupWizard() {
       setIncomes(starterIncomes());
       setExpenses(starterExpenses());
       setOpeningCash("");
+      setApplyToCurrentMonth(true);
       setMessage(`האיפוס הושלם: ${data.cleared?.months ?? 0} חודשים ו־${data.cleared?.entries ?? 0} רשומות נמחקו. עכשיו מגדירים מחדש.`);
       router.refresh();
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -221,6 +238,11 @@ export function SetupWizard() {
       <input className="m3-input mt-4 w-full px-4 py-3 text-lg font-bold" type="number" inputMode="decimal" min="0" value={openingCash} onChange={(event) => setOpeningCash(event.target.value)} placeholder="0 ₪" dir="ltr" />
     </section>}
 
+    {configured && <label className="flex min-h-14 items-center gap-3 rounded-2xl border border-primary/20 bg-primary-container/35 px-4 py-3 text-sm font-bold text-on-surface">
+      <input type="checkbox" checked={applyToCurrentMonth} onChange={(event) => setApplyToCurrentMonth(event.target.checked)} className="h-5 w-5 accent-primary" />
+      <span><span className="block">לעדכן גם את החודש הנוכחי</span><span className="mt-0.5 block text-xs font-normal text-on-surface-variant">מומלץ: שמות וסכומים יתעדכנו מיד בחודש הפתוח. חודשים קודמים לא ישתנו.</span></span>
+    </label>}
+
     <section className="rounded-3xl border border-error/20 bg-error-container/25 p-4">
       <h2 className="text-sm font-black text-error">איפוס מלא</h2>
       <p className="mt-1 text-xs leading-relaxed text-on-surface-variant">מוחק את כל החודשים, התנועות, התבניות והלמידה האישית. פרטי הכניסה נשמרים, ולאחר האיפוס האשף נשאר פתוח להתחלה חדשה.</p>
@@ -234,7 +256,7 @@ export function SetupWizard() {
       <button type="button" disabled={!valid || saving || resetting} onClick={() => void finish()} className="m3-btn-primary flex min-h-[56px] w-full items-center justify-center gap-2 px-6 text-base">
         {saving ? <><Loader2 className="h-5 w-5 animate-spin" />שומר את התכנון…</> : <>{configured ? "שמירת התכנון" : "שמירה ופתיחת החודש"} <ArrowLeft className="h-5 w-5" /></>}
       </button>
-      <p className="mt-1.5 text-center text-[10px] text-on-surface-variant">{configured ? "השמירה משפיעה על חודשים חדשים בלבד." : "אפשר לחזור לאשף ולשנות את התכנון בכל זמן."}</p>
+      <p className="mt-1.5 text-center text-[10px] text-on-surface-variant">{configured ? (applyToCurrentMonth ? "השמירה תעדכן את התבנית ואת החודש הנוכחי." : "השמירה תשפיע על חודשים חדשים בלבד.") : "אפשר לחזור לאשף ולשנות את התכנון בכל זמן."}</p>
     </div>
   </div>;
 }
