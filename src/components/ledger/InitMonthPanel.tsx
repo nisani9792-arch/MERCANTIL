@@ -18,8 +18,12 @@ export function InitMonthPanel({ monthKey, initialized }: InitMonthPanelProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ monthKey }),
       });
-      if (!res.ok) throw new Error("לא ניתן לפתוח את החודש. נסה שוב; אם התקלה חוזרת יש לבדוק את חיבור השרת.");
-      return res.json() as Promise<{ created: number; skipped: boolean }>;
+      const data = await res.json().catch(() => ({})) as { created?: number; skipped?: boolean; error?: string; incidentId?: string };
+      if (!res.ok) {
+        const reference = data.incidentId ? ` (מזהה תקלה: ${data.incidentId})` : "";
+        throw new Error(`${data.error || "לא ניתן לפתוח את החודש"}${reference}`);
+      }
+      return data as { created: number; skipped: boolean };
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["ledger", monthKey] });

@@ -107,11 +107,9 @@ export async function initMonthFromTemplates(
 ): Promise<{ created: number; skipped: boolean }> {
   await seedDefaultTemplates(userId);
   const sql = getSql();
-  // Serialize concurrent requests per user/month. Copy only missing templates;
-  // never overwrite the salary or other amounts already edited for this month.
-  const results = await sql.transaction([
-    sql`select pg_advisory_xact_lock(hashtextextended(${userId + ':' + monthKey}, 0))`,
-    sql`insert into monthly_ledger (
+  // One atomic statement copies only missing templates. The unique index on
+  // user/month/template also makes repeated or concurrent taps idempotent.
+  const rows = await sql`insert into monthly_ledger (
       user_id, month_key, name, type, amount, category,
       is_from_template, template_id, is_variable, is_paid, notes
     ) select t.user_id, ${monthKey}, t.name, t.type, t.amount, t.name,
@@ -121,9 +119,9 @@ export async function initMonthFromTemplates(
       and (t.frequency = 'monthly' or ${Number(monthKey.slice(5))} % 2 = 1)
       and not exists (select 1 from monthly_ledger e
         where e.user_id = ${userId} and e.month_key = ${monthKey} and e.template_id = t.id)
-    returning id`,
-  ]);
-  const created = results[1].length;
+    on conflict do nothing
+    returning id`;
+  const created = rows.length;
   return { created, skipped: created === 0 };
 }
 

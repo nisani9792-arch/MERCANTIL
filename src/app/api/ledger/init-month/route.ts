@@ -15,6 +15,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'חודש לא תקין' }, { status: 400 });
   }
 
-  const result = await initMonthFromTemplates(session.userId, monthKey);
-  return NextResponse.json({ monthKey, ...result });
+  try {
+    const result = await initMonthFromTemplates(session.userId, monthKey);
+    return NextResponse.json({ monthKey, ...result });
+  } catch (error) {
+    const incidentId = crypto.randomUUID().slice(0, 8);
+    console.error(`[init-month:${incidentId}]`, error);
+    return NextResponse.json(
+      { error: "אתחול החודש נכשל בצד השרת", incidentId },
+      { status: 500 },
+    );
+  }
 }

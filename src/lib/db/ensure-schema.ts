@@ -114,9 +114,23 @@ async function initSchema() {
     )
   `;
 
-  await sql`alter table if exists recurring_templates rename to fixed_templates`.catch(
-    () => undefined,
-  );
+  // Older installations used recurring_templates. Keep their ids when moving
+  // to fixed_templates so existing monthly rows remain valid.
+  const legacyTemplateTable = await sql`
+    select to_regclass('public.recurring_templates') is not null as exists
+  `;
+  if (Boolean(legacyTemplateTable[0]?.exists)) {
+    await sql`
+      insert into fixed_templates (
+        id, user_id, name, type, amount, frequency, day_of_month,
+        is_active, sort_order, created_at, updated_at
+      )
+      select id, user_id, name, type, amount, frequency, day_of_month,
+        is_active, sort_order, created_at, updated_at
+      from recurring_templates
+      on conflict (id) do nothing
+    `;
+  }
 
   await sql`
     create table if not exists monthly_ledger (
@@ -159,6 +173,26 @@ async function initSchema() {
     alter table monthly_ledger
     add column if not exists payment_method text not null default 'bank'
   `.catch(() => undefined);
+
+  // The legacy table may still own this automatically named foreign key.
+  // Repoint it after copying legacy ids; do not delete the legacy table.
+  await sql`
+    alter table monthly_ledger
+    drop constraint if exists monthly_ledger_template_id_fkey
+  `;
+  await sql`
+    alter table monthly_ledger
+    add constraint monthly_ledger_template_id_fkey
+    foreign key (template_id) references fixed_templates (id) on delete set null
+  `;
+
+  await sql`
+    create unique index if not exists monthly_ledger_user_month_template_uidx
+    on monthly_ledger (user_id, month_key, template_id)
+    where template_id is not null
+  `.catch((error) => {
+    console.warn("[schema] could not add monthly template uniqueness index", error);
+  });
 
   await sql`create index if not exists transactions_user_date_idx on transactions (user_id, date desc)`;
   await sql`create index if not exists transactions_user_category_idx on transactions (user_id, category_id)`;
