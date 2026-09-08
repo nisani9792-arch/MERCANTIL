@@ -19,12 +19,12 @@ test("empty data is not silently repopulated with demo templates", () => {
   assert.doesNotMatch(monthlyLedger, /seedDefaultTemplates/);
 });
 
-test("editing setup preserves identifiers and can update the current month", () => {
-  assert.match(setupRoute, /historyPreserved: !isFirstSetup/);
+test("editing setup preserves identifiers and never rewrites a current month", () => {
+  assert.match(setupRoute, /historyPreserved: true/);
   assert.match(setupRoute, /existingIds\.has\(item\.id\)/);
   assert.match(setupRoute, /on conflict \(id\) do update/);
-  assert.match(setupRoute, /applyToCurrentMonth/);
-  assert.match(setupRoute, /update monthly_ledger e/);
+  assert.match(setupRoute, /currentMonthUpdated: false/);
+  assert.doesNotMatch(setupRoute, /update monthly_ledger e/);
   assert.match(setupRoute, /Setup verification failed/);
 });
 
