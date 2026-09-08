@@ -44,7 +44,7 @@ export function BankHeader({ userName }: BankHeaderProps) {
           <div className="hidden min-w-0 flex-col items-center text-center sm:flex sm:flex-1">
             <span className="truncate text-sm font-bold text-primary">הכסף של {userName}</span>
             <span className="flex items-center gap-1 text-xs text-on-surface-variant">
-              <ShieldCheck className="h-3.5 w-3.5" /> מערכת אישית
+              <ShieldCheck className="h-3.5 w-3.5" /> מבינים אותך מצונן.
             </span>
           </div>
 

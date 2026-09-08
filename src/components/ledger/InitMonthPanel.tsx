@@ -18,24 +18,22 @@ export function InitMonthPanel({ monthKey, initialized }: InitMonthPanelProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ monthKey }),
       });
-      if (!res.ok) throw new Error("init failed");
+      if (!res.ok) throw new Error("לא ניתן לפתוח את החודש. נסה שוב; אם התקלה חוזרת יש לבדוק את חיבור השרת.");
       return res.json() as Promise<{ created: number; skipped: boolean }>;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["ledger", monthKey] });
       qc.invalidateQueries({ queryKey: ["analytics", monthKey] });
-      qc.invalidateQueries({ queryKey: ["smart-insights", monthKey] });
+      qc.invalidateQueries({ queryKey: ["ai-insights", monthKey] });
     },
   });
-
-  if (initialized) return null;
 
   return (
     <section className="m3-card m3-expressive-enter overflow-hidden border-dashed border-primary/40 bg-primary-container/30 p-4 text-center">
       <CalendarPlus className="mx-auto h-8 w-8 text-primary" />
-      <h3 className="mt-2 font-bold text-on-surface">פתיחת חודש חדש</h3>
+      <h3 className="mt-2 font-bold text-on-surface">{initialized ? "השלמת פריטים מהתבנית" : "פתיחת חודש חדש"}</h3>
       <p className="mt-1 text-sm text-on-surface-variant">
-        טען את כל ההכנסות וההוצאות הקבועות מהתבנית לחודש הנוכחי
+        טעינת פריטים חסרים בלבד. ניתן לשנות שם וסכום בחודש הזה בלי לשנות את התבנית.
       </p>
       <button
         type="button"
@@ -48,11 +46,13 @@ export function InitMonthPanel({ monthKey, initialized }: InitMonthPanelProps) {
         ) : (
           <CalendarPlus className="h-4 w-4" />
         )}
-        אתחל חודש מתבנית
+        {initMut.isPending ? "טוען פריטים…" : initialized ? "הוסף פריטים חסרים מהתבנית" : "אתחל חודש מתבנית"}
       </button>
       {initMut.data?.skipped && (
-        <p className="mt-2 text-xs text-warning">החודש כבר מאותחל</p>
+        <p role="status" className="mt-2 text-sm text-on-surface-variant">אין פריטים חדשים לטעינה. בדוק שיש תבניות פעילות שמתאימות לחודש שנבחר.</p>
       )}
+      {initMut.isError && <p role="alert" className="mt-3 text-sm text-error">{initMut.error.message}</p>}
+      {Boolean(initMut.data?.created) && <p role="status" className="mt-3 text-sm text-success">נוספו {initMut.data?.created} פריטים. אפשר לערוך את סכומיהם בחודש הזה.</p>}
     </section>
   );
 }

@@ -80,6 +80,7 @@ export function LedgerBottomSheet({
 
   return (
     <BottomSheet open={open} onClose={onClose} title={title}>
+      {mode.kind === "edit" && <p className="mb-4 rounded-xl bg-primary-container p-3 text-sm text-primary">השינוי בשם ובסכום נשמר לחודש הזה בלבד. התבנית הקבועה לא תשתנה.</p>}
       <div className="grid gap-3">
         <div>
           <label className="m3-label">שם</label>

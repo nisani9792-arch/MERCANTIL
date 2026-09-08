@@ -1,8 +1,6 @@
 import { getSql } from "@/lib/db/client";
 import {
-  listTemplates,
   seedDefaultTemplates,
-  templateAppliesToMonth,
 } from "@/lib/db/recurring-templates";
 import { currentMonthKey } from "@/lib/utils/month";
 import type { LedgerEntryKind, LedgerItemType, MonthSummary, MonthlyLedgerEntry, PaymentMethod } from "@/types/ledger";
@@ -105,29 +103,25 @@ export async function initMonthFromTemplates(
   monthKey: string,
 ): Promise<{ created: number; skipped: boolean }> {
   await seedDefaultTemplates(userId);
-  const existing = await listLedgerEntries(userId, monthKey);
-  if (existing.length > 0) return { created: 0, skipped: true };
-
-  const templates = (await listTemplates(userId)).filter((t) => t.is_active);
   const sql = getSql();
-  let created = 0;
-
-  for (const t of templates) {
-    if (!templateAppliesToMonth(t.frequency, monthKey)) continue;
-    await sql`
-      insert into monthly_ledger (
-        user_id, month_key, name, type, amount, category,
-        is_from_template, template_id, is_variable, is_paid, notes
-      )
-      values (
-        ${userId}, ${monthKey}, ${t.name}, ${t.type}, ${t.amount}, ${t.name},
-        true, ${t.id}, false, false, null
-      )
-    `;
-    created++;
-  }
-
-  return { created, skipped: false };
+  // Serialize concurrent requests per user/month. Copy only missing templates;
+  // never overwrite the salary or other amounts already edited for this month.
+  const results = await sql.transaction([
+    sql`select pg_advisory_xact_lock(hashtextextended(${userId + ':' + monthKey}, 0))`,
+    sql`insert into monthly_ledger (
+      user_id, month_key, name, type, amount, category,
+      is_from_template, template_id, is_variable, is_paid, notes
+    ) select t.user_id, ${monthKey}, t.name, t.type, t.amount, t.name,
+      true, t.id, false, false, null
+    from fixed_templates t
+    where t.user_id = ${userId} and t.is_active = true
+      and (t.frequency = 'monthly' or ${Number(monthKey.slice(5))} % 2 = 1)
+      and not exists (select 1 from monthly_ledger e
+        where e.user_id = ${userId} and e.month_key = ${monthKey} and e.template_id = t.id)
+    returning id`,
+  ]);
+  const created = results[1].length;
+  return { created, skipped: created === 0 };
 }
 
 export async function addLedgerEntry(

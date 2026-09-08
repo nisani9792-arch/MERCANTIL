@@ -18,11 +18,7 @@ export function TransactionCard({ entry, onTap, onDelete, onTogglePaid }: Transa
 
   return (
     <article
-      className="m3-tx-card flex min-h-[72px] items-center gap-3 rounded-2xl border border-outline-variant bg-surface-container-lowest px-3 py-3 shadow-elevation-1 transition-transform active:scale-[0.98] sm:px-4"
-      onClick={onTap}
-      onKeyDown={(e) => e.key === "Enter" && onTap()}
-      role="button"
-      tabIndex={0}
+      className="m3-tx-card flex min-h-[72px] flex-wrap items-center gap-2 rounded-2xl border border-outline-variant bg-surface-container-lowest px-3 py-3 shadow-elevation-1 sm:gap-3 sm:px-4"
     >
       <div
         className={cn(
@@ -32,15 +28,15 @@ export function TransactionCard({ entry, onTap, onDelete, onTogglePaid }: Transa
       >
         {isWithdrawal ? <Banknote className="h-5 w-5" /> : isIncome ? "↑" : "↓"}
       </div>
-      <div className="min-w-0 flex-1">
+      <button type="button" onClick={onTap} className="min-w-0 flex-1 basis-[calc(100%-4rem)] text-start sm:basis-auto" aria-label={`עריכת ${entry.name}`}>
         <p className="truncate text-base font-semibold text-on-surface">{entry.name}</p>
         <p className="text-xs text-on-surface-variant">
           {isWithdrawal ? "העברה בנק ← מזומן" : `${entry.is_variable ? "משתנה" : "קבוע"} · ${entry.payment_method === "cash" ? "מזומן" : entry.payment_method === "card" ? "אשראי" : "בנק"}`}
         </p>
-      </div>
+      </button>
       <p
         className={cn(
-          "shrink-0 text-base font-bold",
+          "me-auto shrink-0 text-base font-bold sm:me-0",
           isWithdrawal ? "text-primary" : isIncome ? "text-success" : "text-on-surface",
         )}
         dir="ltr"

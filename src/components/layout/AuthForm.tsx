@@ -72,7 +72,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
         <div className="mb-6 flex flex-col items-center text-center">
           <Image
             src="/merkanpil.png"
-            alt="מרכנפיל — לירה לבנה ליום שחור"
+            alt="מרכנפיל. מבינים אותך מצונן."
             width={320}
             height={120}
             priority

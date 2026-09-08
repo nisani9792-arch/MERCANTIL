@@ -12,7 +12,7 @@ const heebo = Heebo({
 });
 
 export const metadata: Metadata = {
-  title: "מרכנפיל — לירה לבנה ליום שחור",
+  title: "מרכנפיל. מבינים אותך מצונן.",
   description: "ניהול כלכלי חכם מבוסס AI — בנקאי, חכם, מבוסס Gemini",
   manifest: "/manifest.webmanifest",
   appleWebApp: {

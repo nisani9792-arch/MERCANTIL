@@ -32,10 +32,17 @@
 }
 
 body {
+  overflow-wrap: break-word;
   background: var(--m3-color-surface);
   color: var(--m3-color-on-surface);
   font: var(--m3-type-body-md);
   font-family: var(--m3-font-family);
+}
+
+:focus-visible { outline: 2px solid var(--m3-color-primary); outline-offset: 3px; }
+@media (max-width: 639px) {
+  .bank-header a img { max-width: 150px; height: auto; }
+  .finance-hero p[dir="ltr"] { font-size: clamp(1.25rem, 7vw, 2.5rem); }
 }
 
 .m3-card {

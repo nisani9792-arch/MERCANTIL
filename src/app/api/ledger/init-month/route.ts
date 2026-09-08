@@ -11,6 +11,9 @@ export async function POST(request: Request) {
 
   const body = (await request.json().catch(() => ({}))) as { monthKey?: string };
   const monthKey = body.monthKey ?? currentMonthKey();
+  if (typeof monthKey !== 'string' || !/^\d{4}-(0[1-9]|1[0-2])$/.test(monthKey)) {
+    return NextResponse.json({ error: 'חודש לא תקין' }, { status: 400 });
+  }
 
   const result = await initMonthFromTemplates(session.userId, monthKey);
   return NextResponse.json({ monthKey, ...result });
