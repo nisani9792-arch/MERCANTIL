@@ -90,7 +90,7 @@ export function MonthWorkspace() {
         return data.entry;
       }
     },
-    onSuccess: async (savedEntry) => {
+    onSuccess: (savedEntry) => {
       qc.setQueryData<LedgerResponse>(["ledger", monthKey], (current) => {
         if (!current) return current;
         const exists = current.entries.some((entry) => entry.id === savedEntry.id);
@@ -105,7 +105,13 @@ export function MonthWorkspace() {
       setSheetMode(null);
       setSaveMessage("השינויים נשמרו בהצלחה");
       window.setTimeout(() => setSaveMessage(""), 2500);
-      await refetchAll();
+      // A secondary chart/AI refresh must never turn a successful database
+      // write into a false "save failed" state.
+      void Promise.allSettled([
+        qc.refetchQueries({ queryKey: ["ledger", monthKey] }),
+        qc.invalidateQueries({ queryKey: ["analytics", monthKey] }),
+        qc.invalidateQueries({ queryKey: ["ai-insights", monthKey] }),
+      ]);
     },
   });
 
@@ -114,10 +120,10 @@ export function MonthWorkspace() {
       const res = await mutateLive(`/api/ledger/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("delete failed");
     },
-    onSuccess: async () => {
+    onSuccess: () => {
       setSheetOpen(false);
       setSheetMode(null);
-      await refetchAll();
+      void refetchAll();
     },
   });
 
