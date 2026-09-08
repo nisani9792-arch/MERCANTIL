@@ -115,6 +115,14 @@ async function initSchema() {
     )
   `;
 
+  // Existing installations already have fixed_templates, so CREATE TABLE IF
+  // NOT EXISTS does not add newly introduced columns. Add the column before
+  // any legacy data is copied into it.
+  await sql`
+    alter table fixed_templates
+    add column if not exists is_variable boolean not null default false
+  `;
+
   // Older installations used recurring_templates. Keep their ids when moving
   // to fixed_templates so existing monthly rows remain valid.
   const legacyTemplateTable = await sql`
@@ -133,8 +141,6 @@ async function initSchema() {
       on conflict (id) do nothing
     `;
   }
-
-  await sql`alter table fixed_templates add column if not exists is_variable boolean not null default false`;
 
   await sql`
     create table if not exists monthly_ledger (
