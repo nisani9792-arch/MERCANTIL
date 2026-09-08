@@ -130,6 +130,44 @@ async function initSchema() {
     add column if not exists is_variable boolean not null default false
   `;
 
+  // Some early deployments used a positive-only amount constraint. Normalize
+  // every legacy amount check once so zero-value plans work on the live DB too.
+  const amountConstraintState = await sql`
+    select exists (
+      select 1 from app_schema_migrations
+      where name = 'nonnegative_budget_amounts_v1'
+    ) as migrated
+  `;
+  if (!Boolean(amountConstraintState[0]?.migrated)) {
+    await sql.transaction([
+      sql`
+        do $$
+        declare constraint_row record;
+        begin
+          for constraint_row in
+            select conname
+            from pg_constraint
+            where conrelid = 'fixed_templates'::regclass
+              and contype = 'c'
+              and pg_get_constraintdef(oid) ilike '%amount%'
+          loop
+            execute format('alter table fixed_templates drop constraint %I', constraint_row.conname);
+          end loop;
+        end $$
+      `,
+      sql`
+        alter table fixed_templates
+        add constraint fixed_templates_amount_nonnegative
+        check (amount >= 0) not valid
+      `,
+      sql`
+        insert into app_schema_migrations (name)
+        values ('nonnegative_budget_amounts_v1')
+        on conflict (name) do nothing
+      `,
+    ]);
+  }
+
   // Older installations used recurring_templates. Keep their ids when moving
   // to fixed_templates so existing monthly rows remain valid.
   const legacyTemplateState = await sql`
@@ -202,6 +240,42 @@ async function initSchema() {
     alter table monthly_ledger
     add column if not exists payment_method text not null default 'bank'
   `.catch(() => undefined);
+
+  const ledgerAmountConstraintState = await sql`
+    select exists (
+      select 1 from app_schema_migrations
+      where name = 'nonnegative_ledger_amounts_v1'
+    ) as migrated
+  `;
+  if (!Boolean(ledgerAmountConstraintState[0]?.migrated)) {
+    await sql.transaction([
+      sql`
+        do $$
+        declare constraint_row record;
+        begin
+          for constraint_row in
+            select conname
+            from pg_constraint
+            where conrelid = 'monthly_ledger'::regclass
+              and contype = 'c'
+              and pg_get_constraintdef(oid) ilike '%amount%'
+          loop
+            execute format('alter table monthly_ledger drop constraint %I', constraint_row.conname);
+          end loop;
+        end $$
+      `,
+      sql`
+        alter table monthly_ledger
+        add constraint monthly_ledger_amount_nonnegative
+        check (amount >= 0) not valid
+      `,
+      sql`
+        insert into app_schema_migrations (name)
+        values ('nonnegative_ledger_amounts_v1')
+        on conflict (name) do nothing
+      `,
+    ]);
+  }
 
   // The legacy table may still own this automatically named foreign key.
   // Repoint it after copying legacy ids; do not delete the legacy table.
