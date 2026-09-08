@@ -83,7 +83,12 @@ export function SetupWizard() {
     return { income, expense, remaining: income - expense };
   }, [incomes, expenses]);
 
-  const valid = incomes.some((item) => item.name.trim() && Number(item.amount) > 0);
+  const valid = incomes.some((item) =>
+    item.name.trim() &&
+    item.amount.trim() !== "" &&
+    Number.isFinite(Number(item.amount)) &&
+    Number(item.amount) >= 0
+  );
 
   async function finish() {
     if (!valid || saving) return;
@@ -91,9 +96,17 @@ export function SetupWizard() {
     setError("");
     setMessage("");
     const items = [
-      ...incomes.map((item) => ({ name: item.name, amount: Number(item.amount), type: "income" as const, isVariable: false })),
-      ...expenses.map((item) => ({ name: item.name, amount: Number(item.amount), type: "expense" as const, isVariable: item.isVariable })),
-    ].filter((item) => item.name.trim() && item.amount > 0);
+      ...incomes.map((item) => ({ ...item, type: "income" as const, isVariable: false })),
+      ...expenses.map((item) => ({ ...item, type: "expense" as const })),
+    ]
+      .filter((item) => item.name.trim() && item.amount.trim() !== "")
+      .map((item) => ({
+        name: item.name,
+        amount: Number(item.amount),
+        type: item.type,
+        isVariable: item.isVariable,
+      }))
+      .filter((item) => Number.isFinite(item.amount) && item.amount >= 0);
     try {
       const response = await fetch("/api/setup", {
         method: "POST",

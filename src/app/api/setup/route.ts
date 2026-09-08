@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     type: item.type,
     isVariable: item.type === "expense" && Boolean(item.isVariable),
     sortOrder: index + 1,
-  })).filter((item) => item.name && Number.isFinite(item.amount) && item.amount > 0 && (item.type === "income" || item.type === "expense"));
+  })).filter((item) => item.name && Number.isFinite(item.amount) && item.amount >= 0 && (item.type === "income" || item.type === "expense"));
 
   if (!items.some((item) => item.type === "income")) {
     return NextResponse.json({ error: "יש להזין לפחות הכנסה אחת" }, { status: 400 });

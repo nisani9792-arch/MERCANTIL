@@ -69,6 +69,6 @@ function TemplateForm({ draft, setDraft, error }: { draft: Draft; setDraft: (val
 
 function TemplateSaveButton({ draft, saving, onSave }: { draft: Draft; saving: boolean; onSave: () => void }) {
   const day = draft.dayOfMonth ? Number(draft.dayOfMonth) : null;
-  const valid = Boolean(draft.name.trim()) && Number(draft.amount) > 0 && (day === null || (day >= 1 && day <= 31));
+  const valid = Boolean(draft.name.trim()) && draft.amount.trim() !== "" && Number.isFinite(Number(draft.amount)) && Number(draft.amount) >= 0 && (day === null || (day >= 1 && day <= 31));
   return <button type="button" disabled={!valid || saving} onClick={onSave} className="m3-btn-primary min-h-[54px] w-full shadow-elevation-1">{saving ? "שומר שינויים…" : "שמירת השינויים"}</button>;
 }

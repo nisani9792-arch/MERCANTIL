@@ -83,6 +83,9 @@ export function BankMobileNav() {
 }
 
 export function BankMobileFab() {
+  const pathname = usePathname();
+  if (pathname === "/month") return null;
+
   return (
     <Link
       href="/month?action=add"

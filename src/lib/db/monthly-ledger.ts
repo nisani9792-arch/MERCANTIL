@@ -146,7 +146,7 @@ export async function addLedgerEntry(
     values (
       ${userId}, ${input.monthKey}, ${input.name}, ${input.type},
       ${input.amount}, ${category}, false, null, ${input.isVariable ?? false},
-      true, ${input.notes ?? null}, ${input.entryKind ?? "transaction"},
+      ${input.amount > 0}, ${input.notes ?? null}, ${input.entryKind ?? "transaction"},
       ${input.paymentMethod ?? "bank"}
     )
     returning *

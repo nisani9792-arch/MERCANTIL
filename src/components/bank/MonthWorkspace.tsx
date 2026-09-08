@@ -114,7 +114,11 @@ export function MonthWorkspace() {
       const res = await mutateLive(`/api/ledger/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("delete failed");
     },
-    onSuccess: refetchAll,
+    onSuccess: async () => {
+      setSheetOpen(false);
+      setSheetMode(null);
+      await refetchAll();
+    },
   });
 
   const entries = data?.entries ?? [];
@@ -210,18 +214,22 @@ export function MonthWorkspace() {
       <LedgerBottomSheet
         open={sheetOpen}
         mode={sheetMode}
+        storageScope={monthKey}
         onClose={() => {
           setSheetOpen(false);
           setSheetMode(null);
         }}
+        onDelete={sheetMode?.kind === "edit" ? async () => {
+          await deleteMut.mutateAsync(sheetMode.entry.id);
+        } : undefined}
         saving={saveMut.isPending}
         error={saveMut.isError ? saveMut.error.message : undefined}
-        onSave={(d) =>
-          saveMut.mutate({
+        onSave={async (d) => {
+          await saveMut.mutateAsync({
             id: sheetMode?.kind === "edit" ? sheetMode.entry.id : undefined,
             ...d,
-          })
-        }
+          });
+        }}
       />
     </div>
   );

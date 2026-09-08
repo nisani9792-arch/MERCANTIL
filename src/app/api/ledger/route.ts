@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     paymentMethod?: "bank" | "card" | "cash";
   };
 
-  if (!body.name?.trim() || !['income','expense'].includes(body.type ?? '') || !Number.isFinite(body.amount) || Number(body.amount) <= 0 ||
+  if (!body.name?.trim() || !['income','expense'].includes(body.type ?? '') || !Number.isFinite(body.amount) || Number(body.amount) < 0 ||
       (body.monthKey !== undefined && !/^\d{4}-(0[1-9]|1[0-2])$/.test(body.monthKey)) ||
       (body.entryKind !== undefined && !['transaction','cash_withdrawal'].includes(body.entryKind)) ||
       (body.paymentMethod !== undefined && !['bank','card','cash'].includes(body.paymentMethod))) {

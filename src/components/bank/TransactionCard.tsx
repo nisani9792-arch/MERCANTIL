@@ -18,7 +18,7 @@ export function TransactionCard({ entry, onTap, onDelete, onTogglePaid }: Transa
 
   return (
     <article
-      className="m3-tx-card flex min-h-[72px] flex-wrap items-center gap-2 rounded-2xl border border-outline-variant bg-surface-container-lowest px-3 py-3 shadow-elevation-1 sm:gap-3 sm:px-4"
+      className="m3-tx-card grid min-h-[72px] grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-2 rounded-2xl border border-outline-variant bg-surface-container-lowest px-3 py-3 shadow-elevation-1 sm:flex sm:gap-3 sm:px-4"
     >
       <div
         className={cn(
@@ -28,30 +28,29 @@ export function TransactionCard({ entry, onTap, onDelete, onTogglePaid }: Transa
       >
         {isWithdrawal ? <Banknote className="h-5 w-5" /> : isIncome ? "↑" : "↓"}
       </div>
-      <button type="button" onClick={onTap} className="min-w-0 flex-1 basis-[calc(100%-4rem)] text-start sm:basis-auto" aria-label={`עריכת ${entry.name}`}>
+      <button type="button" onClick={onTap} className="min-w-0 text-start sm:flex-1" aria-label={`עריכת ${entry.name}`}>
         <p className="truncate text-base font-semibold text-on-surface">{entry.name}</p>
         <p className="text-xs text-on-surface-variant">
           {isWithdrawal ? "העברה בנק ← מזומן" : `${entry.is_variable ? "משתנה" : "קבוע"} · ${entry.payment_method === "cash" ? "מזומן" : entry.payment_method === "card" ? "אשראי" : "בנק"}`}
         </p>
       </button>
-      <p
-        className={cn(
-          "me-auto shrink-0 text-base font-bold sm:me-0",
+      <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+        <button type="button" onClick={onTap} className={cn(
+          "shrink-0 rounded-lg px-1.5 py-1 text-sm font-black sm:text-base",
           isWithdrawal ? "text-primary" : isIncome ? "text-success" : "text-on-surface",
-        )}
-        dir="ltr"
-      >
-        {formatCurrency(entry.amount)}
-      </p>
-      {onTogglePaid && <button type="button" onClick={(e) => { e.stopPropagation(); onTogglePaid(); }} className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${entry.is_paid ? "bg-success-container text-success" : "bg-surface-container text-on-surface-variant"}`} aria-label={entry.is_paid ? "סומן כבוצע" : "סמן כבוצע"}>{entry.is_paid ? <CheckCircle2 className="h-5 w-5" /> : <Circle className="h-5 w-5" />}</button>}
-      <button type="button" onClick={(e) => { e.stopPropagation(); onTap(); }} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-primary hover:bg-primary-container" aria-label="ערוך שם ופרטים"><Pencil className="h-4 w-4" /></button>
+        )} dir="ltr" aria-label={`עריכת סכום ${formatCurrency(entry.amount)}`}>
+          {formatCurrency(entry.amount)}
+        </button>
+        {onTogglePaid && <button type="button" onClick={(e) => { e.stopPropagation(); onTogglePaid(); }} className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${entry.is_paid ? "bg-success-container text-success" : "bg-surface-container text-on-surface-variant"}`} aria-label={entry.is_paid ? "סומן כבוצע" : "סמן כבוצע"}>{entry.is_paid ? <CheckCircle2 className="h-5 w-5" /> : <Circle className="h-5 w-5" />}</button>}
+      </div>
+      <button type="button" onClick={(e) => { e.stopPropagation(); onTap(); }} className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full text-primary hover:bg-primary-container sm:flex" aria-label="ערוך שם ופרטים"><Pencil className="h-4 w-4" /></button>
       <button
         type="button"
         onClick={(e) => {
           e.stopPropagation();
             if (window.confirm('למחוק את הרישום?')) onDelete();
         }}
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-on-surface-variant hover:bg-error-container hover:text-error"
+        className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-full text-on-surface-variant hover:bg-error-container hover:text-error sm:flex"
         aria-label="מחק"
       >
         <Trash2 className="h-4 w-4" />

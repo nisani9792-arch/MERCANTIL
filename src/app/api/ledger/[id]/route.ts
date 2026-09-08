@@ -20,7 +20,7 @@ export async function PATCH(
     isVariable?: boolean;
   };
 
-  if ((body.amount !== undefined && (!Number.isFinite(body.amount) || body.amount <= 0)) ||
+  if ((body.amount !== undefined && (!Number.isFinite(body.amount) || body.amount < 0)) ||
       (body.paymentMethod !== undefined && !['bank','card','cash'].includes(body.paymentMethod)) ||
       (body.isPaid !== undefined && typeof body.isPaid !== 'boolean') ||
       (body.isVariable !== undefined && typeof body.isVariable !== 'boolean')) {
