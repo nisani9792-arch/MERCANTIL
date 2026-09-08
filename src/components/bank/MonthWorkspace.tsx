@@ -11,14 +11,15 @@ import {
 } from "@/components/bank/LedgerBottomSheet";
 import { TransactionCard } from "@/components/bank/TransactionCard";
 import { SmartEntryBar } from "@/components/bank/SmartEntryBar";
+import { BudgetStrip } from "@/components/bank/BudgetStrip";
 import { MonthNavigator } from "@/components/ui/MonthNavigator";
 import { fetchLive, mutateLive } from "@/lib/api/fetch-live";
-import type { MonthlyLedgerEntry } from "@/types/ledger";
+import type { MonthSummary, MonthlyLedgerEntry } from "@/types/ledger";
 import { useMonthStore } from "@/stores/useMonthStore";
 
 type LedgerResponse = {
   entries: MonthlyLedgerEntry[];
-  summary: { initialized: boolean };
+  summary: MonthSummary;
   monthKey: string;
 };
 
@@ -140,6 +141,8 @@ export function MonthWorkspace() {
         monthKey={monthKey}
         initialized={data?.summary.initialized ?? false}
       />
+
+      {data?.summary.initialized && <BudgetStrip summary={data.summary} />}
 
       {isLoading && (
         <p className="text-center text-sm text-on-surface-variant">טוען...</p>

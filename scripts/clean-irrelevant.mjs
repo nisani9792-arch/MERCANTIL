@@ -28,8 +28,6 @@ if (!url) {
 
 const sql = neon(url);
 
-const IRRELEVANT = /חיוב\s*זמני/i;
-
 async function main() {
   const users = await sql`select id, email from users where email = ${email}`;
   if (!users.length) {

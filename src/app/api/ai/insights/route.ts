@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { generateBudgetAnalysis } from "@/lib/ai/budget-insights";
-import { getSixMonthTrend, getHistoricalAverages } from "@/lib/db/analytics";
+import { getSixMonthTrend, getHistoricalAveragesFromTrend } from "@/lib/db/analytics";
 import { listTemplates } from "@/lib/db/recurring-templates";
 import {
   currentMonthKey,
@@ -15,12 +15,12 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const monthKey = searchParams.get("month") ?? currentMonthKey();
 
-  const [{ summary, entries }, averages, trend, templates] = await Promise.all([
+  const [{ summary, entries }, trend, templates] = await Promise.all([
     getLedgerContextForAi(session.userId, monthKey),
-    getHistoricalAverages(session.userId, monthKey),
     getSixMonthTrend(session.userId, monthKey),
     listTemplates(session.userId),
   ]);
+  const averages = getHistoricalAveragesFromTrend(trend);
 
   const analysis = await generateBudgetAnalysis(
     summary,

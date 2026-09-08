@@ -44,8 +44,9 @@ export async function listLedgerEntries(
 export async function getMonthSummary(
   userId: string,
   monthKey: string,
+  providedEntries?: MonthlyLedgerEntry[],
 ): Promise<MonthSummary> {
-  const entries = await listLedgerEntries(userId, monthKey);
+  const entries = providedEntries ?? await listLedgerEntries(userId, monthKey);
   const transactions = entries.filter((e) => e.entry_kind === "transaction");
   const totalIncome = transactions
     .filter((e) => e.type === "income")
@@ -82,7 +83,9 @@ export async function getMonthSummary(
     monthKey,
     totalIncome,
     totalFixedExpenses: fixedExpenses,
-    fixedExpensesPaid: fixedExpenses,
+    fixedExpensesPaid: transactions
+      .filter((e) => e.type === "expense" && !e.is_variable && e.is_paid)
+      .reduce((s, e) => s + e.amount, 0),
     totalVariableExpenses: variableExpenses,
     remainingForVariable,
     disposableRemaining: remainingForVariable - variableExpenses,
@@ -194,9 +197,7 @@ export async function deleteLedgerEntry(userId: string, id: string): Promise<boo
 }
 
 export async function getLedgerContextForAi(userId: string, monthKey: string) {
-  const [summary, entries] = await Promise.all([
-    getMonthSummary(userId, monthKey),
-    listLedgerEntries(userId, monthKey),
-  ]);
+  const entries = await listLedgerEntries(userId, monthKey);
+  const summary = await getMonthSummary(userId, monthKey, entries);
   return { summary, entries };
 }

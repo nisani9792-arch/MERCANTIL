@@ -82,6 +82,12 @@ export async function getHistoricalAverages(
   anchorMonth: string,
 ): Promise<HistoricalAverages> {
   const trend = await getSixMonthTrend(userId, anchorMonth);
+  return getHistoricalAveragesFromTrend(trend);
+}
+
+export function getHistoricalAveragesFromTrend(
+  trend: MonthTrendPoint[],
+): HistoricalAverages {
   const withData = trend.filter((t) => t.income > 0 || t.expense > 0);
   const divisor = withData.length || 1;
   const avgIncome =
@@ -101,12 +107,12 @@ export async function getAnalytics(
   userId: string,
   monthKey: string,
 ): Promise<AnalyticsPayload> {
-  const [summary, trend, expenseBreakdown, averages] = await Promise.all([
+  const [summary, trend, expenseBreakdown] = await Promise.all([
     getMonthSummary(userId, monthKey),
     getSixMonthTrend(userId, monthKey),
     getExpenseBreakdown(userId, monthKey),
-    getHistoricalAverages(userId, monthKey),
   ]);
+  const averages = getHistoricalAveragesFromTrend(trend);
 
   return { monthKey, summary, trend, expenseBreakdown, averages };
 }

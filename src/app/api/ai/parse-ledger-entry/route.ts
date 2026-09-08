@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { askGeminiJson, isGeminiConfigured } from "@/lib/ai/gemini";
 import { EXPENSE_CATEGORIES } from "@/lib/constants/budget";
+import { inferExpenseCategory } from "@/lib/ai/smart-category";
 
 type ParsedEntry = { name: string; amount: number; type: "income" | "expense"; category: string; paymentMethod: "bank" | "card" | "cash"; isVariable: boolean; entryKind: "transaction" | "cash_withdrawal" };
 
@@ -13,7 +14,7 @@ function fallback(text: string): ParsedEntry | null {
   const isWithdrawal = /משכ|כספומט|atm/i.test(text);
   const isIncome = !isWithdrawal && /משכורת|הכנסה|קיבלתי|זיכוי/i.test(text);
   const paymentMethod = /מזומן/i.test(text) ? "cash" : /העברה|בנק/i.test(text) ? "bank" : "card";
-  const category = /סופר|מכולת|אוכל|מזון/i.test(text) ? "מזון" : /דלק|רכב|תחבורה/i.test(text) ? "תחבורה" : /שכירות|ארנונה|חשמל|מים/i.test(text) ? "דיור" : /ילד|גן|בייביסיטר/i.test(text) ? "ילדים" : "אחר";
+  const category = inferExpenseCategory(text).category;
   return { name: text.replace(match[0], "").replace(/במזומן|באשראי|מהבנק/g, "").trim() || "תנועה חדשה", amount, type: isIncome ? "income" : "expense", category: isIncome ? "הכנסה" : category, paymentMethod: isWithdrawal ? "bank" : paymentMethod, isVariable: !isIncome && !/שכירות|ארנונה|מנוי|ביטוח/i.test(text), entryKind: isWithdrawal ? "cash_withdrawal" : "transaction" };
 }
 
@@ -26,7 +27,14 @@ export async function POST(request: Request) {
   if (isGeminiConfigured()) {
     try {
       const entry = await askGeminiJson<ParsedEntry>(text.trim(), `Parse one Hebrew personal-finance entry. Return JSON only with: name, amount positive number, type income|expense, category, paymentMethod bank|card|cash, isVariable boolean, entryKind transaction|cash_withdrawal. A cash withdrawal is a transfer to the cash wallet, not a regular expense. Allowed expense categories: ${EXPENSE_CATEGORIES.join(", ")}. Keep the Hebrew name short and useful.`);
-      if (entry.name?.trim() && Number(entry.amount) > 0 && ["income", "expense"].includes(entry.type) && ["bank", "card", "cash"].includes(entry.paymentMethod) && ["transaction", "cash_withdrawal"].includes(entry.entryKind)) return NextResponse.json({ entry, source: "gemini" });
+      if (entry.name?.trim() && Number(entry.amount) > 0 && ["income", "expense"].includes(entry.type) && ["bank", "card", "cash"].includes(entry.paymentMethod) && ["transaction", "cash_withdrawal"].includes(entry.entryKind)) {
+        const category = entry.type === "income"
+          ? "הכנסה"
+          : EXPENSE_CATEGORIES.includes(entry.category as (typeof EXPENSE_CATEGORIES)[number])
+            ? entry.category
+            : inferExpenseCategory(`${entry.name} ${text}`).category;
+        return NextResponse.json({ entry: { ...entry, category }, source: "gemini" });
+      }
     } catch (error) { console.warn("[parse-ledger-entry] Gemini fallback", error); }
   }
 

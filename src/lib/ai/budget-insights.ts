@@ -2,7 +2,6 @@ import { askGeminiJson, isGeminiConfigured } from "@/lib/ai/gemini";
 import {
   computeHealthScore,
   detectAnomalies,
-  type DetectedAnomaly,
 } from "@/lib/ai/anomaly-detector";
 import type {
   FixedTemplate,

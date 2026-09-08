@@ -2,14 +2,14 @@
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { ArrowDownLeft, ArrowUpRight, ChevronLeft, CircleCheck, Clock3, Landmark, Plus, WalletCards } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, ChevronLeft, CircleCheck, Clock3, Landmark, Plus, TrendingDown, TrendingUp, WalletCards } from "lucide-react";
 import { AiInsightPanel } from "@/components/bank/AiInsightPanel";
-import { CashflowChart, CategoryChart, CHART_COLORS } from "@/components/bank/FinancialCharts";
+import { CashflowChart, CategoryChart } from "@/components/bank/FinancialCharts";
 import { MonthNavigator } from "@/components/ui/MonthNavigator";
 import { MonthlyShareButton } from "@/components/bank/MonthlyShareButton";
 import { fetchLive } from "@/lib/api/fetch-live";
 import { formatCurrency } from "@/lib/utils/format";
-import type { AnalyticsPayload, MonthlyLedgerEntry } from "@/types/ledger";
+import type { AnalyticsPayload, MonthlyLedgerEntry, MonthSummary } from "@/types/ledger";
 import { useMonthStore } from "@/stores/useMonthStore";
 
 type LedgerPayload = {
@@ -23,14 +23,13 @@ export function DashboardView() {
   const { data, isLoading } = useQuery({
     queryKey: ["analytics", monthKey],
     queryFn: () => fetchLive<AnalyticsPayload>(`/api/analytics?month=${monthKey}`),
-    staleTime: 0,
+    staleTime: 30_000,
   });
 
   const { data: ledger } = useQuery({
     queryKey: ["ledger", monthKey],
     queryFn: () => fetchLive<LedgerPayload>(`/api/ledger?month=${monthKey}`),
-    enabled: Boolean(data?.summary.initialized),
-    staleTime: 0,
+    staleTime: 30_000,
   });
 
   return (
@@ -68,8 +67,15 @@ export function DashboardView() {
                 <div className="flex items-center justify-between text-sm"><span className="text-white/70">ביצוע בפועל</span><span className="font-bold">{data.summary.totalIncome > 0 ? Math.min(100, Math.max(0, data.summary.actualExpenses / data.summary.totalIncome * 100)).toFixed(0) : 0}% מההכנסה</span></div>
                 <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-gradient-to-l from-emerald-400 to-cyan-400" style={{ width: `${data.summary.totalIncome > 0 ? Math.min(100, data.summary.actualExpenses / data.summary.totalIncome * 100) : 0}%` }} /></div>
                 <div className="mt-4 grid grid-cols-2 gap-4"><div><span className="text-xs text-white/60">נטו בפועל</span><p className="mt-1 text-xl font-black" dir="ltr">{formatCurrency(data.summary.actualNet)}</p></div><div><span className="text-xs text-white/60">עוד צפוי לרדת</span><p className="mt-1 text-xl font-black" dir="ltr">{formatCurrency(Math.max(0, data.summary.totalFixedExpenses + data.summary.totalVariableExpenses - data.summary.actualExpenses))}</p></div></div>
+                {data.averages.monthsIncluded >= 2 && (
+                  <div className="mt-4 flex items-center gap-2 border-t border-white/10 pt-3 text-xs text-white/75">
+                    {data.summary.totalFixedExpenses + data.summary.totalVariableExpenses <= data.averages.avgExpense ? <TrendingDown className="h-4 w-4 text-emerald-300" /> : <TrendingUp className="h-4 w-4 text-amber-300" />}
+                    <span>ההוצאות החודש {Math.abs((data.summary.totalFixedExpenses + data.summary.totalVariableExpenses) - data.averages.avgExpense).toLocaleString("he-IL", { maximumFractionDigits: 0 })} ₪ {data.summary.totalFixedExpenses + data.summary.totalVariableExpenses <= data.averages.avgExpense ? "מתחת" : "מעל"} לממוצע שלך</span>
+                  </div>
+                )}
               </div>
             </div>
+            <CashflowAllocation summary={data.summary} />
           </section>
 
           <div className="grid gap-5 xl:grid-cols-12">
@@ -80,14 +86,11 @@ export function DashboardView() {
             <section className="finance-panel xl:col-span-4">
               <PanelTitle title="הוצאות לפי קטגוריה" subtitle="איפה הכסף מתרכז החודש" />
               <CategoryChart data={data.expenseBreakdown} />
-              <div className="grid grid-cols-2 gap-x-3 gap-y-2">
-                {data.expenseBreakdown.slice(0, 6).map((item, index) => <div key={item.category} className="flex min-w-0 items-center gap-2 text-xs"><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }} /><span className="truncate text-on-surface-variant">{item.category}</span></div>)}
-              </div>
             </section>
 
             <section className="finance-panel xl:col-span-4">
               <PanelTitle title="הכסף שלי" subtitle="יתרות מחושבות לפי הרישומים" />
-              <BalanceRow icon={Landmark} label="תזרים בנקאי בפועל" value={data.summary.actualNet} />
+              <BalanceRow icon={Landmark} label="נטו הכנסות והוצאות בפועל" value={data.summary.actualNet} />
               <BalanceRow icon={WalletCards} label="מזומן בארנק" value={data.summary.cashBalance} accent />
               <div className="mt-3 grid grid-cols-2 gap-2 rounded-2xl bg-surface-container/60 p-3 text-center"><div><p className="text-[11px] text-on-surface-variant">נמשך</p><strong className="text-sm">{formatCurrency(data.summary.cashWithdrawnThisMonth)}</strong></div><div className="border-s border-outline-variant"><p className="text-[11px] text-on-surface-variant">שולם במזומן</p><strong className="text-sm">{formatCurrency(data.summary.cashSpentThisMonth)}</strong></div></div>
             </section>
@@ -124,3 +127,36 @@ export function DashboardView() {
 function PanelTitle({ title, subtitle }: { title: string; subtitle: string }) { return <div className="mb-3"><h2 className="text-lg font-black text-on-surface">{title}</h2><p className="mt-0.5 text-xs text-on-surface-variant">{subtitle}</p></div>; }
 function Metric({ icon: Icon, label, value, tone }: { icon: typeof ArrowDownLeft; label: string; value: number; tone: string }) { return <div className="flex items-center gap-2"><Icon className={`h-5 w-5 ${tone}`} /><div><p className="text-xs text-white/60">{label}</p><strong dir="ltr">{formatCurrency(value)}</strong></div></div>; }
 function BalanceRow({ icon: Icon, label, value, accent }: { icon: typeof Landmark; label: string; value: number; accent?: boolean }) { return <div className="flex items-center gap-3 border-b border-outline-variant py-3 last:border-0"><div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${accent ? "bg-primary-container text-primary" : "bg-surface-container text-on-surface-variant"}`}><Icon className="h-5 w-5" /></div><div className="min-w-0 flex-1"><p className="text-xs text-on-surface-variant">{label}</p><strong className="text-xl" dir="ltr">{formatCurrency(value)}</strong></div></div>; }
+
+function CashflowAllocation({ summary }: { summary: MonthSummary }) {
+  const expense = summary.totalFixedExpenses + summary.totalVariableExpenses;
+  const scale = Math.max(summary.totalIncome, expense, 1);
+  const fixedPct = summary.totalFixedExpenses / scale * 100;
+  const variablePct = summary.totalVariableExpenses / scale * 100;
+  const freePct = Math.max(0, summary.totalIncome - expense) / scale * 100;
+  const deficitPct = Math.max(0, expense - summary.totalIncome) / scale * 100;
+
+  return (
+    <div className="mt-6 border-t border-white/10 pt-4">
+      <div className="mb-2 flex items-center justify-between gap-3 text-xs">
+        <span className="font-bold text-white/85">מפת התזרים המתוכנן</span>
+        <span className="text-white/55">כל שקל מקבל תפקיד</span>
+      </div>
+      <div className="flex h-3.5 overflow-hidden rounded-full bg-white/10" dir="rtl" aria-label="חלוקת ההכנסה המתוכננת">
+        <span className="bg-sky-400" style={{ width: `${fixedPct}%` }} />
+        <span className="bg-violet-400" style={{ width: `${variablePct}%` }} />
+        {freePct > 0 && <span className="bg-emerald-400" style={{ width: `${freePct}%` }} />}
+        {deficitPct > 0 && <span className="bg-rose-400" style={{ width: `${deficitPct}%` }} />}
+      </div>
+      <div className="mt-3 grid grid-cols-3 gap-2 text-[11px] sm:flex sm:gap-6">
+        <FlowLegend color="bg-sky-400" label="קבועות" value={summary.totalFixedExpenses} />
+        <FlowLegend color="bg-violet-400" label="משתנות" value={summary.totalVariableExpenses} />
+        <FlowLegend color={summary.disposableRemaining >= 0 ? "bg-emerald-400" : "bg-rose-400"} label={summary.disposableRemaining >= 0 ? "פנוי" : "חריגה"} value={Math.abs(summary.disposableRemaining)} />
+      </div>
+    </div>
+  );
+}
+
+function FlowLegend({ color, label, value }: { color: string; label: string; value: number }) {
+  return <div className="min-w-0"><span className="flex items-center gap-1.5 text-white/60"><i className={`h-2 w-2 shrink-0 rounded-full ${color}`} />{label}</span><strong className="mt-0.5 block truncate text-white" dir="ltr">{formatCurrency(value)}</strong></div>;
+}

@@ -32,7 +32,8 @@ export function AiInsightPanel() {
     queryKey: ["ai-insights", monthKey],
     queryFn: () =>
       fetchLive<{ analysis: BudgetAnalysis }>(`/api/ai/insights?month=${monthKey}`),
-    staleTime: 0,
+    staleTime: 5 * 60 * 1000,
+    retry: 0,
   });
 
   const analysis = data?.analysis;

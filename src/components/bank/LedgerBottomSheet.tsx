@@ -1,9 +1,11 @@
 "use client";
 /* eslint-disable react-hooks/set-state-in-effect -- reset form state when a different ledger item opens */
 
+import { Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { EXPENSE_CATEGORIES } from "@/lib/constants/budget";
+import { inferExpenseCategory } from "@/lib/ai/smart-category";
 import type { LedgerEntryKind, LedgerItemType, MonthlyLedgerEntry, PaymentMethod } from "@/types/ledger";
 
 type AddType = LedgerItemType | "cash_withdrawal";
@@ -38,6 +40,7 @@ export function LedgerBottomSheet({
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("אחר");
+  const [categoryTouched, setCategoryTouched] = useState(false);
   const [isVariable, setIsVariable] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
 
@@ -49,12 +52,14 @@ export function LedgerBottomSheet({
       setCategory(mode.entry.category);
       setIsVariable(mode.entry.is_variable);
       setPaymentMethod(mode.entry.payment_method);
+      setCategoryTouched(true);
     } else {
       setName(mode.draft?.name ?? "");
       setAmount(mode.draft?.amount ? String(mode.draft.amount) : "");
       setCategory(mode.draft?.category ?? (mode.type === "expense" ? "מזון" : "הכנסה"));
       setIsVariable(mode.draft?.isVariable ?? mode.type === "expense");
       setPaymentMethod(mode.draft?.paymentMethod ?? (mode.type === "expense" ? "card" : "bank"));
+      setCategoryTouched(Boolean(mode.draft?.category));
     }
   }, [mode]);
 
@@ -77,6 +82,7 @@ export function LedgerBottomSheet({
         : type === "income"
         ? "הוספת הכנסה"
         : "הוספת הוצאה";
+  const categoryGuess = inferExpenseCategory(name);
 
   return (
     <BottomSheet open={open} onClose={onClose} title={title}>
@@ -87,7 +93,13 @@ export function LedgerBottomSheet({
           <input
             className="m3-input mt-1 w-full px-3 py-3 text-base"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              setName(value);
+              if (mode.kind === "add" && type === "expense" && !categoryTouched) {
+                setCategory(inferExpenseCategory(value).category);
+              }
+            }}
             placeholder={isWithdrawal ? "למשל: משיכה מהכספומט" : "למשל: סופר, משכורת..."}
           />
         </div>
@@ -124,7 +136,10 @@ export function LedgerBottomSheet({
               <select
                 className="m3-input mt-1 w-full px-3 py-3 text-base"
                 value={category}
-                onChange={(e) => setCategory(e.target.value)}
+                onChange={(e) => {
+                  setCategory(e.target.value);
+                  setCategoryTouched(true);
+                }}
               >
                 {EXPENSE_CATEGORIES.map((c) => (
                   <option key={c} value={c}>
@@ -132,6 +147,12 @@ export function LedgerBottomSheet({
                   </option>
                 ))}
               </select>
+              {mode.kind === "add" && categoryGuess.confidence >= 0.8 && (
+                <p className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-primary">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  זוהתה אוטומטית: {categoryGuess.category}
+                </p>
+              )}
             </div>
             <label className="flex min-h-[48px] items-center gap-3 text-sm">
               <input

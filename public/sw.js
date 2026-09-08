@@ -1,4 +1,4 @@
-const CACHE = "mercantil-v2";
+const CACHE = "mercantil-v3";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
@@ -22,20 +22,34 @@ self.addEventListener("fetch", (event) => {
 
   if (event.request.method !== "GET") return;
 
-  const staticOnly = ["document", "script", "style", "image", "font"].includes(
-    event.request.destination,
-  );
-  if (!staticOnly) return;
+  // Personal financial HTML must always be fresh and must not be stored offline.
+  if (event.request.destination === "document") return;
+
+  const cacheFirst =
+    url.pathname.startsWith("/_next/static/") ||
+    ["script", "style", "font"].includes(event.request.destination);
+  const staleWhileRevalidate =
+    event.request.destination === "image" ||
+    url.pathname === "/manifest.webmanifest";
+
+  if (!cacheFirst && !staleWhileRevalidate) return;
 
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        if (response.ok) {
-          const copy = response.clone();
-          caches.open(CACHE).then((cache) => cache.put(event.request, copy));
-        }
+    caches.open(CACHE).then(async (cache) => {
+      const cached = await cache.match(event.request);
+      if (cached && cacheFirst) return cached;
+
+      const network = fetch(event.request).then((response) => {
+        if (response.ok) cache.put(event.request, response.clone());
         return response;
-      })
-      .catch(() => caches.match(event.request)),
+      });
+
+      if (cached && staleWhileRevalidate) {
+        event.waitUntil(network.catch(() => undefined));
+        return cached;
+      }
+
+      return network.catch(() => cached ?? Response.error());
+    }),
   );
 });
