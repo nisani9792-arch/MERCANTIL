@@ -302,6 +302,17 @@ async function initSchema() {
   await sql`create index if not exists transactions_fixed_recurring_idx on transactions (user_id, is_fixed_recurring) where is_fixed_recurring = true`;
   await sql`create index if not exists ai_learning_rules_user_idx on ai_learning_rules (user_id)`;
 
+  // Device-independent view preferences. In particular, the selected month is
+  // shared so a desktop cannot silently open a different empty month.
+  await sql`
+    create table if not exists user_finance_preferences (
+      user_id uuid primary key references users (id) on delete cascade,
+      selected_month_key text,
+      updated_at timestamptz not null default now(),
+      check (selected_month_key is null or selected_month_key ~ '^\\d{4}-(0[1-9]|1[0-2])$')
+    )
+  `;
+
   // This module is deliberately independent from the monthly ledger: balances,
   // deposits and reminders are private reference data, not monthly expenses.
   await sql`
