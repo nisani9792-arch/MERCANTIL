@@ -10,6 +10,7 @@ import {
 } from "@/components/bank/BankNavSidebar";
 import { InstallPrompt } from "@/components/layout/InstallPrompt";
 import { useRefetchOnVisible } from "@/hooks/useRefetchOnVisible";
+import { MonthSync } from "@/components/providers/MonthSync";
 
 type BankShellProps = {
   children: React.ReactNode;
@@ -29,6 +30,7 @@ export function BankShell({ children, userName, setupRequired }: BankShellProps)
 
   return (
     <div className="bank-canvas flex min-h-[100dvh] flex-col">
+      <MonthSync />
       <BankHeader userName={userName} />
       <div className="flex min-h-0 flex-1">
         <BankNavSidebar />
