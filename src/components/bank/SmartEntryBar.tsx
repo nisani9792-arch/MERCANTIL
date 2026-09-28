@@ -4,6 +4,19 @@ import { Loader2, Sparkles } from "lucide-react";
 import { useState } from "react";
 import type { LedgerSheetMode } from "@/components/bank/LedgerBottomSheet";
 
+type ParsedEntryResponse = {
+  entry?: {
+    name: string;
+    amount: number;
+    type: "income" | "expense";
+    category: string;
+    paymentMethod: "bank" | "card" | "cash";
+    isVariable: boolean;
+    entryKind: "transaction" | "cash_withdrawal";
+  };
+  error?: string;
+};
+
 export function SmartEntryBar({ onParsed }: { onParsed: (mode: Extract<LedgerSheetMode, { kind: "add" }>) => void }) {
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -13,7 +26,7 @@ export function SmartEntryBar({ onParsed }: { onParsed: (mode: Extract<LedgerShe
     setLoading(true); setError("");
     try {
       const res = await fetch("/api/ai/parse-ledger-entry", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
-      const data = await res.json();
+      const data = (await res.json()) as ParsedEntryResponse;
       if (!res.ok || !data.entry) throw new Error(data.error || "לא ניתן לנתח");
       const entry = data.entry;
       onParsed({ kind: "add", type: entry.entryKind === "cash_withdrawal" ? "cash_withdrawal" : entry.type, draft: entry });

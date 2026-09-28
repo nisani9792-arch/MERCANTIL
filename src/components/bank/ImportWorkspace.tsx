@@ -19,7 +19,7 @@ export function ImportWorkspace() {
   const [xlsxResult, setXlsxResult] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const importMut = useMutation({
+  const importMut = useMutation<{ results: ClassifyPreview[] }, Error, boolean>({
     mutationFn: async (apply: boolean) => {
       const lines = raw
         .split("\n")
