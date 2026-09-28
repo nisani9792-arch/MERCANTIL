@@ -1,6 +1,5 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
-import { ensureAppSchema } from "@/lib/db/ensure-schema";
 
 export const SESSION_COOKIE = "mercantil_session";
 const SESSION_MAX_AGE = 60 * 60 * 24 * 90; // Remember this device for 90 days.
@@ -52,7 +51,6 @@ export async function getSession(): Promise<SessionPayload | null> {
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;
   const session = await verifySessionToken(token);
-  if (session) await ensureAppSchema();
   return session;
 }
 
