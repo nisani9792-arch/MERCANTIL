@@ -5,6 +5,11 @@ import { isDatabaseConfigured } from "@/lib/db/client";
 import { hasFinancialSetup } from "@/lib/db/setup";
 import { BankShell } from "@/components/bank/BankShell";
 
+// Every screen below this layout depends on the request session.  Do not let
+// Next.js pre-render it at build time on the Worker.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function AppLayout({
   children,
 }: {
