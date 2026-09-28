@@ -33,12 +33,16 @@ export function PinGate() {
       setError(null);
       setLoading(true);
 
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 12_000);
+
       try {
         const res = await fetch("/api/auth/pin", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "same-origin",
           body: JSON.stringify({ pin: value }),
+          signal: controller.signal,
         });
 
         const data = (await res.json()) as { error?: string };
@@ -53,9 +57,14 @@ export function PinGate() {
 
         router.push(redirect);
         router.refresh();
-      } catch {
-        setError("לא ניתן להתחבר לשרת");
+      } catch (err) {
+        setError(
+          err instanceof DOMException && err.name === "AbortError"
+            ? "החיבור מתעכב. בדוק רשת ונסה שוב."
+            : "לא ניתן להתחבר לשרת. נסה שוב.",
+        );
       } finally {
+        window.clearTimeout(timeout);
         setLoading(false);
       }
     },
