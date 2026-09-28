@@ -1,6 +1,9 @@
 import { getSql } from "@/lib/db/client";
 
-export const financialItemKinds = ["account", "savings", "deposit", "planned_expense", "reminder"] as const;
+export const financialItemKinds = [
+  "account", "savings", "deposit", "provident_fund", "pension",
+  "insurance", "loan", "income_source", "planned_expense", "reminder", "note",
+] as const;
 export type FinancialItemKind = (typeof financialItemKinds)[number];
 
 export type FinancialSnapshotItem = {
