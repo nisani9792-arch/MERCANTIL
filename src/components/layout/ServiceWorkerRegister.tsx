@@ -5,12 +5,19 @@ import { useEffect } from "react";
 export function ServiceWorkerRegister() {
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
-    // A versioned URL bypasses stale mobile PWA registrations after a release.
-    // updateViaCache keeps the browser from reusing a previously cached worker.
-    void navigator.serviceWorker.register("/sw.js?version=20260928-2", {
-      scope: "/",
-      updateViaCache: "none",
-    }).then((registration) => registration.update());
+
+    // Financial data must always come from the network. Remove legacy PWA
+    // workers and their caches so a stale offline shell cannot block login.
+    void navigator.serviceWorker
+      .getRegistrations()
+      .then(async (registrations) => {
+        await Promise.all(registrations.map((registration) => registration.unregister()));
+        if ("caches" in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map((key) => caches.delete(key)));
+        }
+      })
+      .catch(() => undefined);
   }, []);
 
   return null;
