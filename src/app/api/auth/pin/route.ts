@@ -6,7 +6,6 @@ import {
   sessionCookieOptions,
 } from "@/lib/auth/session";
 import { getOrCreateSoloUser } from "@/lib/auth/solo-user";
-import { ensureAppSchema } from "@/lib/db/ensure-schema";
 
 export async function POST(request: Request) {
   const setupError = getAuthSetupError();
@@ -22,7 +21,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "קוד שגוי" }, { status: 401 });
     }
 
-    await ensureAppSchema();
+    // Schema migrations are handled by the health/startup path. Running the
+    // full migration set during an interactive PIN request can exceed an edge
+    // request budget on a cold Worker.
     const user = await getOrCreateSoloUser();
 
     const token = await createSessionToken({
