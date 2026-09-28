@@ -319,7 +319,7 @@ async function initSchema() {
     create table if not exists financial_snapshot_items (
       id uuid primary key default gen_random_uuid(),
       user_id uuid not null references users (id) on delete cascade,
-      kind text not null check (kind in ('account', 'savings', 'deposit', 'planned_expense', 'reminder')),
+      kind text not null check (kind in ('account', 'savings', 'deposit', 'provident_fund', 'pension', 'insurance', 'loan', 'income_source', 'planned_expense', 'reminder', 'note')),
       name text not null,
       institution text,
       amount numeric(12, 2),
@@ -330,6 +330,32 @@ async function initSchema() {
       updated_at timestamptz not null default now()
     )
   `;
+  // Broaden the personal-finance register without touching its rows. Existing
+  // deployments need this migration because CREATE TABLE does not alter checks.
+  const snapshotKindsMigrated = await sql`
+    select exists (select 1 from app_schema_migrations where name = 'financial_snapshot_kinds_v2') as migrated
+  `;
+  if (!Boolean(snapshotKindsMigrated[0]?.migrated)) {
+    await sql.transaction([
+      sql`
+        do $$
+        declare constraint_row record;
+        begin
+          for constraint_row in select conname from pg_constraint
+            where conrelid = 'financial_snapshot_items'::regclass and contype = 'c'
+              and pg_get_constraintdef(oid) ilike '%kind%'
+          loop
+            execute format('alter table financial_snapshot_items drop constraint %I', constraint_row.conname);
+          end loop;
+        end $$
+      `,
+      sql`
+        alter table financial_snapshot_items add constraint financial_snapshot_items_kind_check
+        check (kind in ('account', 'savings', 'deposit', 'provident_fund', 'pension', 'insurance', 'loan', 'income_source', 'planned_expense', 'reminder', 'note')) not valid
+      `,
+      sql`insert into app_schema_migrations (name) values ('financial_snapshot_kinds_v2') on conflict (name) do nothing`,
+    ]);
+  }
   await sql`create index if not exists financial_snapshot_items_user_kind_idx on financial_snapshot_items (user_id, kind, is_active)`;
   await sql`create index if not exists financial_snapshot_items_user_due_idx on financial_snapshot_items (user_id, due_date) where due_date is not null`;
 
