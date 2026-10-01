@@ -28,6 +28,7 @@ type LedgerBottomSheetProps = {
     isVariable: boolean;
     entryKind: LedgerEntryKind;
     paymentMethod: PaymentMethod;
+    dueDate: string | null;
   }) => Promise<void>;
   saving?: boolean;
   error?: string;
@@ -49,6 +50,7 @@ export function LedgerBottomSheet({
   const [categoryTouched, setCategoryTouched] = useState(false);
   const [isVariable, setIsVariable] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("card");
+  const [dueDate, setDueDate] = useState("");
   const [readyDraftKey, setReadyDraftKey] = useState("");
   const [deleting, setDeleting] = useState(false);
 
@@ -61,6 +63,7 @@ export function LedgerBottomSheet({
       category: string;
       isVariable: boolean;
       paymentMethod: PaymentMethod;
+      dueDate: string;
     }> = {};
     try {
       restored = JSON.parse(localStorage.getItem(draftKey) ?? "{}");
@@ -73,6 +76,7 @@ export function LedgerBottomSheet({
       setCategory(restored.category ?? mode.entry.category);
       setIsVariable(restored.isVariable ?? mode.entry.is_variable);
       setPaymentMethod(restored.paymentMethod ?? mode.entry.payment_method);
+      setDueDate(restored.dueDate ?? mode.entry.due_date ?? "");
       setCategoryTouched(true);
     } else {
       setName(restored.name ?? mode.draft?.name ?? "");
@@ -80,6 +84,7 @@ export function LedgerBottomSheet({
       setCategory(restored.category ?? mode.draft?.category ?? (mode.type === "expense" ? "מזון" : "הכנסה"));
       setIsVariable(restored.isVariable ?? mode.draft?.isVariable ?? mode.type === "expense");
       setPaymentMethod(restored.paymentMethod ?? mode.draft?.paymentMethod ?? (mode.type === "expense" ? "card" : "bank"));
+      setDueDate(restored.dueDate ?? "");
       setCategoryTouched(Boolean(mode.draft?.category));
     }
     setReadyDraftKey(draftKey);
@@ -95,8 +100,9 @@ export function LedgerBottomSheet({
       category,
       isVariable,
       paymentMethod,
+      dueDate,
     }));
-  }, [amount, category, isVariable, mode, name, open, paymentMethod, readyDraftKey, storageScope]);
+  }, [amount, category, dueDate, isVariable, mode, name, open, paymentMethod, readyDraftKey, storageScope]);
 
   if (!mode) return null;
 
@@ -120,7 +126,7 @@ export function LedgerBottomSheet({
   const categoryGuess = inferExpenseCategory(name);
   const valid = Boolean(name.trim()) && amount.trim() !== "" && Number.isFinite(Number(amount)) && Number(amount) >= 0;
   const dirty = mode.kind === "edit"
-    ? name !== mode.entry.name || amount !== String(mode.entry.amount) || category !== mode.entry.category || isVariable !== mode.entry.is_variable || paymentMethod !== mode.entry.payment_method
+    ? name !== mode.entry.name || amount !== String(mode.entry.amount) || category !== mode.entry.category || isVariable !== mode.entry.is_variable || paymentMethod !== mode.entry.payment_method || dueDate !== (mode.entry.due_date ?? "")
     : Boolean(name.trim() || amount);
 
   const saveButton = (
@@ -137,6 +143,7 @@ export function LedgerBottomSheet({
             isVariable: type === "expense" && isVariable,
             entryKind: isWithdrawal ? "cash_withdrawal" : "transaction",
             paymentMethod: isWithdrawal ? "bank" : paymentMethod,
+            dueDate: dueDate || null,
           });
           localStorage.removeItem(getDraftKey(storageScope, mode));
         } catch {
@@ -170,6 +177,18 @@ export function LedgerBottomSheet({
             placeholder={isWithdrawal ? "למשל: משיכה מהכספומט" : "למשל: סופר, משכורת..."}
           />
         </div>
+        {!isWithdrawal && (
+          <div>
+            <label className="m3-label">מועד לביצוע (אופציונלי)</label>
+            <input
+              className="m3-input mt-1 w-full px-3 py-3 text-base"
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+            />
+            <p className="mt-1 text-xs text-on-surface-variant">תנועה שלא סומנה כבוצעה תופיע כקרובה בשבעת הימים שלפני המועד.</p>
+          </div>
+        )}
         <div>
           <label className="m3-label">סכום (₪)</label>
           <input

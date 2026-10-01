@@ -39,12 +39,14 @@ export async function POST(request: Request) {
     notes?: string;
     entryKind?: "transaction" | "cash_withdrawal";
     paymentMethod?: "bank" | "card" | "cash";
+    dueDate?: string | null;
   };
 
   if (!body.name?.trim() || !['income','expense'].includes(body.type ?? '') || !Number.isFinite(body.amount) || Number(body.amount) < 0 ||
       (body.monthKey !== undefined && !/^\d{4}-(0[1-9]|1[0-2])$/.test(body.monthKey)) ||
       (body.entryKind !== undefined && !['transaction','cash_withdrawal'].includes(body.entryKind)) ||
-      (body.paymentMethod !== undefined && !['bank','card','cash'].includes(body.paymentMethod))) {
+      (body.paymentMethod !== undefined && !['bank','card','cash'].includes(body.paymentMethod)) ||
+      (body.dueDate !== undefined && body.dueDate !== null && !/^\d{4}-\d{2}-\d{2}$/.test(body.dueDate))) {
     return NextResponse.json({ error: "נתונים חסרים" }, { status: 400 });
   }
 
@@ -58,6 +60,7 @@ export async function POST(request: Request) {
     notes: body.notes,
     entryKind: body.entryKind,
     paymentMethod: body.paymentMethod,
+    dueDate: body.dueDate,
   });
 
   return NextResponse.json({ entry }, { status: 201 });

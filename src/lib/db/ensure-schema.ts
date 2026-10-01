@@ -241,6 +241,26 @@ async function initSchema() {
     add column if not exists payment_method text not null default 'bank'
   `.catch(() => undefined);
 
+  // Additive payment tracking fields: legacy rows retain their current state.
+  await sql`alter table monthly_ledger add column if not exists due_date date`.catch(() => undefined);
+  await sql`alter table monthly_ledger add column if not exists completed_at timestamptz`.catch(() => undefined);
+  await sql`alter table monthly_ledger add column if not exists confirmation_source text not null default 'manual'`.catch(() => undefined);
+  await sql`create index if not exists monthly_ledger_user_due_idx on monthly_ledger (user_id, due_date) where due_date is not null`.catch(() => undefined);
+
+  await sql`
+    create table if not exists ledger_change_log (
+      id uuid primary key default gen_random_uuid(),
+      user_id uuid not null references users (id) on delete cascade,
+      ledger_entry_id uuid references monthly_ledger (id) on delete set null,
+      action text not null check (action in ('created', 'updated', 'confirmed', 'reopened', 'deleted')),
+      source text not null default 'app',
+      before_data jsonb,
+      after_data jsonb,
+      created_at timestamptz not null default now()
+    )
+  `.catch(() => undefined);
+  await sql`create index if not exists ledger_change_log_user_created_idx on ledger_change_log (user_id, created_at desc)`.catch(() => undefined);
+
   const ledgerAmountConstraintState = await sql`
     select exists (
       select 1 from app_schema_migrations

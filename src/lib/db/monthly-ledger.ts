@@ -19,6 +19,9 @@ function mapRow(row: Record<string, unknown>): MonthlyLedgerEntry {
     is_paid: Boolean(row.is_paid),
     entry_kind: (row.entry_kind ?? "transaction") as LedgerEntryKind,
     payment_method: (row.payment_method ?? "bank") as PaymentMethod,
+    due_date: row.due_date ? String(row.due_date).slice(0, 10) : null,
+    completed_at: row.completed_at ? String(row.completed_at) : null,
+    confirmation_source: (row.confirmation_source ?? "manual") as "manual" | "automatic",
     notes: row.notes ? String(row.notes) : null,
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),
@@ -110,9 +113,10 @@ export async function initMonthFromTemplates(
   // user/month/template also makes repeated or concurrent taps idempotent.
   const rows = await sql`insert into monthly_ledger (
       user_id, month_key, name, type, amount, category,
-      is_from_template, template_id, is_variable, is_paid, notes
+      is_from_template, template_id, is_variable, is_paid, notes, due_date
     ) select t.user_id, ${monthKey}, t.name, t.type, t.amount, t.name,
-      true, t.id, t.is_variable, false, null
+      true, t.id, t.is_variable, false, null,
+      case when t.day_of_month is null then null else make_date(${Number(monthKey.slice(0, 4))}, ${Number(monthKey.slice(5))}, least(t.day_of_month, extract(day from (make_date(${Number(monthKey.slice(0, 4))}, ${Number(monthKey.slice(5))}, 1) + interval '1 month - 1 day'))::int)) end
     from fixed_templates t
     where t.user_id = ${userId} and t.is_active = true
       and (${chosenIds.length} = 0 or t.id = any(${chosenIds}::uuid[]))
@@ -137,6 +141,7 @@ export async function addLedgerEntry(
     notes?: string;
     entryKind?: LedgerEntryKind;
     paymentMethod?: PaymentMethod;
+    dueDate?: string | null;
   },
 ): Promise<MonthlyLedgerEntry> {
   const sql = getSql();
@@ -145,23 +150,26 @@ export async function addLedgerEntry(
     insert into monthly_ledger (
       user_id, month_key, name, type, amount, category,
       is_from_template, template_id, is_variable, is_paid, notes,
-      entry_kind, payment_method
+      entry_kind, payment_method, due_date
     )
     values (
       ${userId}, ${input.monthKey}, ${input.name}, ${input.type},
       ${input.amount}, ${category}, false, null, ${input.isVariable ?? false},
-      ${input.amount > 0}, ${input.notes ?? null}, ${input.entryKind ?? "transaction"},
-      ${input.paymentMethod ?? "bank"}
+      false, ${input.notes ?? null}, ${input.entryKind ?? "transaction"},
+      ${input.paymentMethod ?? "bank"}, ${input.dueDate ?? null}
     )
     returning *
   `;
-  return mapRow(rows[0] as Record<string, unknown>);
+  const entry = mapRow(rows[0] as Record<string, unknown>);
+  await sql`insert into ledger_change_log (user_id, ledger_entry_id, action, after_data)
+    values (${userId}, ${entry.id}, 'created', ${JSON.stringify(entry)}::jsonb)`;
+  return entry;
 }
 
 export async function updateLedgerEntry(
   userId: string,
   id: string,
-  input: Partial<{ name: string; amount: number; category: string; notes: string | null; isPaid: boolean; paymentMethod: PaymentMethod; isVariable: boolean }>,
+  input: Partial<{ name: string; amount: number; category: string; notes: string | null; isPaid: boolean; paymentMethod: PaymentMethod; isVariable: boolean; dueDate: string | null; confirmationSource: "manual" | "automatic" }>,
 ): Promise<MonthlyLedgerEntry | null> {
   const sql = getSql();
   const existing = await sql`
@@ -176,6 +184,9 @@ export async function updateLedgerEntry(
         amount = ${input.amount ?? cur.amount},
         category = ${input.category ?? cur.category},
         is_paid = ${input.isPaid ?? cur.is_paid},
+        due_date = ${input.dueDate !== undefined ? input.dueDate : cur.due_date},
+        completed_at = case when ${input.isPaid === true} then now() when ${input.isPaid === false} then null else ${cur.completed_at} end,
+        confirmation_source = ${input.confirmationSource ?? cur.confirmation_source},
         payment_method = ${input.paymentMethod ?? cur.payment_method},
         is_variable = ${input.isVariable ?? cur.is_variable},
         notes = ${input.notes !== undefined ? input.notes : cur.notes},
@@ -183,14 +194,23 @@ export async function updateLedgerEntry(
     where id = ${id} and user_id = ${userId}
     returning *
   `;
-  return mapRow(rows[0] as Record<string, unknown>);
+  const updated = mapRow(rows[0] as Record<string, unknown>);
+  const action = input.isPaid === true && !cur.is_paid ? "confirmed" : input.isPaid === false && cur.is_paid ? "reopened" : "updated";
+  await sql`insert into ledger_change_log (user_id, ledger_entry_id, action, before_data, after_data)
+    values (${userId}, ${id}, ${action}, ${JSON.stringify(cur)}::jsonb, ${JSON.stringify(updated)}::jsonb)`;
+  return updated;
 }
 
 export async function deleteLedgerEntry(userId: string, id: string): Promise<boolean> {
   const sql = getSql();
+  const existing = await sql`select * from monthly_ledger where id = ${id} and user_id = ${userId} limit 1`;
   const rows = await sql`
     delete from monthly_ledger where id = ${id} and user_id = ${userId} returning id
   `;
+  if (rows.length && existing.length) {
+    await sql`insert into ledger_change_log (user_id, ledger_entry_id, action, before_data)
+      values (${userId}, null, 'deleted', ${JSON.stringify(mapRow(existing[0] as Record<string, unknown>))}::jsonb)`;
+  }
   return rows.length > 0;
 }
 

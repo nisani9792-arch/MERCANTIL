@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect -- deep-link action intentionally opens the requested editor */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Banknote, Plus } from "lucide-react";
+import { Banknote, CalendarClock, Plus } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { InitMonthPanel } from "@/components/ledger/InitMonthPanel";
 import {
@@ -16,6 +16,7 @@ import { MonthNavigator } from "@/components/ui/MonthNavigator";
 import { fetchLive, mutateLive } from "@/lib/api/fetch-live";
 import type { MonthSummary, MonthlyLedgerEntry } from "@/types/ledger";
 import { useMonthStore } from "@/stores/useMonthStore";
+import { paymentStatus } from "@/lib/ledger/payment-status";
 
 type LedgerResponse = {
   entries: MonthlyLedgerEntry[];
@@ -54,6 +55,7 @@ export function MonthWorkspace() {
       isVariable: boolean;
       entryKind: "transaction" | "cash_withdrawal";
       paymentMethod: "bank" | "card" | "cash";
+      dueDate: string | null;
     }) => {
       if (payload.id) {
         const res = await mutateLive(`/api/ledger/${payload.id}`, {
@@ -65,6 +67,7 @@ export function MonthWorkspace() {
             category: payload.category,
             paymentMethod: payload.paymentMethod,
             isVariable: payload.isVariable,
+            dueDate: payload.dueDate,
           }),
         });
         const data = await res.json().catch(() => ({})) as { entry?: MonthlyLedgerEntry; error?: string };
@@ -83,6 +86,7 @@ export function MonthWorkspace() {
             isVariable: payload.isVariable,
             entryKind: payload.entryKind,
             paymentMethod: payload.paymentMethod,
+            dueDate: payload.dueDate,
           }),
         });
         const data = await res.json().catch(() => ({})) as { entry?: MonthlyLedgerEntry; error?: string };
@@ -127,10 +131,30 @@ export function MonthWorkspace() {
     },
   });
 
+  const togglePaidMut = useMutation({
+    mutationFn: async (entry: MonthlyLedgerEntry) => {
+      const res = await mutateLive(`/api/ledger/${entry.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isPaid: !entry.is_paid }),
+      });
+      const result = await res.json().catch(() => ({})) as { entry?: MonthlyLedgerEntry; error?: string };
+      if (!res.ok || !result.entry) throw new Error(result.error || "אישור הביצוע לא נשמר");
+      return result.entry;
+    },
+    onSuccess: (savedEntry) => {
+      qc.setQueryData<LedgerResponse>(["ledger", monthKey], (current) => current ? { ...current, entries: current.entries.map((entry) => entry.id === savedEntry.id ? savedEntry : entry) } : current);
+      setSaveMessage(savedEntry.is_paid ? "סומן כבוצע ונשמר" : "הוחזר למצב מתוכנן");
+      window.setTimeout(() => setSaveMessage(""), 2500);
+      void refetchAll();
+    },
+  });
+
   const entries = data?.entries ?? [];
   const income = entries.filter((e) => e.type === "income" && e.entry_kind === "transaction");
   const expenses = entries.filter((e) => e.type === "expense" && e.entry_kind === "transaction");
   const withdrawals = entries.filter((e) => e.entry_kind === "cash_withdrawal");
+  const upcoming = entries.filter((e) => e.entry_kind === "transaction" && e.type === "expense" && paymentStatus(e) === "upcoming");
 
   function openAdd(type: "income" | "expense" | "cash_withdrawal") {
     setSheetMode({ kind: "add", type });
@@ -169,6 +193,9 @@ export function MonthWorkspace() {
 
       {data?.summary.initialized && (
         <>
+          {upcoming.length > 0 && <CardSection title="הוצאות קרובות · 7 ימים" icon={<CalendarClock className="h-4 w-4" />}>
+            {upcoming.map((e) => <TransactionCard key={e.id} entry={e} onTap={() => openEdit(e)} onDelete={() => deleteMut.mutate(e.id)} onTogglePaid={() => togglePaidMut.mutate(e)} />)}
+          </CardSection>}
           <CardSection title="הכנסות">
             {income.map((e) => (
               <TransactionCard
@@ -176,6 +203,7 @@ export function MonthWorkspace() {
                 entry={e}
                 onTap={() => openEdit(e)}
                 onDelete={() => deleteMut.mutate(e.id)}
+                onTogglePaid={() => togglePaidMut.mutate(e)}
               />
             ))}
           </CardSection>
@@ -187,13 +215,14 @@ export function MonthWorkspace() {
                 entry={e}
                 onTap={() => openEdit(e)}
                 onDelete={() => deleteMut.mutate(e.id)}
+                onTogglePaid={() => togglePaidMut.mutate(e)}
               />
             ))}
           </CardSection>
           {withdrawals.length > 0 && (
             <CardSection title="העברות לארנק מזומן">
               {withdrawals.map((e) => (
-                <TransactionCard key={e.id} entry={e} onTap={() => openEdit(e)} onDelete={() => deleteMut.mutate(e.id)} />
+                <TransactionCard key={e.id} entry={e} onTap={() => openEdit(e)} onDelete={() => deleteMut.mutate(e.id)} onTogglePaid={() => togglePaidMut.mutate(e)} />
               ))}
             </CardSection>
           )}
@@ -245,14 +274,16 @@ function QuickButton({ label, icon, tone, onClick }: { label: string; icon: Reac
 
 function CardSection({
   title,
+  icon,
   children,
 }: {
   title: string;
+  icon?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <section className="space-y-2">
-      <h2 className="px-1 text-sm font-bold text-on-surface-variant">{title}</h2>
+      <h2 className="flex items-center gap-1.5 px-1 text-sm font-bold text-on-surface-variant">{icon}{title}</h2>
       <div className="space-y-2">{children}</div>
     </section>
   );

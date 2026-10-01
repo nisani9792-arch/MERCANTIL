@@ -1,6 +1,7 @@
 export type LedgerItemType = "income" | "expense";
 export type LedgerEntryKind = "transaction" | "cash_withdrawal";
 export type PaymentMethod = "bank" | "card" | "cash";
+export type LedgerPaymentStatus = "completed" | "overdue" | "upcoming" | "planned";
 
 export type RecurringFrequency = "monthly" | "bi-monthly";
 
@@ -36,6 +37,9 @@ export type MonthlyLedgerEntry = {
   is_paid: boolean;
   entry_kind: LedgerEntryKind;
   payment_method: PaymentMethod;
+  due_date: string | null;
+  completed_at: string | null;
+  confirmation_source: "manual" | "automatic";
   notes: string | null;
   created_at: string;
   updated_at: string;

@@ -18,12 +18,14 @@ export async function PATCH(
     isPaid?: boolean;
     paymentMethod?: 'bank' | 'card' | 'cash';
     isVariable?: boolean;
+    dueDate?: string | null;
   };
 
   if ((body.amount !== undefined && (!Number.isFinite(body.amount) || body.amount < 0)) ||
       (body.paymentMethod !== undefined && !['bank','card','cash'].includes(body.paymentMethod)) ||
       (body.isPaid !== undefined && typeof body.isPaid !== 'boolean') ||
-      (body.isVariable !== undefined && typeof body.isVariable !== 'boolean')) {
+      (body.isVariable !== undefined && typeof body.isVariable !== 'boolean') ||
+      (body.dueDate !== undefined && body.dueDate !== null && !/^\d{4}-\d{2}-\d{2}$/.test(body.dueDate))) {
     return NextResponse.json({error: 'נתונים לא תקינים'}, {status: 400});
   }
   const entry = await updateLedgerEntry(session.userId, id, body);
