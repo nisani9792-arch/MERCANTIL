@@ -9,6 +9,7 @@ const eslintConfig = defineConfig([
     ".next/**",
     "out/**",
     "build/**",
+    "android/**",
     ".open-next/**",
     "cloudflare-env.d.ts",
     "next-env.d.ts",
