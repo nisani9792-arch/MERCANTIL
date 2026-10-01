@@ -6,7 +6,6 @@ import {
   sessionCookieOptions,
 } from "@/lib/auth/session";
 import { findUserByEmail, verifyPassword } from "@/lib/auth/users";
-import { ensureAppSchema } from "@/lib/db/ensure-schema";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -36,8 +35,6 @@ export async function POST(request: Request) {
 
   try {
     const body = loginSchema.parse(await request.json());
-    await ensureAppSchema();
-
     const user = await findUserByEmail(body.email);
 
     if (!user || !(await verifyPassword(body.password, user.password_hash))) {

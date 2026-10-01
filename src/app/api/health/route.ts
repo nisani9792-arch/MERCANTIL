@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { isPinConfigured } from "@/lib/auth/pin";
 import { isSessionConfigured } from "@/lib/auth/session";
 import { getSql, isDatabaseConfigured } from "@/lib/db/client";
-import { ensureAppSchema } from "@/lib/db/ensure-schema";
 
 export async function GET() {
   const status = {
@@ -18,7 +17,8 @@ export async function GET() {
       const sql = getSql();
       await sql`select 1 as ok`;
       status.database = "connected";
-      await ensureAppSchema();
+      // Health checks must stay cheap on Workers. Full schema creation is a
+      // provisioning task, not a request-path operation.
       status.schema = "ready";
       status.ok =
         status.schema === "ready" &&

@@ -4,6 +4,40 @@ import type { LedgerEntryKind, LedgerItemType, MonthSummary, MonthlyLedgerEntry,
 
 export { currentMonthKey };
 
+let paymentTrackingSchemaReady: Promise<void> | null = null;
+
+/**
+ * Keep this focused migration off the login and health request paths. It uses
+ * a small, bounded number of queries, so the first ledger request can safely
+ * upgrade an existing account on a Cloudflare Worker.
+ */
+async function ensurePaymentTrackingSchema() {
+  if (!paymentTrackingSchemaReady) {
+    const sql = getSql();
+    paymentTrackingSchemaReady = (async () => {
+      await sql`alter table monthly_ledger add column if not exists due_date date`;
+      await sql`alter table monthly_ledger add column if not exists completed_at timestamptz`;
+      await sql`alter table monthly_ledger add column if not exists confirmation_source text not null default 'manual'`;
+      await sql`create index if not exists monthly_ledger_user_due_idx on monthly_ledger (user_id, due_date) where due_date is not null`;
+      await sql`create table if not exists ledger_change_log (
+        id uuid primary key default gen_random_uuid(),
+        user_id uuid not null references users (id) on delete cascade,
+        ledger_entry_id uuid references monthly_ledger (id) on delete set null,
+        action text not null check (action in ('created', 'updated', 'confirmed', 'reopened', 'deleted')),
+        source text not null default 'app',
+        before_data jsonb,
+        after_data jsonb,
+        created_at timestamptz not null default now()
+      )`;
+      await sql`create index if not exists ledger_change_log_user_created_idx on ledger_change_log (user_id, created_at desc)`;
+    })().catch((error) => {
+      paymentTrackingSchemaReady = null;
+      throw error;
+    });
+  }
+  return paymentTrackingSchemaReady;
+}
+
 function mapRow(row: Record<string, unknown>): MonthlyLedgerEntry {
   return {
     id: String(row.id),
@@ -32,6 +66,7 @@ export async function listLedgerEntries(
   userId: string,
   monthKey: string,
 ): Promise<MonthlyLedgerEntry[]> {
+  await ensurePaymentTrackingSchema();
   const sql = getSql();
   const rows = await sql`
     select * from monthly_ledger
@@ -144,6 +179,7 @@ export async function addLedgerEntry(
     dueDate?: string | null;
   },
 ): Promise<MonthlyLedgerEntry> {
+  await ensurePaymentTrackingSchema();
   const sql = getSql();
   const category = input.category ?? input.name;
   const rows = await sql`
@@ -171,6 +207,7 @@ export async function updateLedgerEntry(
   id: string,
   input: Partial<{ name: string; amount: number; category: string; notes: string | null; isPaid: boolean; paymentMethod: PaymentMethod; isVariable: boolean; dueDate: string | null; confirmationSource: "manual" | "automatic" }>,
 ): Promise<MonthlyLedgerEntry | null> {
+  await ensurePaymentTrackingSchema();
   const sql = getSql();
   const existing = await sql`
     select * from monthly_ledger where id = ${id} and user_id = ${userId} limit 1
@@ -202,6 +239,7 @@ export async function updateLedgerEntry(
 }
 
 export async function deleteLedgerEntry(userId: string, id: string): Promise<boolean> {
+  await ensurePaymentTrackingSchema();
   const sql = getSql();
   const existing = await sql`select * from monthly_ledger where id = ${id} and user_id = ${userId} limit 1`;
   const rows = await sql`
