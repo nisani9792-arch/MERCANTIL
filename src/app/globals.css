@@ -31,12 +31,19 @@
   --shadow-elevation-2: var(--m3-elevation-2);
 }
 
+html, body {
+  min-height: 100%;
+  background: var(--m3-color-surface);
+}
+
 body {
   overflow-wrap: break-word;
   background: var(--m3-color-surface);
   color: var(--m3-color-on-surface);
   font: var(--m3-type-body-md);
   font-family: var(--m3-font-family);
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 :focus-visible { outline: 2px solid var(--m3-color-primary); outline-offset: 3px; }
