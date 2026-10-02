@@ -144,9 +144,28 @@ export function MonthWorkspace() {
     },
     onSuccess: (savedEntry) => {
       qc.setQueryData<LedgerResponse>(["ledger", monthKey], (current) => current ? { ...current, entries: current.entries.map((entry) => entry.id === savedEntry.id ? savedEntry : entry) } : current);
+      setSheetMode((current) => current?.kind === "edit" && current.entry.id === savedEntry.id ? { kind: "edit", entry: savedEntry } : current);
       setSaveMessage(savedEntry.is_paid ? "סומן כבוצע ונשמר" : "הוחזר למצב מתוכנן");
       window.setTimeout(() => setSaveMessage(""), 2500);
       void refetchAll();
+    },
+  });
+
+  const createTemplateMut = useMutation({
+    mutationFn: async ({ entryId, frequency, dayOfMonth }: { entryId: string; frequency: "monthly" | "bi-monthly"; dayOfMonth: number | null }) => {
+      const res = await mutateLive(`/api/ledger/${entryId}/template`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ frequency, dayOfMonth }),
+      });
+      const result = await res.json().catch(() => ({})) as { created?: boolean; error?: string };
+      if (!res.ok || typeof result.created !== "boolean") throw new Error(result.error || "יצירת התבנית לא אושרה על ידי השרת");
+      return { created: result.created };
+    },
+    onSuccess: (result) => {
+      setSaveMessage(result.created ? "התבנית נוצרה ותופיע בחודשים הבאים" : "כבר קיימת תבנית עבור תנועה זו");
+      window.setTimeout(() => setSaveMessage(""), 2500);
+      void qc.invalidateQueries({ queryKey: ["templates"] });
     },
   });
 
@@ -245,6 +264,12 @@ export function MonthWorkspace() {
         }}
         onDelete={sheetMode?.kind === "edit" ? async () => {
           await deleteMut.mutateAsync(sheetMode.entry.id);
+        } : undefined}
+        onTogglePaid={sheetMode?.kind === "edit" ? async () => {
+          await togglePaidMut.mutateAsync(sheetMode.entry);
+        } : undefined}
+        onCreateTemplate={sheetMode?.kind === "edit" ? async ({ frequency, dayOfMonth }) => {
+          return createTemplateMut.mutateAsync({ entryId: sheetMode.entry.id, frequency, dayOfMonth });
         } : undefined}
         saving={saveMut.isPending}
         error={saveMut.isError ? saveMut.error.message : undefined}

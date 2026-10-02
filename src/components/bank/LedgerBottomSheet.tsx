@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable react-hooks/set-state-in-effect -- reset form state when a different ledger item opens */
 
-import { Loader2, Sparkles, Trash2 } from "lucide-react";
+import { CopyPlus, Loader2, Sparkles, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { EXPENSE_CATEGORIES } from "@/lib/constants/budget";
@@ -20,6 +20,8 @@ type LedgerBottomSheetProps = {
   storageScope: string;
   onClose: () => void;
   onDelete?: () => Promise<void>;
+  onTogglePaid?: () => Promise<void>;
+  onCreateTemplate?: (data: { frequency: "monthly" | "bi-monthly"; dayOfMonth: number | null }) => Promise<{ created: boolean }>;
   onSave: (data: {
     name: string;
     amount: number;
@@ -40,6 +42,8 @@ export function LedgerBottomSheet({
   storageScope,
   onClose,
   onDelete,
+  onTogglePaid,
+  onCreateTemplate,
   onSave,
   saving,
   error,
@@ -53,6 +57,11 @@ export function LedgerBottomSheet({
   const [dueDate, setDueDate] = useState("");
   const [readyDraftKey, setReadyDraftKey] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [creatingTemplate, setCreatingTemplate] = useState(false);
+  const [templateFrequency, setTemplateFrequency] = useState<"monthly" | "bi-monthly">("monthly");
+  const [templateDay, setTemplateDay] = useState("");
+  const [templateMessage, setTemplateMessage] = useState("");
+  const [togglingPaid, setTogglingPaid] = useState(false);
 
   useEffect(() => {
     if (!mode) return;
@@ -77,6 +86,8 @@ export function LedgerBottomSheet({
       setIsVariable(restored.isVariable ?? mode.entry.is_variable);
       setPaymentMethod(restored.paymentMethod ?? mode.entry.payment_method);
       setDueDate(restored.dueDate ?? mode.entry.due_date ?? "");
+      setTemplateDay(mode.entry.due_date?.slice(8, 10).replace(/^0/, "") ?? "");
+      setTemplateMessage("");
       setCategoryTouched(true);
     } else {
       setName(restored.name ?? mode.draft?.name ?? "");
@@ -272,6 +283,58 @@ export function LedgerBottomSheet({
             {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
             {deleting ? "מוחק…" : "מחיקת הרישום"}
           </button>
+        )}
+        {mode.kind === "edit" && onTogglePaid && (
+          <button
+            type="button"
+            disabled={togglingPaid || saving}
+            onClick={async () => {
+              setTogglingPaid(true);
+              try {
+                await onTogglePaid();
+              } finally {
+                setTogglingPaid(false);
+              }
+            }}
+            className={`flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border text-sm font-bold ${mode.entry.is_paid ? "border-primary/30 bg-primary-container text-primary" : "border-success/30 bg-success-container text-success"}`}
+          >
+            {togglingPaid ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+            {togglingPaid ? "מעדכן…" : mode.entry.is_paid ? "החזר למתוכנן (ביטול בוצע)" : "סימון כבוצע"}
+          </button>
+        )}
+        {mode.kind === "edit" && mode.entry.entry_kind === "transaction" && !mode.entry.is_from_template && onCreateTemplate && (
+          <section className="mt-2 rounded-xl border border-primary/20 bg-primary-container/35 p-3">
+            <p className="text-sm font-bold text-primary">הפיכה לתבנית קבועה</p>
+            <p className="mt-1 text-xs text-on-surface-variant">התנועה הנוכחית נשארת ללא שינוי; התבנית תשמש בחודשים הבאים בלבד.</p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <select className="m3-input px-2 py-2 text-sm" value={templateFrequency} onChange={(e) => setTemplateFrequency(e.target.value as "monthly" | "bi-monthly")} aria-label="תדירות התבנית">
+                <option value="monthly">כל חודש</option>
+                <option value="bi-monthly">חודש כן חודש לא</option>
+              </select>
+              <input className="m3-input px-2 py-2 text-sm" type="number" min="1" max="31" inputMode="numeric" value={templateDay} onChange={(e) => setTemplateDay(e.target.value)} placeholder="יום בחודש" aria-label="יום בחודש" />
+            </div>
+            {templateMessage && <p role="status" className="mt-2 text-xs font-bold text-success">{templateMessage}</p>}
+            <button type="button" disabled={creatingTemplate || saving} onClick={async () => {
+              const dayOfMonth = templateDay.trim() === "" ? null : Number(templateDay);
+              if (dayOfMonth !== null && (!Number.isInteger(dayOfMonth) || dayOfMonth < 1 || dayOfMonth > 31)) {
+                setTemplateMessage("יש להזין יום בין 1 ל־31");
+                return;
+              }
+              setCreatingTemplate(true);
+              setTemplateMessage("");
+              try {
+                const result = await onCreateTemplate({ frequency: templateFrequency, dayOfMonth });
+                setTemplateMessage(result.created ? "התבנית נוצרה לחודשים הבאים" : "התבנית כבר קיימת — לא נוצרה כפילות");
+              } catch {
+                setTemplateMessage("יצירת התבנית נכשלה. אפשר לנסות שוב.");
+              } finally {
+                setCreatingTemplate(false);
+              }
+            }} className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-primary/30 bg-surface text-sm font-bold text-primary disabled:opacity-60">
+              {creatingTemplate ? <Loader2 className="h-4 w-4 animate-spin" /> : <CopyPlus className="h-4 w-4" />}
+              {creatingTemplate ? "יוצר תבנית…" : "יצירת תבנית מהתנועה"}
+            </button>
+          </section>
         )}
       </div>
     </BottomSheet>

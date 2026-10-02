@@ -1,6 +1,6 @@
 import { getSql } from "@/lib/db/client";
 import { currentMonthKey } from "@/lib/utils/month";
-import type { LedgerEntryKind, LedgerItemType, MonthSummary, MonthlyLedgerEntry, PaymentMethod } from "@/types/ledger";
+import type { FixedTemplate, LedgerEntryKind, LedgerItemType, MonthSummary, MonthlyLedgerEntry, PaymentMethod } from "@/types/ledger";
 
 export { currentMonthKey };
 
@@ -18,7 +18,9 @@ async function ensurePaymentTrackingSchema() {
       await sql`alter table monthly_ledger add column if not exists due_date date`;
       await sql`alter table monthly_ledger add column if not exists completed_at timestamptz`;
       await sql`alter table monthly_ledger add column if not exists confirmation_source text not null default 'manual'`;
+      await sql`alter table fixed_templates add column if not exists source_ledger_entry_id uuid references monthly_ledger (id) on delete set null`;
       await sql`create index if not exists monthly_ledger_user_due_idx on monthly_ledger (user_id, due_date) where due_date is not null`;
+      await sql`create unique index if not exists fixed_templates_source_ledger_unique on fixed_templates (source_ledger_entry_id) where source_ledger_entry_id is not null`;
       await sql`create table if not exists ledger_change_log (
         id uuid primary key default gen_random_uuid(),
         user_id uuid not null references users (id) on delete cascade,
@@ -200,6 +202,47 @@ export async function addLedgerEntry(
   await sql`insert into ledger_change_log (user_id, ledger_entry_id, action, after_data)
     values (${userId}, ${entry.id}, 'created', ${JSON.stringify(entry)}::jsonb)`;
   return entry;
+}
+
+/** Create exactly one recurring template from a monthly transaction.
+ * The source entry is never altered, so the current month's history stays intact. */
+export async function createTemplateFromLedgerEntry(
+  userId: string,
+  entryId: string,
+  input: { frequency: "monthly" | "bi-monthly"; dayOfMonth: number | null },
+): Promise<{ entry: MonthlyLedgerEntry; template: FixedTemplate; created: boolean } | null> {
+  await ensurePaymentTrackingSchema();
+  const sql = getSql();
+  const sourceRows = await sql`select * from monthly_ledger where id = ${entryId} and user_id = ${userId} limit 1`;
+  if (!sourceRows.length) return null;
+  const entry = mapRow(sourceRows[0] as Record<string, unknown>);
+  if (entry.entry_kind !== "transaction") return null;
+
+  const inserted = await sql`
+    insert into fixed_templates (
+      user_id, name, type, amount, frequency, day_of_month, is_active, is_variable, sort_order, source_ledger_entry_id
+    ) values (
+      ${userId}, ${entry.name}, ${entry.type}, ${entry.amount}, ${input.frequency}, ${input.dayOfMonth}, true, ${entry.is_variable},
+      (select coalesce(max(sort_order), 0) + 1 from fixed_templates where user_id = ${userId}), ${entry.id}
+    )
+    on conflict (source_ledger_entry_id) where source_ledger_entry_id is not null do nothing
+    returning *
+  `;
+  const templateRows = inserted.length ? inserted : await sql`
+    select * from fixed_templates where user_id = ${userId} and source_ledger_entry_id = ${entry.id} limit 1
+  `;
+  const row = templateRows[0] as Record<string, unknown> | undefined;
+  if (!row) throw new Error("המרת התנועה לתבנית נכשלה");
+  return {
+    entry,
+    template: {
+      id: String(row.id), user_id: String(row.user_id), name: String(row.name), type: row.type as "income" | "expense",
+      amount: Number(row.amount), frequency: row.frequency as "monthly" | "bi-monthly", day_of_month: row.day_of_month ? Number(row.day_of_month) : null,
+      is_active: Boolean(row.is_active), is_variable: Boolean(row.is_variable), sort_order: Number(row.sort_order),
+      created_at: String(row.created_at), updated_at: String(row.updated_at),
+    },
+    created: inserted.length > 0,
+  };
 }
 
 export async function updateLedgerEntry(
