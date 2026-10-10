@@ -32,6 +32,13 @@ async function ensurePaymentTrackingSchema() {
         created_at timestamptz not null default now()
       )`;
       await sql`create index if not exists ledger_change_log_user_created_idx on ledger_change_log (user_id, created_at desc)`;
+      await sql`create table if not exists monthly_ledger_preferences (
+        user_id uuid not null references users (id) on delete cascade,
+        month_key text not null,
+        category_order jsonb not null default '[]'::jsonb,
+        updated_at timestamptz not null default now(),
+        primary key (user_id, month_key)
+      )`;
     })().catch((error) => {
       paymentTrackingSchemaReady = null;
       throw error;
@@ -62,6 +69,23 @@ function mapRow(row: Record<string, unknown>): MonthlyLedgerEntry {
     created_at: String(row.created_at),
     updated_at: String(row.updated_at),
   };
+}
+
+async function writeLedgerChange(
+  userId: string,
+  entryId: string | null,
+  action: "created" | "updated" | "confirmed" | "reopened" | "deleted",
+  beforeData?: unknown,
+  afterData?: unknown,
+) {
+  try {
+    const sql = getSql();
+    await sql`insert into ledger_change_log (user_id, ledger_entry_id, action, before_data, after_data)
+      values (${userId}, ${entryId}, ${action}, ${beforeData === undefined ? null : JSON.stringify(beforeData)}::jsonb, ${afterData === undefined ? null : JSON.stringify(afterData)}::jsonb)`;
+  } catch (error) {
+    // An audit failure must never make a successfully committed financial edit look unsaved.
+    console.error("[ledger] audit write failed", error);
+  }
 }
 
 export async function listLedgerEntries(
@@ -199,8 +223,7 @@ export async function addLedgerEntry(
     returning *
   `;
   const entry = mapRow(rows[0] as Record<string, unknown>);
-  await sql`insert into ledger_change_log (user_id, ledger_entry_id, action, after_data)
-    values (${userId}, ${entry.id}, 'created', ${JSON.stringify(entry)}::jsonb)`;
+  await writeLedgerChange(userId, entry.id, "created", undefined, entry);
   return entry;
 }
 
@@ -245,6 +268,26 @@ export async function createTemplateFromLedgerEntry(
   };
 }
 
+export async function createTemplatesFromMonth(userId: string, monthKey: string): Promise<number> {
+  await ensurePaymentTrackingSchema();
+  const sql = getSql();
+  const rows = await sql`
+    insert into fixed_templates (
+      user_id, name, type, amount, frequency, day_of_month, is_active, is_variable, sort_order, source_ledger_entry_id
+    )
+    select e.user_id, e.name, e.type, e.amount, 'monthly',
+      case when e.due_date is null then null else extract(day from e.due_date)::int end,
+      true, e.is_variable,
+      row_number() over (order by e.type desc, e.name) + (select coalesce(max(sort_order), 0) from fixed_templates where user_id = ${userId}),
+      e.id
+    from monthly_ledger e
+    where e.user_id = ${userId} and e.month_key = ${monthKey} and e.entry_kind = 'transaction'
+    on conflict (source_ledger_entry_id) where source_ledger_entry_id is not null do nothing
+    returning id
+  `;
+  return rows.length;
+}
+
 export async function updateLedgerEntry(
   userId: string,
   id: string,
@@ -276,8 +319,7 @@ export async function updateLedgerEntry(
   `;
   const updated = mapRow(rows[0] as Record<string, unknown>);
   const action = input.isPaid === true && !cur.is_paid ? "confirmed" : input.isPaid === false && cur.is_paid ? "reopened" : "updated";
-  await sql`insert into ledger_change_log (user_id, ledger_entry_id, action, before_data, after_data)
-    values (${userId}, ${id}, ${action}, ${JSON.stringify(cur)}::jsonb, ${JSON.stringify(updated)}::jsonb)`;
+  await writeLedgerChange(userId, id, action, cur, updated);
   return updated;
 }
 
@@ -288,11 +330,28 @@ export async function deleteLedgerEntry(userId: string, id: string): Promise<boo
   const rows = await sql`
     delete from monthly_ledger where id = ${id} and user_id = ${userId} returning id
   `;
-  if (rows.length && existing.length) {
-    await sql`insert into ledger_change_log (user_id, ledger_entry_id, action, before_data)
-      values (${userId}, null, 'deleted', ${JSON.stringify(mapRow(existing[0] as Record<string, unknown>))}::jsonb)`;
-  }
+  if (rows.length && existing.length) await writeLedgerChange(userId, null, "deleted", mapRow(existing[0] as Record<string, unknown>));
   return rows.length > 0;
+}
+
+export async function getMonthlyCategoryOrder(userId: string, monthKey: string): Promise<string[]> {
+  await ensurePaymentTrackingSchema();
+  const sql = getSql();
+  const rows = await sql`select category_order from monthly_ledger_preferences where user_id = ${userId} and month_key = ${monthKey} limit 1`;
+  const value = rows[0]?.category_order;
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string").slice(0, 30) : [];
+}
+
+export async function saveMonthlyCategoryOrder(userId: string, monthKey: string, categoryOrder: string[]): Promise<string[]> {
+  await ensurePaymentTrackingSchema();
+  const clean = Array.from(new Set(categoryOrder.map((item) => item.trim()).filter(Boolean))).slice(0, 30);
+  const sql = getSql();
+  const rows = await sql`insert into monthly_ledger_preferences (user_id, month_key, category_order)
+    values (${userId}, ${monthKey}, ${JSON.stringify(clean)}::jsonb)
+    on conflict (user_id, month_key) do update set category_order = excluded.category_order, updated_at = now()
+    returning category_order`;
+  const value = rows[0]?.category_order;
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : clean;
 }
 
 export async function getLedgerContextForAi(userId: string, monthKey: string) {

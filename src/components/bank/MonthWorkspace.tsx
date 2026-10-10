@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect -- deep-link action intentionally opens the requested editor */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Banknote, CalendarClock, Plus } from "lucide-react";
+import { Banknote, CalendarClock, ChevronDown, ChevronUp, GripVertical, LayoutTemplate, Plus } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { InitMonthPanel } from "@/components/ledger/InitMonthPanel";
 import {
@@ -17,11 +17,14 @@ import { fetchLive, mutateLive } from "@/lib/api/fetch-live";
 import type { MonthSummary, MonthlyLedgerEntry } from "@/types/ledger";
 import { useMonthStore } from "@/stores/useMonthStore";
 import { paymentStatus } from "@/lib/ledger/payment-status";
+import { EXPENSE_CATEGORIES } from "@/lib/constants/budget";
+import { inferExpenseCategory } from "@/lib/ai/smart-category";
 
 type LedgerResponse = {
   entries: MonthlyLedgerEntry[];
   summary: MonthSummary;
   monthKey: string;
+  categoryOrder: string[];
 };
 
 export function MonthWorkspace() {
@@ -169,6 +172,36 @@ export function MonthWorkspace() {
     },
   });
 
+  const categoryOrderMut = useMutation({
+    mutationFn: async (categoryOrder: string[]) => {
+      const res = await mutateLive("/api/ledger/category-order", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ monthKey, categoryOrder }),
+      });
+      const result = await res.json().catch(() => ({})) as { categoryOrder?: string[]; error?: string };
+      if (!res.ok || !Array.isArray(result.categoryOrder)) throw new Error(result.error || "סדר הקטגוריות לא נשמר");
+      return result.categoryOrder;
+    },
+    onSuccess: (categoryOrder) => {
+      qc.setQueryData<LedgerResponse>(["ledger", monthKey], (current) => current ? { ...current, categoryOrder } : current);
+    },
+  });
+
+  const monthTemplateMut = useMutation({
+    mutationFn: async () => {
+      const res = await mutateLive("/api/ledger/month-template", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ monthKey }) });
+      const result = await res.json().catch(() => ({})) as { created?: number; error?: string };
+      if (!res.ok || typeof result.created !== "number") throw new Error(result.error || "שמירת התבנית נכשלה");
+      return result.created;
+    },
+    onSuccess: (created) => {
+      setSaveMessage(created ? `נוצרו ${created} תבניות לחודשים הבאים` : "כל תנועות החודש כבר שמורות כתבנית");
+      window.setTimeout(() => setSaveMessage(""), 3000);
+      void qc.invalidateQueries({ queryKey: ["templates"] });
+    },
+  });
+
   const entries = data?.entries ?? [];
   const income = entries.filter((e) => e.type === "income" && e.entry_kind === "transaction");
   const expenses = entries.filter((e) => e.type === "expense" && e.entry_kind === "transaction");
@@ -195,10 +228,11 @@ export function MonthWorkspace() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-4 pb-24">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs font-bold uppercase tracking-[.16em] text-primary">ניהול שוטף</p><h1 className="mt-1 text-2xl font-black">תנועות החודש</h1></div><div className="sm:w-72"><MonthNavigator /></div></div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs font-bold uppercase tracking-[.16em] text-primary">ניהול שוטף</p><h1 className="mt-1 text-2xl font-black">תנועות החודש</h1></div><div className="flex gap-2 sm:w-auto"><button type="button" disabled={monthTemplateMut.isPending || !data?.summary.initialized} onClick={() => { if (window.confirm("לשמור את כל תנועות החודש כתבניות לחודשים הבאים? התנועות הנוכחיות לא ישתנו.")) monthTemplateMut.mutate(); }} className="flex min-h-11 items-center gap-2 rounded-xl border border-primary/30 px-3 text-xs font-bold text-primary disabled:opacity-50"><LayoutTemplate className="h-4 w-4" />{monthTemplateMut.isPending ? "שומר…" : "שמור חודש כתבנית"}</button><div className="min-w-0 flex-1 sm:w-72"><MonthNavigator /></div></div></div>
       <SmartEntryBar onParsed={(mode) => { setSheetMode(mode); setSheetOpen(true); }} />
       {saveMessage && <p role="status" className="rounded-xl bg-success-container px-4 py-3 text-sm font-bold text-success">{saveMessage}</p>}
-      {(saveMut.isError || deleteMut.isError) && <p role="alert" className="m3-error">השמירה נכשלה. הנתונים שהזנת נשמרו בטופס, אפשר לנסות שוב.</p>}
+      {(saveMut.isError || deleteMut.isError) && <p role="alert" className="m3-error">השמירה לא אושרה. הנתונים נשארו בטופס — נסה שוב.</p>}
+      {categoryOrderMut.isError && <p role="alert" className="m3-error">סדר הקטגוריות לא נשמר. אפשר לנסות לגרור שוב.</p>}
       <InitMonthPanel
         monthKey={monthKey}
         initialized={data?.summary.initialized ?? false}
@@ -228,15 +262,14 @@ export function MonthWorkspace() {
           </CardSection>
 
           <CardSection title="הוצאות">
-            {expenses.map((e) => (
-              <TransactionCard
-                key={e.id}
-                entry={e}
-                onTap={() => openEdit(e)}
-                onDelete={() => deleteMut.mutate(e.id)}
-                onTogglePaid={() => togglePaidMut.mutate(e)}
-              />
-            ))}
+            <ExpenseCategories
+              entries={expenses}
+              categoryOrder={data?.categoryOrder ?? []}
+              onMove={(categoryOrder) => categoryOrderMut.mutate(categoryOrder)}
+              onTap={openEdit}
+              onDelete={(entry) => deleteMut.mutate(entry.id)}
+              onTogglePaid={(entry) => togglePaidMut.mutate(entry)}
+            />
           </CardSection>
           {withdrawals.length > 0 && (
             <CardSection title="העברות לארנק מזומן">
@@ -282,6 +315,53 @@ export function MonthWorkspace() {
       />
     </div>
   );
+}
+
+function ExpenseCategories({ entries, categoryOrder, onMove, onTap, onDelete, onTogglePaid }: {
+  entries: MonthlyLedgerEntry[];
+  categoryOrder: string[];
+  onMove: (categoryOrder: string[]) => void;
+  onTap: (entry: MonthlyLedgerEntry) => void;
+  onDelete: (entry: MonthlyLedgerEntry) => void;
+  onTogglePaid: (entry: MonthlyLedgerEntry) => void;
+}) {
+  const groups = new Map<string, MonthlyLedgerEntry[]>();
+  for (const entry of entries) {
+    const category = normalizeExpenseCategory(entry);
+    groups.set(category, [...(groups.get(category) ?? []), entry]);
+  }
+  const known = EXPENSE_CATEGORIES.filter((category) => groups.has(category));
+  const custom = [...groups.keys()].filter((category) => !EXPENSE_CATEGORIES.includes(category as typeof EXPENSE_CATEGORIES[number]));
+  const defaultOrder = [...known, ...custom.sort((a, b) => a.localeCompare(b, "he"))];
+  const order = [...categoryOrder.filter((category) => groups.has(category)), ...defaultOrder.filter((category) => !categoryOrder.includes(category))];
+  const move = (source: string, target: string) => {
+    if (source === target) return;
+    const next = order.filter((category) => category !== source);
+    next.splice(next.indexOf(target), 0, source);
+    onMove(next);
+  };
+
+  return <div className="space-y-3">
+    {order.map((category, index) => {
+      const items = groups.get(category) ?? [];
+      const total = items.reduce((sum, entry) => sum + entry.amount, 0);
+      return <section key={category} draggable onDragStart={(event) => event.dataTransfer.setData("text/plain", category)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); move(event.dataTransfer.getData("text/plain"), category); }} className="rounded-2xl border border-error/15 bg-surface-container-low/40">
+        <div className="flex items-center gap-1.5 border-b border-outline-variant/60 px-2 py-2">
+          <GripVertical className="h-4 w-4 shrink-0 text-on-surface-variant" aria-hidden />
+          <h3 className="min-w-0 flex-1 text-sm font-black text-on-surface">{category}</h3>
+          <strong className="text-sm text-error" dir="ltr">{new Intl.NumberFormat("he-IL", { style: "currency", currency: "ILS" }).format(total)}</strong>
+          <button type="button" disabled={index === 0} onClick={() => move(category, order[index - 1])} className="rounded p-1 text-on-surface-variant disabled:opacity-30" aria-label={`העבר את ${category} למעלה`}><ChevronUp className="h-4 w-4" /></button>
+          <button type="button" disabled={index === order.length - 1} onClick={() => move(category, order[index + 1])} className="rounded p-1 text-on-surface-variant disabled:opacity-30" aria-label={`העבר את ${category} למטה`}><ChevronDown className="h-4 w-4" /></button>
+        </div>
+        <div className="space-y-2 p-2">{items.map((entry) => <TransactionCard key={entry.id} entry={entry} onTap={() => onTap(entry)} onDelete={() => onDelete(entry)} onTogglePaid={() => onTogglePaid(entry)} />)}</div>
+      </section>;
+    })}
+  </div>;
+}
+
+function normalizeExpenseCategory(entry: MonthlyLedgerEntry) {
+  if (EXPENSE_CATEGORIES.includes(entry.category as typeof EXPENSE_CATEGORIES[number])) return entry.category;
+  return inferExpenseCategory(`${entry.category} ${entry.name}`).category;
 }
 
 function QuickButton({ label, icon, tone, onClick }: { label: string; icon: ReactNode; tone: "expense" | "income" | "cash"; onClick: () => void }) {

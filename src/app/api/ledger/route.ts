@@ -4,6 +4,7 @@ import {
   addLedgerEntry,
   currentMonthKey,
   getMonthSummary,
+  getMonthlyCategoryOrder,
   listLedgerEntries,
 } from "@/lib/db/monthly-ledger";
 
@@ -14,13 +15,14 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const monthKey = searchParams.get("month") ?? currentMonthKey();
 
-  const [entries, summary] = await Promise.all([
+  const [entries, categoryOrder] = await Promise.all([
     listLedgerEntries(session.userId, monthKey),
-    getMonthSummary(session.userId, monthKey),
+    getMonthlyCategoryOrder(session.userId, monthKey),
   ]);
+  const summary = await getMonthSummary(session.userId, monthKey, entries);
 
   return NextResponse.json(
-    { entries, summary, monthKey },
+    { entries, summary, monthKey, categoryOrder },
     { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } },
   );
 }
