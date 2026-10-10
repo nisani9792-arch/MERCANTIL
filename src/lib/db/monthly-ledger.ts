@@ -48,6 +48,8 @@ async function ensurePaymentTrackingSchema() {
 }
 
 function mapRow(row: Record<string, unknown>): MonthlyLedgerEntry {
+  const dueDate = row.due_date;
+  const completedAt = row.completed_at;
   return {
     id: String(row.id),
     user_id: String(row.user_id),
@@ -62,8 +64,8 @@ function mapRow(row: Record<string, unknown>): MonthlyLedgerEntry {
     is_paid: Boolean(row.is_paid),
     entry_kind: (row.entry_kind ?? "transaction") as LedgerEntryKind,
     payment_method: (row.payment_method ?? "bank") as PaymentMethod,
-    due_date: row.due_date ? String(row.due_date).slice(0, 10) : null,
-    completed_at: row.completed_at ? String(row.completed_at) : null,
+    due_date: dueDate ? (dueDate instanceof Date ? dueDate.toISOString().slice(0, 10) : String(dueDate).slice(0, 10)) : null,
+    completed_at: completedAt ? (completedAt instanceof Date ? completedAt.toISOString() : String(completedAt)) : null,
     confirmation_source: (row.confirmation_source ?? "manual") as "manual" | "automatic",
     notes: row.notes ? String(row.notes) : null,
     created_at: String(row.created_at),
@@ -92,7 +94,6 @@ export async function listLedgerEntries(
   userId: string,
   monthKey: string,
 ): Promise<MonthlyLedgerEntry[]> {
-  await ensurePaymentTrackingSchema();
   const sql = getSql();
   const rows = await sql`
     select * from monthly_ledger
@@ -205,7 +206,6 @@ export async function addLedgerEntry(
     dueDate?: string | null;
   },
 ): Promise<MonthlyLedgerEntry> {
-  await ensurePaymentTrackingSchema();
   const sql = getSql();
   const category = input.category ?? input.name;
   const rows = await sql`
@@ -293,7 +293,6 @@ export async function updateLedgerEntry(
   id: string,
   input: Partial<{ name: string; amount: number; category: string; notes: string | null; isPaid: boolean; paymentMethod: PaymentMethod; isVariable: boolean; dueDate: string | null; confirmationSource: "manual" | "automatic" }>,
 ): Promise<MonthlyLedgerEntry | null> {
-  await ensurePaymentTrackingSchema();
   const sql = getSql();
   const existing = await sql`
     select * from monthly_ledger where id = ${id} and user_id = ${userId} limit 1
@@ -308,7 +307,7 @@ export async function updateLedgerEntry(
         category = ${input.category ?? cur.category},
         is_paid = ${input.isPaid ?? cur.is_paid},
         due_date = ${input.dueDate !== undefined ? input.dueDate : cur.due_date},
-        completed_at = case when ${input.isPaid === true} then now() when ${input.isPaid === false} then null else ${cur.completed_at} end,
+        completed_at = case when ${input.isPaid === true} then now() when ${input.isPaid === false} then null else completed_at end,
         confirmation_source = ${input.confirmationSource ?? cur.confirmation_source},
         payment_method = ${input.paymentMethod ?? cur.payment_method},
         is_variable = ${input.isVariable ?? cur.is_variable},
@@ -324,7 +323,6 @@ export async function updateLedgerEntry(
 }
 
 export async function deleteLedgerEntry(userId: string, id: string): Promise<boolean> {
-  await ensurePaymentTrackingSchema();
   const sql = getSql();
   const existing = await sql`select * from monthly_ledger where id = ${id} and user_id = ${userId} limit 1`;
   const rows = await sql`

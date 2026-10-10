@@ -34,3 +34,13 @@ test("audit logging cannot turn an already saved ledger edit into a failure", ()
   assert.match(db, /async function writeLedgerChange/);
   assert.match(db, /audit write failed/);
 });
+
+test("ordinary ledger writes do not run schema migrations on the save path", () => {
+  const updateBlock = db.slice(db.indexOf("export async function updateLedgerEntry"), db.indexOf("export async function deleteLedgerEntry"));
+  assert.doesNotMatch(updateBlock, /await ensurePaymentTrackingSchema/);
+});
+
+test("payment reversal never sends a display-formatted timestamp back to PostgreSQL", () => {
+  assert.match(db, /completedAt instanceof Date \? completedAt\.toISOString\(\)/);
+  assert.match(db, /else completed_at end/);
+});
