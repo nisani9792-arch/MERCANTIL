@@ -6,13 +6,14 @@ const db = fs.readFileSync("src/lib/db/monthly-ledger.ts", "utf8");
 const route = fs.readFileSync("src/app/api/ledger/[id]/template/route.ts", "utf8");
 const sheet = fs.readFileSync("src/components/bank/LedgerBottomSheet.tsx", "utf8");
 const workspace = fs.readFileSync("src/components/bank/MonthWorkspace.tsx", "utf8");
+const categories = fs.readFileSync("src/components/bank/ExpenseCategoryGroups.tsx", "utf8");
 
 test("converting a monthly transaction creates one protected future template", () => {
   assert.match(db, /createTemplateFromLedgerEntry/);
   assert.match(db, /fixed_templates_source_ledger_unique/);
   assert.match(db, /on conflict \(source_ledger_entry_id\)/);
   assert.match(db, /entry\.entry_kind !== "transaction"/);
-  assert.match(route, /day < 1 \|\| day > 31/);
+  assert.match(route, /entryTemplateSchema/);
 });
 
 test("a completed payment can be explicitly returned to planned state", () => {
@@ -27,7 +28,7 @@ test("monthly category order and full-month templates are persisted server-side"
   assert.match(db, /createTemplatesFromMonth/);
   assert.match(workspace, /api\/ledger\/category-order/);
   assert.match(workspace, /שמור חודש כתבנית/);
-  assert.match(workspace, /draggable/);
+  assert.match(categories, /draggable/);
 });
 
 test("audit logging cannot turn an already saved ledger edit into a failure", () => {

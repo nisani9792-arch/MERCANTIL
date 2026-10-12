@@ -2,8 +2,8 @@
 /* eslint-disable react-hooks/set-state-in-effect -- deep-link action intentionally opens the requested editor */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Banknote, CalendarClock, ChevronDown, ChevronUp, GripVertical, LayoutTemplate, Plus } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { Banknote, CalendarClock, LayoutTemplate, Plus } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { InitMonthPanel } from "@/components/ledger/InitMonthPanel";
 import {
   LedgerBottomSheet,
@@ -17,8 +17,8 @@ import { fetchLive, mutateLive } from "@/lib/api/fetch-live";
 import type { MonthSummary, MonthlyLedgerEntry } from "@/types/ledger";
 import { useMonthStore } from "@/stores/useMonthStore";
 import { paymentStatus } from "@/lib/ledger/payment-status";
-import { EXPENSE_CATEGORIES } from "@/lib/constants/budget";
-import { inferExpenseCategory } from "@/lib/ai/smart-category";
+import { ExpenseCategoryGroups } from "@/components/bank/ExpenseCategoryGroups";
+import { CardSection, QuickButton } from "@/components/bank/MonthWorkspacePrimitives";
 
 type LedgerResponse = {
   entries: MonthlyLedgerEntry[];
@@ -32,7 +32,21 @@ export function MonthWorkspace() {
   const [sheetMode, setSheetMode] = useState<LedgerSheetMode | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
+  const messageTimer = useRef<number | null>(null);
   const qc = useQueryClient();
+
+  const showSaveMessage = useCallback((message: string, duration = 2500) => {
+    if (messageTimer.current) window.clearTimeout(messageTimer.current);
+    setSaveMessage(message);
+    messageTimer.current = window.setTimeout(() => {
+      setSaveMessage("");
+      messageTimer.current = null;
+    }, duration);
+  }, []);
+
+  useEffect(() => () => {
+    if (messageTimer.current) window.clearTimeout(messageTimer.current);
+  }, []);
 
   const { data, isLoading } = useQuery({
     queryKey: ["ledger", monthKey],
@@ -110,8 +124,7 @@ export function MonthWorkspace() {
       });
       setSheetOpen(false);
       setSheetMode(null);
-      setSaveMessage("השינויים נשמרו בהצלחה");
-      window.setTimeout(() => setSaveMessage(""), 2500);
+      showSaveMessage("השינויים נשמרו בהצלחה");
       // A secondary chart/AI refresh must never turn a successful database
       // write into a false "save failed" state.
       void Promise.allSettled([
@@ -148,8 +161,7 @@ export function MonthWorkspace() {
     onSuccess: (savedEntry) => {
       qc.setQueryData<LedgerResponse>(["ledger", monthKey], (current) => current ? { ...current, entries: current.entries.map((entry) => entry.id === savedEntry.id ? savedEntry : entry) } : current);
       setSheetMode((current) => current?.kind === "edit" && current.entry.id === savedEntry.id ? { kind: "edit", entry: savedEntry } : current);
-      setSaveMessage(savedEntry.is_paid ? "סומן כבוצע ונשמר" : "הוחזר למצב מתוכנן");
-      window.setTimeout(() => setSaveMessage(""), 2500);
+      showSaveMessage(savedEntry.is_paid ? "סומן כבוצע ונשמר" : "הוחזר למצב מתוכנן");
       void refetchAll();
     },
   });
@@ -166,8 +178,7 @@ export function MonthWorkspace() {
       return { created: result.created };
     },
     onSuccess: (result) => {
-      setSaveMessage(result.created ? "התבנית נוצרה ותופיע בחודשים הבאים" : "כבר קיימת תבנית עבור תנועה זו");
-      window.setTimeout(() => setSaveMessage(""), 2500);
+      showSaveMessage(result.created ? "התבנית נוצרה ותופיע בחודשים הבאים" : "כבר קיימת תבנית עבור תנועה זו");
       void qc.invalidateQueries({ queryKey: ["templates"] });
     },
   });
@@ -196,8 +207,7 @@ export function MonthWorkspace() {
       return result.created;
     },
     onSuccess: (created) => {
-      setSaveMessage(created ? `נוצרו ${created} תבניות לחודשים הבאים` : "כל תנועות החודש כבר שמורות כתבנית");
-      window.setTimeout(() => setSaveMessage(""), 3000);
+      showSaveMessage(created ? `נוצרו ${created} תבניות לחודשים הבאים` : "כל תנועות החודש כבר שמורות כתבנית", 3000);
       void qc.invalidateQueries({ queryKey: ["templates"] });
     },
   });
@@ -262,7 +272,7 @@ export function MonthWorkspace() {
           </CardSection>
 
           <CardSection title="הוצאות">
-            <ExpenseCategories
+            <ExpenseCategoryGroups
               entries={expenses}
               categoryOrder={data?.categoryOrder ?? []}
               onMove={(categoryOrder) => categoryOrderMut.mutate(categoryOrder)}
@@ -314,82 +324,5 @@ export function MonthWorkspace() {
         }}
       />
     </div>
-  );
-}
-
-function ExpenseCategories({ entries, categoryOrder, onMove, onTap, onDelete, onTogglePaid }: {
-  entries: MonthlyLedgerEntry[];
-  categoryOrder: string[];
-  onMove: (categoryOrder: string[]) => void;
-  onTap: (entry: MonthlyLedgerEntry) => void;
-  onDelete: (entry: MonthlyLedgerEntry) => void;
-  onTogglePaid: (entry: MonthlyLedgerEntry) => void;
-}) {
-  const groups = new Map<string, MonthlyLedgerEntry[]>();
-  for (const entry of entries) {
-    const category = normalizeExpenseCategory(entry);
-    groups.set(category, [...(groups.get(category) ?? []), entry]);
-  }
-  const known = EXPENSE_CATEGORIES.filter((category) => groups.has(category));
-  const custom = [...groups.keys()].filter((category) => !EXPENSE_CATEGORIES.includes(category as typeof EXPENSE_CATEGORIES[number]));
-  const defaultOrder = [...known, ...custom.sort((a, b) => a.localeCompare(b, "he"))];
-  const order = [...categoryOrder.filter((category) => groups.has(category)), ...defaultOrder.filter((category) => !categoryOrder.includes(category))];
-  const move = (source: string, target: string) => {
-    if (source === target) return;
-    const next = order.filter((category) => category !== source);
-    next.splice(next.indexOf(target), 0, source);
-    onMove(next);
-  };
-
-  return <div className="space-y-3">
-    {order.map((category, index) => {
-      const items = groups.get(category) ?? [];
-      const total = items.reduce((sum, entry) => sum + entry.amount, 0);
-      return <section key={category} draggable onDragStart={(event) => event.dataTransfer.setData("text/plain", category)} onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); move(event.dataTransfer.getData("text/plain"), category); }} className="rounded-2xl border border-error/15 bg-surface-container-low/40">
-        <div className="flex items-center gap-1.5 border-b border-outline-variant/60 px-2 py-2">
-          <GripVertical className="h-4 w-4 shrink-0 text-on-surface-variant" aria-hidden />
-          <h3 className="min-w-0 flex-1 text-sm font-black text-on-surface">{category}</h3>
-          <strong className="text-sm text-error" dir="ltr">{new Intl.NumberFormat("he-IL", { style: "currency", currency: "ILS" }).format(total)}</strong>
-          <button type="button" disabled={index === 0} onClick={() => move(category, order[index - 1])} className="rounded p-1 text-on-surface-variant disabled:opacity-30" aria-label={`העבר את ${category} למעלה`}><ChevronUp className="h-4 w-4" /></button>
-          <button type="button" disabled={index === order.length - 1} onClick={() => move(category, order[index + 1])} className="rounded p-1 text-on-surface-variant disabled:opacity-30" aria-label={`העבר את ${category} למטה`}><ChevronDown className="h-4 w-4" /></button>
-        </div>
-        <div className="space-y-2 p-2">{items.map((entry) => <TransactionCard key={entry.id} entry={entry} onTap={() => onTap(entry)} onDelete={() => onDelete(entry)} onTogglePaid={() => onTogglePaid(entry)} />)}</div>
-      </section>;
-    })}
-  </div>;
-}
-
-function normalizeExpenseCategory(entry: MonthlyLedgerEntry) {
-  if (EXPENSE_CATEGORIES.includes(entry.category as typeof EXPENSE_CATEGORIES[number])) return entry.category;
-  return inferExpenseCategory(`${entry.category} ${entry.name}`).category;
-}
-
-function QuickButton({ label, icon, tone, onClick }: { label: string; icon: ReactNode; tone: "expense" | "income" | "cash"; onClick: () => void }) {
-  const styles = tone === "expense"
-    ? "border-error/30 bg-error-container text-error"
-    : tone === "income"
-      ? "border-success/30 bg-success-container text-success"
-      : "border-primary/30 bg-primary-container text-primary";
-  return (
-    <button type="button" onClick={onClick} className={`flex min-h-[58px] flex-col items-center justify-center gap-1 rounded-2xl border px-1 text-xs font-bold ${styles}`}>
-      {icon}{label}
-    </button>
-  );
-}
-
-function CardSection({
-  title,
-  icon,
-  children,
-}: {
-  title: string;
-  icon?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <section className="space-y-2">
-      <h2 className="flex items-center gap-1.5 px-1 text-sm font-bold text-on-surface-variant">{icon}{title}</h2>
-      <div className="space-y-2">{children}</div>
-    </section>
   );
 }

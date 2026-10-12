@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
+import { apiError, noStoreHeaders, readJson, RouteError } from "@/lib/api/route";
+import { ledgerCreateSchema } from "@/lib/ledger/validation";
 import {
   addLedgerEntry,
   currentMonthKey,
@@ -9,61 +11,50 @@ import {
 } from "@/lib/db/monthly-ledger";
 
 export async function GET(request: Request) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const session = await getSession();
+    if (!session) throw new RouteError(401, "UNAUTHORIZED", "נדרשת התחברות");
 
-  const { searchParams } = new URL(request.url);
-  const monthKey = searchParams.get("month") ?? currentMonthKey();
+    const { searchParams } = new URL(request.url);
+    const requestedMonth = searchParams.get("month");
+    if (requestedMonth && !/^\d{4}-(0[1-9]|1[0-2])$/.test(requestedMonth)) {
+      throw new RouteError(400, "INVALID_REQUEST", "החודש המבוקש אינו תקין");
+    }
+    const monthKey = requestedMonth ?? currentMonthKey();
 
-  const [entries, categoryOrder] = await Promise.all([
-    listLedgerEntries(session.userId, monthKey),
-    getMonthlyCategoryOrder(session.userId, monthKey),
-  ]);
-  const summary = await getMonthSummary(session.userId, monthKey, entries);
+    const [entries, categoryOrder] = await Promise.all([
+      listLedgerEntries(session.userId, monthKey),
+      getMonthlyCategoryOrder(session.userId, monthKey),
+    ]);
+    const summary = await getMonthSummary(session.userId, monthKey, entries);
 
-  return NextResponse.json(
-    { entries, summary, monthKey, categoryOrder },
-    { headers: { "Cache-Control": "no-store, no-cache, must-revalidate" } },
-  );
+    return NextResponse.json({ entries, summary, monthKey, categoryOrder }, { headers: noStoreHeaders });
+  } catch (error) {
+    return apiError(error, "ledger.get");
+  }
 }
 
 export async function POST(request: Request) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const session = await getSession();
+    if (!session) throw new RouteError(401, "UNAUTHORIZED", "נדרשת התחברות");
+    const body = ledgerCreateSchema.parse(await readJson(request));
 
-  const body = (await request.json()) as {
-    monthKey?: string;
-    name?: string;
-    type?: "income" | "expense";
-    amount?: number;
-    isVariable?: boolean;
-    category?: string;
-    notes?: string;
-    entryKind?: "transaction" | "cash_withdrawal";
-    paymentMethod?: "bank" | "card" | "cash";
-    dueDate?: string | null;
-  };
+    const entry = await addLedgerEntry(session.userId, {
+      monthKey: body.monthKey ?? currentMonthKey(),
+      name: body.name,
+      type: body.entryKind === "cash_withdrawal" ? "expense" : body.type,
+      amount: body.amount,
+      isVariable: body.isVariable,
+      category: body.category,
+      notes: body.notes,
+      entryKind: body.entryKind,
+      paymentMethod: body.paymentMethod,
+      dueDate: body.dueDate,
+    });
 
-  if (!body.name?.trim() || !['income','expense'].includes(body.type ?? '') || !Number.isFinite(body.amount) || Number(body.amount) < 0 ||
-      (body.monthKey !== undefined && !/^\d{4}-(0[1-9]|1[0-2])$/.test(body.monthKey)) ||
-      (body.entryKind !== undefined && !['transaction','cash_withdrawal'].includes(body.entryKind)) ||
-      (body.paymentMethod !== undefined && !['bank','card','cash'].includes(body.paymentMethod)) ||
-      (body.dueDate !== undefined && body.dueDate !== null && !/^\d{4}-\d{2}-\d{2}$/.test(body.dueDate))) {
-    return NextResponse.json({ error: "נתונים חסרים" }, { status: 400 });
+    return NextResponse.json({ entry }, { status: 201 });
+  } catch (error) {
+    return apiError(error, "ledger.create");
   }
-
-  const entry = await addLedgerEntry(session.userId, {
-    monthKey: body.monthKey ?? currentMonthKey(),
-    name: body.name,
-    type: body.entryKind === 'cash_withdrawal' ? 'expense' : body.type!,
-    amount: Number(body.amount),
-    isVariable: body.isVariable,
-    category: body.category,
-    notes: body.notes,
-    entryKind: body.entryKind,
-    paymentMethod: body.paymentMethod,
-    dueDate: body.dueDate,
-  });
-
-  return NextResponse.json({ entry }, { status: 201 });
 }
