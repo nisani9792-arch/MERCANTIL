@@ -19,6 +19,7 @@ import { useMonthStore } from "@/stores/useMonthStore";
 import { paymentStatus } from "@/lib/ledger/payment-status";
 import { ExpenseCategoryGroups } from "@/components/bank/ExpenseCategoryGroups";
 import { CardSection, QuickButton } from "@/components/bank/MonthWorkspacePrimitives";
+import { BankReconciliationPanel } from "@/components/bank/BankReconciliationPanel";
 
 type LedgerResponse = {
   entries: MonthlyLedgerEntry[];
@@ -247,6 +248,8 @@ export function MonthWorkspace() {
         monthKey={monthKey}
         initialized={data?.summary.initialized ?? false}
       />
+
+      <BankReconciliationPanel monthKey={monthKey} />
 
       {data?.summary.initialized && <BudgetStrip summary={data.summary} />}
 

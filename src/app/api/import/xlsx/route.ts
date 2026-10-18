@@ -6,6 +6,7 @@ import { parseMercantilXlsx, mercantilImportHash } from "@/lib/parsers/mercantil
 import { isRelevantTransaction } from "@/lib/filters/household-relevance";
 import { getSql } from "@/lib/db/client";
 import { ensurePatternsTable, learnPattern } from "@/lib/db/patterns";
+import { ensureReconciliationSchema } from "@/lib/db/reconciliation";
 
 export async function POST(request: Request) {
   const session = await getSession();
@@ -16,6 +17,12 @@ export async function POST(request: Request) {
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "קובץ חסר" }, { status: 400 });
   }
+  if (file.size === 0 || file.size > 8 * 1024 * 1024) {
+    return NextResponse.json({ error: "גודל הקובץ חייב להיות עד 8MB" }, { status: 400 });
+  }
+  if (!/\.(xlsx|xls)$/i.test(file.name)) {
+    return NextResponse.json({ error: "ניתן להעלות קובץ Excel בלבד" }, { status: 400 });
+  }
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const { rows, accountHolder } = await parseMercantilXlsx(buffer);
@@ -23,7 +30,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "לא נמצאו תנועות בקובץ" }, { status: 400 });
   }
 
-  await ensurePatternsTable();
+  await Promise.all([ensurePatternsTable(), ensureReconciliationSchema()]);
   let categories = await listCategories(session.userId);
 
   const BATCH = 25;
@@ -75,7 +82,7 @@ export async function POST(request: Request) {
       }
 
       await sql`
-        insert into transactions (user_id, amount, date, category_id, account_source, notes, import_hash)
+        insert into transactions (user_id, amount, date, category_id, account_source, notes, import_hash, reconciliation_status)
         values (
           ${session.userId},
           ${Math.abs(row.amount)},
@@ -83,7 +90,7 @@ export async function POST(request: Request) {
           ${cat.id},
           ${accountHolder ? `עובר ושב · ${accountHolder}` : "עובר ושב"},
           ${result.cleanedNotes},
-          ${hash}
+          ${hash}, 'unmatched'
         )
       `;
       await learnPattern(session.userId, row.description, cat.id, "xlsx_upload");
