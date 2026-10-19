@@ -328,10 +328,12 @@ async function initSchema() {
     create table if not exists user_finance_preferences (
       user_id uuid primary key references users (id) on delete cascade,
       selected_month_key text,
+      cycle_start_day smallint not null default 10 check (cycle_start_day between 1 and 28),
       updated_at timestamptz not null default now(),
       check (selected_month_key is null or selected_month_key ~ '^\\d{4}-(0[1-9]|1[0-2])$')
     )
   `;
+  await sql`alter table user_finance_preferences add column if not exists cycle_start_day smallint not null default 10 check (cycle_start_day between 1 and 28)`.catch(() => undefined);
 
   // This module is deliberately independent from the monthly ledger: balances,
   // deposits and reminders are private reference data, not monthly expenses.

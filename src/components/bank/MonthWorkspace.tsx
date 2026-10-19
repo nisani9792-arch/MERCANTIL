@@ -20,6 +20,7 @@ import { paymentStatus } from "@/lib/ledger/payment-status";
 import { ExpenseCategoryGroups } from "@/components/bank/ExpenseCategoryGroups";
 import { CardSection, QuickButton } from "@/components/bank/MonthWorkspacePrimitives";
 import { BankReconciliationPanel } from "@/components/bank/BankReconciliationPanel";
+import { CashflowCyclePanel } from "@/components/bank/CashflowCyclePanel";
 
 type LedgerResponse = {
   entries: MonthlyLedgerEntry[];
@@ -250,6 +251,8 @@ export function MonthWorkspace() {
       />
 
       <BankReconciliationPanel monthKey={monthKey} />
+
+      <CashflowCyclePanel monthKey={monthKey} />
 
       {data?.summary.initialized && <BudgetStrip summary={data.summary} />}
 
