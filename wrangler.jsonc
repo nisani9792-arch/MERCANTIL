@@ -9,5 +9,8 @@
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
+  },
+  "vars": {
+    "TURNSTILE_HOSTNAMES": "mercantil.shoppingood.app"
   }
 }

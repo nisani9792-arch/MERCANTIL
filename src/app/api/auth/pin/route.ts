@@ -6,6 +6,7 @@ import {
   sessionCookieOptions,
 } from "@/lib/auth/session";
 import { getOrCreateSoloUser } from "@/lib/auth/solo-user";
+import { verifyTurnstileLogin } from "@/lib/security/turnstile";
 
 export async function POST(request: Request) {
   const setupError = getAuthSetupError();
@@ -14,8 +15,16 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body = (await request.json()) as { pin?: string };
+    const body = (await request.json()) as { pin?: string; turnstileToken?: string };
     const pin = body.pin?.trim() ?? "";
+    const turnstileToken = body.turnstileToken?.trim() ?? "";
+
+    if (!(await verifyTurnstileLogin(request, turnstileToken))) {
+      return NextResponse.json(
+        { error: "אימות האבטחה נכשל. נסה שנית." },
+        { status: 403 },
+      );
+    }
 
     if (!verifyPin(pin)) {
       return NextResponse.json({ error: "קוד שגוי" }, { status: 401 });
