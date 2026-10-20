@@ -35,6 +35,10 @@ export const categoryOrderSchema = z.object({
 
 export const monthTemplateSchema = z.object({ monthKey }).strict();
 
+export const ledgerRolloverSchema = z.object({
+  targetMonthKey: monthKey,
+}).strict();
+
 export const entryTemplateSchema = z.object({
   frequency: z.enum(["monthly", "bi-monthly"]),
   dayOfMonth: z.number().int().min(1).max(31).nullable(),

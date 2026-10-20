@@ -1,5 +1,5 @@
 import { getSql } from "@/lib/db/client";
-import { currentMonthKey } from "@/lib/utils/month";
+import { currentMonthKey, previousMonthKey } from "@/lib/utils/month";
 import type { FixedTemplate, LedgerEntryKind, LedgerItemType, MonthSummary, MonthlyLedgerEntry, PaymentMethod } from "@/types/ledger";
 
 export { currentMonthKey };
@@ -101,6 +101,77 @@ export async function listLedgerEntries(
     order by type desc, is_variable asc, name
   `;
   return (rows as Record<string, unknown>[]).map(mapRow);
+}
+
+/**
+ * A financial period is never closed just because the calendar changed.
+ * Only unpaid entries can roll forward. Completed entries are immutable
+ * history, and template-backed entries never replace an entry that already
+ * exists in the destination month.
+ */
+export async function listRolloverCandidates(
+  userId: string,
+  targetMonthKey: string,
+): Promise<{ sourceMonthKey: string; entries: MonthlyLedgerEntry[] }> {
+  const sourceMonthKey = previousMonthKey(targetMonthKey);
+  const sql = getSql();
+  const rows = await sql`
+    select e.*
+    from monthly_ledger e
+    where e.user_id = ${userId}
+      and e.month_key = ${sourceMonthKey}
+      and e.is_paid = false
+      and (
+        e.template_id is null
+        or not exists (
+          select 1
+          from monthly_ledger destination
+          where destination.user_id = e.user_id
+            and destination.month_key = ${targetMonthKey}
+            and destination.template_id = e.template_id
+        )
+      )
+    order by e.due_date nulls last, e.type desc, e.name
+  `;
+  return { sourceMonthKey, entries: (rows as Record<string, unknown>[]).map(mapRow) };
+}
+
+export async function rollOverUnpaidEntries(
+  userId: string,
+  targetMonthKey: string,
+): Promise<{ sourceMonthKey: string; moved: MonthlyLedgerEntry[] }> {
+  const { sourceMonthKey, entries } = await listRolloverCandidates(userId, targetMonthKey);
+  if (!entries.length) return { sourceMonthKey, moved: [] };
+
+  const [targetYear, targetMonth] = targetMonthKey.split("-").map(Number);
+  const ids = entries.map((entry) => entry.id);
+  const sql = getSql();
+  const rows = await sql`
+    update monthly_ledger
+    set
+      month_key = ${targetMonthKey},
+      due_date = case
+        when due_date is null or to_char(due_date, 'YYYY-MM') <> ${sourceMonthKey} then due_date
+        else make_date(
+          ${targetYear},
+          ${targetMonth},
+          least(
+            extract(day from due_date)::int,
+            extract(day from (make_date(${targetYear}, ${targetMonth}, 1) + interval '1 month - 1 day'))::int
+          )
+        )
+      end,
+      updated_at = now()
+    where user_id = ${userId}
+      and month_key = ${sourceMonthKey}
+      and is_paid = false
+      and id = any(${ids}::uuid[])
+    returning *
+  `;
+  const moved = (rows as Record<string, unknown>[]).map(mapRow);
+  const beforeById = new Map(entries.map((entry) => [entry.id, entry]));
+  await Promise.all(moved.map((entry) => writeLedgerChange(userId, entry.id, "updated", beforeById.get(entry.id), entry)));
+  return { sourceMonthKey, moved };
 }
 
 export async function getMonthSummary(

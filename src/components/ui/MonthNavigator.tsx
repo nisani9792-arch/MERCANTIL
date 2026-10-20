@@ -1,8 +1,8 @@
 "use client";
 
 import { useRef } from "react";
-import { ChevronDown } from "lucide-react";
-import { formatMonthLabel } from "@/lib/utils/month";
+import { CalendarDays } from "lucide-react";
+import { currentMonthKey, formatMonthLabel } from "@/lib/utils/month";
 import { useMonthStore } from "@/stores/useMonthStore";
 
 export function MonthNavigator() {
@@ -22,54 +22,40 @@ export function MonthNavigator() {
 
   return (
     <div
-      className="m3-card flex items-center gap-2 p-2"
+      className="flex items-center gap-1.5 rounded-2xl border border-outline-variant bg-surface-container-low px-1.5 py-1.5"
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
       <button
         type="button"
         onClick={() => shiftMonth(-1)}
-        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-surface-container text-lg font-bold text-on-surface-variant transition-transform active:scale-95"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg font-bold text-on-surface-variant transition-colors hover:bg-surface-container-high active:scale-95"
         aria-label="חודש קודם"
       >
         ›
       </button>
 
-      <div className="relative min-w-0 flex-1">
-        <select
+      <label className="relative flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-surface px-2 py-2.5 text-center text-sm font-black text-on-surface transition-colors hover:bg-surface-container-high">
+        <CalendarDays className="h-4 w-4 shrink-0 text-primary" />
+        <span className="truncate">{formatMonthLabel(monthKey)}</span>
+        <input
+          type="month"
           value={monthKey}
           onChange={(e) => setMonthKey(e.target.value)}
-          className="m3-input w-full appearance-none py-3 pe-10 ps-3 text-center text-sm font-bold"
-        >
-          {buildMonthOptions().map((key) => (
-            <option key={key} value={key}>
-              {formatMonthLabel(key)}
-            </option>
-          ))}
-        </select>
-        <ChevronDown className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-on-surface-variant" />
-      </div>
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          aria-label="בחירת חודש"
+        />
+      </label>
 
       <button
         type="button"
         onClick={() => shiftMonth(1)}
-        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-surface-container text-lg font-bold text-on-surface-variant transition-transform active:scale-95"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg font-bold text-on-surface-variant transition-colors hover:bg-surface-container-high active:scale-95"
         aria-label="חודש הבא"
       >
         ‹
       </button>
+      {monthKey !== currentMonthKey() && <button type="button" onClick={() => setMonthKey(currentMonthKey())} className="shrink-0 rounded-lg px-2 py-2 text-[11px] font-black text-primary hover:bg-primary-container">היום</button>}
     </div>
   );
-}
-
-function buildMonthOptions(): string[] {
-  const now = new Date();
-  const keys: string[] = [];
-  for (let i = -12; i <= 3; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-    keys.push(
-      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
-    );
-  }
-  return keys;
 }
