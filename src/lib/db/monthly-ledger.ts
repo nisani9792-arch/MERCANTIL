@@ -174,6 +174,71 @@ export async function rollOverUnpaidEntries(
   return { sourceMonthKey, moved };
 }
 
+/** One-time correction for a month that was created under the wrong period.
+ * Unlike rollover, this intentionally includes completed history and is only
+ * valid for adjacent months. Template collisions are left untouched so a
+ * correction can never silently duplicate or discard a financial record. */
+export async function correctLedgerPeriod(
+  userId: string,
+  sourceMonthKey: string,
+  targetMonthKey: string,
+): Promise<{ moved: MonthlyLedgerEntry[]; skippedTemplateDuplicates: number }> {
+  if (previousMonthKey(targetMonthKey) !== sourceMonthKey) {
+    throw new Error("Period correction only supports adjacent months");
+  }
+  const sql = getSql();
+  const candidates = await sql`
+    select e.*
+    from monthly_ledger e
+    where e.user_id = ${userId}
+      and e.month_key = ${sourceMonthKey}
+      and (e.template_id is null or not exists (
+        select 1 from monthly_ledger destination
+        where destination.user_id = e.user_id
+          and destination.month_key = ${targetMonthKey}
+          and destination.template_id = e.template_id
+      ))
+    order by e.due_date nulls last, e.created_at
+  `;
+  const conflicts = await sql`
+    select count(*)::int as count
+    from monthly_ledger e
+    where e.user_id = ${userId}
+      and e.month_key = ${sourceMonthKey}
+      and e.template_id is not null
+      and exists (
+        select 1 from monthly_ledger destination
+        where destination.user_id = e.user_id
+          and destination.month_key = ${targetMonthKey}
+          and destination.template_id = e.template_id
+      )
+  `;
+  const before = (candidates as Record<string, unknown>[]).map(mapRow);
+  if (!before.length) return { moved: [], skippedTemplateDuplicates: Number(conflicts[0]?.count ?? 0) };
+
+  const [targetYear, targetMonth] = targetMonthKey.split("-").map(Number);
+  const rows = await sql`
+    update monthly_ledger
+    set month_key = ${targetMonthKey},
+        due_date = case
+          when due_date is null or to_char(due_date, 'YYYY-MM') <> ${sourceMonthKey} then due_date
+          else make_date(${targetYear}, ${targetMonth}, least(
+            extract(day from due_date)::int,
+            extract(day from (make_date(${targetYear}, ${targetMonth}, 1) + interval '1 month - 1 day'))::int
+          ))
+        end,
+        updated_at = now()
+    where user_id = ${userId}
+      and month_key = ${sourceMonthKey}
+      and id = any(${before.map((entry) => entry.id)}::uuid[])
+    returning *
+  `;
+  const moved = (rows as Record<string, unknown>[]).map(mapRow);
+  const beforeById = new Map(before.map((entry) => [entry.id, entry]));
+  await Promise.all(moved.map((entry) => writeLedgerChange(userId, entry.id, "updated", beforeById.get(entry.id), entry)));
+  return { moved, skippedTemplateDuplicates: Number(conflicts[0]?.count ?? 0) };
+}
+
 export async function getMonthSummary(
   userId: string,
   monthKey: string,

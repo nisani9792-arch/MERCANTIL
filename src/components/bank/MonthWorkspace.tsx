@@ -22,6 +22,7 @@ import { CardSection, QuickButton } from "@/components/bank/MonthWorkspacePrimit
 import { BankReconciliationPanel } from "@/components/bank/BankReconciliationPanel";
 import { CashflowCyclePanel } from "@/components/bank/CashflowCyclePanel";
 import { OpenItemsRollover } from "@/components/bank/OpenItemsRollover";
+import { PeriodCorrectionCard } from "@/components/bank/PeriodCorrectionCard";
 
 type LedgerResponse = {
   entries: MonthlyLedgerEntry[];
@@ -252,6 +253,8 @@ export function MonthWorkspace() {
       />
 
       <OpenItemsRollover monthKey={monthKey} onComplete={(message) => showSaveMessage(message, 3500)} />
+
+      <PeriodCorrectionCard monthKey={monthKey} onComplete={(message) => showSaveMessage(message, 3500)} />
 
       <BankReconciliationPanel monthKey={monthKey} />
 

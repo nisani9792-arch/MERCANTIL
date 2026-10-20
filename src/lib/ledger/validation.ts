@@ -39,6 +39,11 @@ export const ledgerRolloverSchema = z.object({
   targetMonthKey: monthKey,
 }).strict();
 
+export const ledgerPeriodCorrectionSchema = z.object({
+  sourceMonthKey: monthKey,
+  targetMonthKey: monthKey,
+}).strict();
+
 export const entryTemplateSchema = z.object({
   frequency: z.enum(["monthly", "bi-monthly"]),
   dayOfMonth: z.number().int().min(1).max(31).nullable(),
