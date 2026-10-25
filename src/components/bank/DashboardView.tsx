@@ -12,7 +12,6 @@ import { useMonthStore } from "@/stores/useMonthStore";
 
 export function DashboardView() {
   const month = useMonthStore((s) => s.monthKey);
-  const [expanded, setExpanded] = useState(false);
   const analytics = useQuery({ queryKey: ["analytics", month], queryFn: () => fetchLive<AnalyticsPayload>(`/api/analytics?month=${month}`) });
   const ledger = useQuery({ queryKey: ["ledger", month], queryFn: () => fetchLive<{ entries: MonthlyLedgerEntry[] }>(`/api/ledger?month=${month}`) });
   const estimate = useQuery({ queryKey: ["planning", month], queryFn: () => fetchLive<{ amount: number | null }>(`/api/preferences/planning?month=${month}`) });
@@ -26,17 +25,29 @@ export function DashboardView() {
     {error ? <div role="alert" className="finance-panel"><p>לא הצלחנו לטעון את התכנון. הסכומים יוצגו כשהמידע ייטען.</p><button className="m3-btn-primary mt-3 min-h-11 px-4" onClick={() => { void analytics.refetch(); void ledger.refetch(); void estimate.refetch(); }}>ניסיון חוזר</button></div> : !ready ? <p role="status">טוען את התכנון…</p> : null}
     {ready && summary && plan && <>
       {!summary.initialized ? <section className="finance-panel text-center"><h2 className="font-bold">מתחילים מההכנסות וההוצאות הקבועות</h2><Link className="m3-btn-primary mt-3 inline-flex min-h-12 items-center px-5" href="/month">פתיחת החודש</Link></section> : <>
-        <section className="finance-hero rounded-[28px] p-5 text-white sm:p-7"><p className="text-sm text-white/80">{missing.length || estimate.data.amount === null ? "יתרה לתכנון · תמונה חלקית" : "יתרה משוערת לתכנון"}</p><p className="mt-3 text-4xl font-black sm:text-6xl" dir="ltr">{formatCurrency(plan.remaining)}</p><p className="mt-3 text-sm text-white/80">הכנסות שהוזנו, פחות הקבועות והמשתנות בתכנון.</p><div className="mt-5 grid grid-cols-1 gap-4 border-t border-white/20 pt-4 sm:grid-cols-3"><Amount label="הכנסות שהוזנו" value={summary.totalIncome} /><Amount label="התחייבויות קבועות" value={summary.totalFixedExpenses} /><Amount label="משתנות בתכנון" value={plan.variable} /></div><p className="mt-4 text-xs text-white/70">זו אינדיקציה לפי הנתונים שהזנת, לא יתרת חשבון הבנק.</p></section>
-        {missing.length > 0 && <section className="finance-panel"><h2 className="font-bold">נותרו {missing.length} הכנסות להשלמה</h2><p className="my-2 text-sm">{missing.map((e) => e.name).join(" · ")}</p><p className="text-sm text-on-surface-variant">הסכומים החסרים אינם אפס. היתרה תתעדכן כשתמלא אותם.</p><Link href="/month" className="mt-3 inline-flex min-h-11 items-center font-bold text-primary">להשלמת הסכומים ←</Link></section>}
-        <EstimateEditor key={month} month={month} amount={estimate.data.amount} recorded={summary.totalVariableExpenses} remainder={plan.unrecordedEstimate} />
+        <section aria-label="סיכום התכנון" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Amount label="יתרה לתכנון" value={plan.remaining} featured />
+          <Amount label="הכנסות שהוזנו" value={summary.totalIncome} />
+          <Amount label="התחייבויות קבועות" value={summary.totalFixedExpenses} />
+          <Amount label="משתנות בתכנון" value={plan.variable} />
+        </section>
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-on-surface-variant">
+          <p>{missing.length || estimate.data.amount === null ? "תמונה חלקית · לפי הסכומים שהוזנו" : "הערכה לפי התכנון החודשי"} · לא יתרת בנק</p>
+          {missing.length > 0 && <Link href="/month" className="inline-flex min-h-10 items-center font-bold text-primary">{missing.length === 1 ? "הכנסה אחת להשלמה" : missing.length + " הכנסות להשלמה"} ←</Link>}
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <section className="finance-panel min-w-0"><h2 className="text-lg font-bold">הכנסות מול הוצאות</h2><p className="mb-4 mt-1 text-xs text-on-surface-variant">הרישומים שלך לאורך 6 חודשים</p><CashflowChart data={analytics.data.trend} /></section>
+          <section className="finance-panel min-w-0"><h2 className="text-lg font-bold">חלוקת ההוצאות</h2><p className="mb-4 mt-1 text-xs text-on-surface-variant">לפי הקטגוריות שהזנת החודש</p><CategoryChart data={analytics.data.expenseBreakdown} /></section>
+        </div>
+        <p className="text-xs text-on-surface-variant">התרשימים מציגים רישומים בלבד, ללא הערכת המחיה. חודשים חלקיים עשויים להשתנות.</p>
+        <details className="finance-panel"><summary className="cursor-pointer py-2 text-sm font-bold">הערכה למחיה וקניות <span className="font-normal text-on-surface-variant">· {estimate.data.amount === null ? "לא הוגדרה" : formatCurrency(estimate.data.amount)}</span></summary><div className="border-t border-outline-variant pt-4"><EstimateEditor key={month} month={month} amount={estimate.data.amount} recorded={summary.totalVariableExpenses} remainder={plan.unrecordedEstimate} /></div></details>
       </>}
-      <nav aria-label="פעולות בתכנון" className="grid gap-3 sm:grid-cols-3"><Link href="/month" className="finance-panel font-bold text-primary">עריכת החודש ←</Link><Link href="/templates" className="finance-panel font-bold text-primary">הקבועים שלי ←</Link><Link href="/finance" className="finance-panel font-bold text-primary">חסכונות וחובות ←</Link></nav>
-      {summary.initialized && <section className="finance-panel"><button type="button" aria-expanded={expanded} aria-controls="planning-charts" onClick={() => setExpanded(!expanded)} className="flex min-h-11 w-full items-center justify-between font-bold">מגמות ופירוט הוצאות <span aria-hidden="true">{expanded ? "−" : "+"}</span></button>{expanded && <div id="planning-charts" className="mt-4 grid gap-5 md:grid-cols-2"><div><h2 className="font-bold">הנתונים שהוזנו לאורך החודשים</h2><p className="mb-3 text-xs text-on-surface-variant">ללא הערכת המחיה; חודשים חלקיים אינם בני השוואה מלאה.</p><CashflowChart data={analytics.data.trend} /></div><div><h2 className="mb-3 font-bold">הוצאות שהוזנו לפי קטגוריה</h2><CategoryChart data={analytics.data.expenseBreakdown} /></div></div>}</section>}
+      <nav aria-label="פעולות בתכנון" className="flex flex-wrap gap-2"><Link href="/month" className="inline-flex min-h-11 items-center rounded-xl border border-outline-variant px-4 text-sm font-bold text-primary">עריכת החודש ←</Link><Link href="/templates" className="inline-flex min-h-11 items-center rounded-xl border border-outline-variant px-4 text-sm font-bold text-primary">הקבועים שלי ←</Link><Link href="/finance" className="inline-flex min-h-11 items-center rounded-xl border border-outline-variant px-4 text-sm font-bold text-primary">חסכונות וחובות ←</Link></nav>
     </>}
   </div>;
 }
-function Amount({ label, value }: { label: string; value: number }) {
-  return <div><p className="text-xs text-white/75">{label}</p><strong className="mt-1 block text-xl" dir="ltr">{formatCurrency(value)}</strong></div>;
+function Amount({ label, value, featured = false }: { label: string; value: number; featured?: boolean }) {
+  return <div className={"min-w-0 rounded-2xl border p-4 " + (featured ? "finance-hero border-transparent text-white" : "border-outline-variant bg-surface-container-lowest text-on-surface")}><p className={"text-xs " + (featured ? "text-white/80" : "text-on-surface-variant")}>{label}</p><strong className="mt-2 block break-words text-xl font-black sm:text-2xl" dir="ltr">{formatCurrency(value)}</strong></div>;
 }
 function EstimateEditor({ month, amount, recorded, remainder }: { month: string; amount: number | null; recorded: number; remainder: number }) {
   const [draft, setDraft] = useState<string | null>(null);
@@ -49,7 +60,7 @@ function EstimateEditor({ month, amount, recorded, remainder }: { month: string;
     if (!res.ok) throw new Error("ההערכה לא נשמרה. בדוק את הסכום ונסה שוב.");
     return res.json() as Promise<{ amount: number | null }>;
   }, onSuccess: (value) => { qc.setQueryData(["planning", month], value); setDraft(null); } });
-  return <section className="finance-panel"><h2 className="text-lg font-bold">הערכה למחיה וקניות</h2><p className="mt-1 text-sm text-on-surface-variant">סכום כללי לכל ההוצאות המשתנות בחודש הזה. אין צורך להזין כל קנייה.</p>
+  return <section><p className="mt-1 text-sm text-on-surface-variant">סכום כללי לכל ההוצאות המשתנות בחודש הזה. אין צורך להזין כל קנייה.</p>
     <form className="mt-4 flex flex-wrap items-end gap-3" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}><label className="min-w-0 flex-1 text-sm">הערכה חודשית בש״ח — אופציונלי<input disabled={save.isPending} value={draft ?? (amount === null ? "" : String(amount))} onChange={(e) => { setDraft(e.target.value); save.reset(); }} type="number" inputMode="decimal" min="0" max="999999999" step="0.01" placeholder="טרם הוזנה הערכה" className="mt-1 block min-h-12 w-full rounded-xl border border-outline-variant bg-surface px-3" /></label><button disabled={save.isPending} className="m3-btn-primary min-h-12 px-5">{save.isPending ? "שומר…" : "שמירת הערכה"}</button></form>
     <p className="mt-3 text-xs text-on-surface-variant">{amount === null ? "טרם הוזנה הערכה. כרגע נספרות רק ההוצאות המשתנות שהזנת." : `הוזנו ${formatCurrency(recorded)} בהוצאות משתנות; עוד ${formatCurrency(remainder)} נכללים בהערכה. אם ההוצאות שהזנת עוברות את ההערכה, הסכום הגבוה קובע.`}</p><p className="mt-2 text-xs text-on-surface-variant">כל ההוצאות שמסומנות ״משתנות״ נכללות בהערכה הזו, ללא תוספת כפולה. ריק פירושו לא ידוע; 0 הוא הערכה מפורשת.</p>
     {save.isError && <p role="alert" className="mt-2 text-error">{save.error.message}</p>}{save.isSuccess && <p role="status" className="mt-2 text-success">ההערכה נשמרה</p>}
