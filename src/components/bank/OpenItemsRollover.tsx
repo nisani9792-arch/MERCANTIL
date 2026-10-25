@@ -65,7 +65,7 @@ export function OpenItemsRollover({ monthKey, onComplete }: { monthKey: string; 
         </div>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
-        {entries.slice(0, 3).map((entry) => <span key={entry.id} className="max-w-full truncate rounded-lg bg-surface/80 px-2 py-1 text-xs font-semibold">{entry.name} · {formatCurrency(entry.amount)}</span>)}
+        {entries.slice(0, 3).map((entry) => <span key={entry.id} className="max-w-full truncate rounded-lg bg-surface/80 px-2 py-1 text-xs font-semibold">{entry.name} · {entry.amount_pending ? "טרם הוזן סכום" : formatCurrency(entry.amount)}</span>)}
         {entries.length > 3 && <span className="rounded-lg bg-surface/80 px-2 py-1 text-xs font-semibold">+{entries.length - 3} נוספות</span>}
       </div>
       {move.isError && <p role="alert" className="mt-3 text-xs font-bold text-error">{move.error.message}</p>}

@@ -7,6 +7,7 @@ type SetupItem = {
   id?: string;
   name?: string;
   amount?: number;
+  amountPending?: boolean;
   type?: "income" | "expense";
   isVariable?: boolean;
 };
@@ -74,6 +75,7 @@ export async function POST(request: Request) {
     id: item.id && existingIds.has(item.id) ? item.id : crypto.randomUUID(),
     name: String(item.name ?? "").trim(),
     amount: Number(item.amount),
+    amount_pending: item.type === "income" && item.amountPending === true && Number(item.amount) === 0,
     type: item.type,
     // These names intentionally match jsonb_to_recordset below. PostgreSQL
     // does not translate the browser's camelCase fields automatically.
@@ -93,19 +95,20 @@ export async function POST(request: Request) {
   const queries = [
     sql`
       insert into fixed_templates (
-        id, user_id, name, type, amount, frequency, day_of_month,
+        id, user_id, name, type, amount, amount_pending, frequency, day_of_month,
         is_active, is_variable, sort_order
       )
-      select x.id, ${session.userId}, x.name, x.type, x.amount,
+      select x.id, ${session.userId}, x.name, x.type, x.amount, x.amount_pending,
         'monthly', null, true, x.is_variable, x.sort_order
       from jsonb_to_recordset(${itemsJson}::jsonb) as x(
-        id uuid, name text, amount numeric, type text,
+        id uuid, name text, amount numeric, amount_pending boolean, type text,
         is_variable boolean, sort_order int
       )
       on conflict (id) do update set
         name = excluded.name,
         type = excluded.type,
         amount = excluded.amount,
+        amount_pending = excluded.amount_pending,
         frequency = excluded.frequency,
         day_of_month = excluded.day_of_month,
         is_active = excluded.is_active,

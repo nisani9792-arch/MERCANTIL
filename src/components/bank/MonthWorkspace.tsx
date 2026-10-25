@@ -71,6 +71,7 @@ export function MonthWorkspace() {
       id?: string;
       name: string;
       amount: number;
+      amountPending: boolean;
       type: "income" | "expense";
       category: string;
       isVariable: boolean;
@@ -85,6 +86,7 @@ export function MonthWorkspace() {
           body: JSON.stringify({
             name: payload.name,
             amount: payload.amount,
+            amountPending: payload.amountPending,
             category: payload.category,
             paymentMethod: payload.paymentMethod,
             isVariable: payload.isVariable,
@@ -103,6 +105,7 @@ export function MonthWorkspace() {
             name: payload.name,
             type: payload.type,
             amount: payload.amount,
+            amountPending: payload.amountPending,
             category: payload.category,
             isVariable: payload.isVariable,
             entryKind: payload.entryKind,
@@ -135,6 +138,7 @@ export function MonthWorkspace() {
         qc.refetchQueries({ queryKey: ["ledger", monthKey] }),
         qc.invalidateQueries({ queryKey: ["analytics", monthKey] }),
         qc.invalidateQueries({ queryKey: ["ai-insights", monthKey] }),
+        qc.invalidateQueries({ queryKey: ["cashflow-cycle", monthKey] }),
       ]);
     },
   });

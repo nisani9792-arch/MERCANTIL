@@ -21,6 +21,7 @@ export async function POST(request: Request) {
     name?: string;
     type?: "income" | "expense";
     amount?: number;
+    amountPending?: boolean;
     frequency?: "monthly" | "bi-monthly";
     dayOfMonth?: number | null;
     isVariable?: boolean;
@@ -30,10 +31,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "נתונים חסרים" }, { status: 400 });
   }
 
+  if (!Number.isFinite(body.amount) || body.amount < 0 ||
+      (body.amountPending !== undefined && typeof body.amountPending !== "boolean") ||
+      (body.amountPending && (body.type !== "income" || body.amount !== 0))) {
+    return NextResponse.json({ error: "סכום לא תקין" }, { status: 400 });
+  }
+
   const template = await createTemplate(session.userId, {
     name: body.name,
     type: body.type,
     amount: Math.abs(body.amount),
+    amountPending: body.amountPending,
     frequency: body.frequency,
     dayOfMonth: body.dayOfMonth,
     isVariable: body.isVariable,

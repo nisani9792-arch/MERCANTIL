@@ -1,3 +1,4 @@
+import { ensureIncomeAmounts } from "@/lib/db/income-amounts";
 import { getSql } from "@/lib/db/client";
 import { getMonthSummary } from "@/lib/db/monthly-ledger";
 import type {
@@ -23,6 +24,7 @@ export async function getSixMonthTrend(
   userId: string,
   anchorMonth: string,
 ): Promise<MonthTrendPoint[]> {
+  await ensureIncomeAmounts();
   const sql = getSql();
   const keys = monthKeysBack(6, anchorMonth);
 

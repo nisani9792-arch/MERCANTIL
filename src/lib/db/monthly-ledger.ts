@@ -1,4 +1,7 @@
 import { getSql } from "@/lib/db/client";
+import { ensureIncomeAmounts } from "@/lib/db/income-amounts";
+import { incomeAmountState } from "@/lib/ledger/income-amount";
+import { RouteError } from "@/lib/api/route";
 import { currentMonthKey, previousMonthKey } from "@/lib/utils/month";
 import type { FixedTemplate, LedgerEntryKind, LedgerItemType, MonthSummary, MonthlyLedgerEntry, PaymentMethod } from "@/types/ledger";
 
@@ -57,6 +60,7 @@ function mapRow(row: Record<string, unknown>): MonthlyLedgerEntry {
     name: String(row.name),
     type: row.type as LedgerItemType,
     amount: Number(row.amount),
+    amount_pending: Boolean(row.amount_pending),
     category: String(row.category ?? row.name),
     is_from_template: Boolean(row.is_from_template),
     template_id: row.template_id ? String(row.template_id) : null,
@@ -94,6 +98,7 @@ export async function listLedgerEntries(
   userId: string,
   monthKey: string,
 ): Promise<MonthlyLedgerEntry[]> {
+  await ensureIncomeAmounts();
   const sql = getSql();
   const rows = await sql`
     select * from monthly_ledger
@@ -113,6 +118,7 @@ export async function listRolloverCandidates(
   userId: string,
   targetMonthKey: string,
 ): Promise<{ sourceMonthKey: string; entries: MonthlyLedgerEntry[] }> {
+  await ensureIncomeAmounts();
   const sourceMonthKey = previousMonthKey(targetMonthKey);
   const sql = getSql();
   const rows = await sql`
@@ -304,15 +310,16 @@ export async function initMonthFromTemplates(
   monthKey: string,
   templateIds?: string[],
 ): Promise<{ created: number; skipped: boolean }> {
+  await ensureIncomeAmounts();
   const sql = getSql();
   const chosenIds = Array.from(new Set((templateIds ?? []).filter((id) => /^[0-9a-f-]{36}$/i.test(id))));
   if (templateIds && chosenIds.length === 0) return { created: 0, skipped: true };
   // One atomic statement copies only missing templates. The unique index on
   // user/month/template also makes repeated or concurrent taps idempotent.
   const rows = await sql`insert into monthly_ledger (
-      user_id, month_key, name, type, amount, category,
+      user_id, month_key, name, type, amount, amount_pending, category,
       is_from_template, template_id, is_variable, is_paid, notes, due_date
-    ) select t.user_id, ${monthKey}, t.name, t.type, t.amount, t.name,
+    ) select t.user_id, ${monthKey}, t.name, t.type, t.amount, t.amount_pending, t.name,
       true, t.id, t.is_variable, false, null,
       case when t.day_of_month is null then null else make_date(${Number(monthKey.slice(0, 4))}, ${Number(monthKey.slice(5))}, least(t.day_of_month, extract(day from (make_date(${Number(monthKey.slice(0, 4))}, ${Number(monthKey.slice(5))}, 1) + interval '1 month - 1 day'))::int)) end
     from fixed_templates t
@@ -334,6 +341,7 @@ export async function addLedgerEntry(
     name: string;
     type: LedgerItemType;
     amount: number;
+    amountPending?: boolean;
     isVariable?: boolean;
     category?: string;
     notes?: string;
@@ -342,17 +350,19 @@ export async function addLedgerEntry(
     dueDate?: string | null;
   },
 ): Promise<MonthlyLedgerEntry> {
+  await ensureIncomeAmounts();
+  const amount = incomeAmountState(input.type, input.amount, input.amountPending);
   const sql = getSql();
   const category = input.category ?? input.name;
   const rows = await sql`
     insert into monthly_ledger (
-      user_id, month_key, name, type, amount, category,
+      user_id, month_key, name, type, amount, amount_pending, category,
       is_from_template, template_id, is_variable, is_paid, notes,
       entry_kind, payment_method, due_date
     )
     values (
       ${userId}, ${input.monthKey}, ${input.name}, ${input.type},
-      ${input.amount}, ${category}, false, null, ${input.isVariable ?? false},
+      ${amount.amount}, ${amount.amountPending}, ${category}, false, null, ${input.isVariable ?? false},
       false, ${input.notes ?? null}, ${input.entryKind ?? "transaction"},
       ${input.paymentMethod ?? "bank"}, ${input.dueDate ?? null}
     )
@@ -370,6 +380,7 @@ export async function createTemplateFromLedgerEntry(
   entryId: string,
   input: { frequency: "monthly" | "bi-monthly"; dayOfMonth: number | null },
 ): Promise<{ entry: MonthlyLedgerEntry; template: FixedTemplate; created: boolean } | null> {
+  await ensureIncomeAmounts();
   await ensurePaymentTrackingSchema();
   const sql = getSql();
   const sourceRows = await sql`select * from monthly_ledger where id = ${entryId} and user_id = ${userId} limit 1`;
@@ -379,9 +390,9 @@ export async function createTemplateFromLedgerEntry(
 
   const inserted = await sql`
     insert into fixed_templates (
-      user_id, name, type, amount, frequency, day_of_month, is_active, is_variable, sort_order, source_ledger_entry_id
+      user_id, name, type, amount, amount_pending, frequency, day_of_month, is_active, is_variable, sort_order, source_ledger_entry_id
     ) values (
-      ${userId}, ${entry.name}, ${entry.type}, ${entry.amount}, ${input.frequency}, ${input.dayOfMonth}, true, ${entry.is_variable},
+      ${userId}, ${entry.name}, ${entry.type}, ${entry.amount}, ${entry.amount_pending ?? false}, ${input.frequency}, ${input.dayOfMonth}, true, ${entry.is_variable},
       (select coalesce(max(sort_order), 0) + 1 from fixed_templates where user_id = ${userId}), ${entry.id}
     )
     on conflict (source_ledger_entry_id) where source_ledger_entry_id is not null do nothing
@@ -397,6 +408,7 @@ export async function createTemplateFromLedgerEntry(
     template: {
       id: String(row.id), user_id: String(row.user_id), name: String(row.name), type: row.type as "income" | "expense",
       amount: Number(row.amount), frequency: row.frequency as "monthly" | "bi-monthly", day_of_month: row.day_of_month ? Number(row.day_of_month) : null,
+      amount_pending: Boolean(row.amount_pending),
       is_active: Boolean(row.is_active), is_variable: Boolean(row.is_variable), sort_order: Number(row.sort_order),
       created_at: String(row.created_at), updated_at: String(row.updated_at),
     },
@@ -405,13 +417,14 @@ export async function createTemplateFromLedgerEntry(
 }
 
 export async function createTemplatesFromMonth(userId: string, monthKey: string): Promise<number> {
+  await ensureIncomeAmounts();
   await ensurePaymentTrackingSchema();
   const sql = getSql();
   const rows = await sql`
     insert into fixed_templates (
-      user_id, name, type, amount, frequency, day_of_month, is_active, is_variable, sort_order, source_ledger_entry_id
+      user_id, name, type, amount, amount_pending, frequency, day_of_month, is_active, is_variable, sort_order, source_ledger_entry_id
     )
-    select e.user_id, e.name, e.type, e.amount, 'monthly',
+    select e.user_id, e.name, e.type, e.amount, e.amount_pending, 'monthly',
       case when e.due_date is null then null else extract(day from e.due_date)::int end,
       true, e.is_variable,
       row_number() over (order by e.type desc, e.name) + (select coalesce(max(sort_order), 0) from fixed_templates where user_id = ${userId}),
@@ -427,23 +440,30 @@ export async function createTemplatesFromMonth(userId: string, monthKey: string)
 export async function updateLedgerEntry(
   userId: string,
   id: string,
-  input: Partial<{ name: string; amount: number; category: string; notes: string | null; isPaid: boolean; paymentMethod: PaymentMethod; isVariable: boolean; dueDate: string | null; confirmationSource: "manual" | "automatic" }>,
+  input: Partial<{ name: string; amount: number; amountPending: boolean; category: string; notes: string | null; isPaid: boolean; paymentMethod: PaymentMethod; isVariable: boolean; dueDate: string | null; confirmationSource: "manual" | "automatic" }>,
 ): Promise<MonthlyLedgerEntry | null> {
+  await ensureIncomeAmounts();
   const sql = getSql();
   const existing = await sql`
     select * from monthly_ledger where id = ${id} and user_id = ${userId} limit 1
   `;
   if (!existing.length) return null;
   const cur = mapRow(existing[0] as Record<string, unknown>);
+  const amount = incomeAmountState(cur.type, input.amount ?? cur.amount,
+    input.amountPending ?? (input.amount !== undefined ? false : cur.amount_pending));
+  if (input.isPaid === true && amount.amountPending) {
+    throw new RouteError(400, "INVALID_REQUEST", "יש להזין סכום לפני אישור ההכנסה");
+  }
 
   const rows = await sql`
     update monthly_ledger
     set name = ${input.name ?? cur.name},
-        amount = ${input.amount ?? cur.amount},
+        amount = ${amount.amount},
+        amount_pending = ${amount.amountPending},
         category = ${input.category ?? cur.category},
-        is_paid = ${input.isPaid ?? cur.is_paid},
+        is_paid = ${amount.amountPending ? false : input.isPaid ?? cur.is_paid},
         due_date = ${input.dueDate !== undefined ? input.dueDate : cur.due_date},
-        completed_at = case when ${input.isPaid === true} then now() when ${input.isPaid === false} then null else completed_at end,
+        completed_at = case when ${amount.amountPending || input.isPaid === false} then null when ${input.isPaid === true} then now() else completed_at end,
         confirmation_source = ${input.confirmationSource ?? cur.confirmation_source},
         payment_method = ${input.paymentMethod ?? cur.payment_method},
         is_variable = ${input.isVariable ?? cur.is_variable},

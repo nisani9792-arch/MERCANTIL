@@ -1,4 +1,6 @@
 import { getSql } from "@/lib/db/client";
+import { ensureIncomeAmounts } from "@/lib/db/income-amounts";
+import { incomeAmountState } from "@/lib/ledger/income-amount";
 import type { FixedTemplate, RecurringFrequency } from "@/types/ledger";
 
 function mapRow(row: Record<string, unknown>): FixedTemplate {
@@ -8,6 +10,7 @@ function mapRow(row: Record<string, unknown>): FixedTemplate {
     name: String(row.name),
     type: row.type as FixedTemplate["type"],
     amount: Number(row.amount),
+    amount_pending: Boolean(row.amount_pending),
     frequency: row.frequency as RecurringFrequency,
     day_of_month: row.day_of_month ? Number(row.day_of_month) : null,
     is_active: Boolean(row.is_active),
@@ -19,6 +22,7 @@ function mapRow(row: Record<string, unknown>): FixedTemplate {
 }
 
 export async function listTemplates(userId: string): Promise<FixedTemplate[]> {
+  await ensureIncomeAmounts();
   const sql = getSql();
   const rows = await sql`
     select * from fixed_templates
@@ -34,18 +38,21 @@ export async function createTemplate(
     name: string;
     type: FixedTemplate["type"];
     amount: number;
+    amountPending?: boolean;
     frequency?: RecurringFrequency;
     dayOfMonth?: number | null;
     isVariable?: boolean;
   },
 ): Promise<FixedTemplate> {
+  await ensureIncomeAmounts();
+  const amount = incomeAmountState(input.type, input.amount, input.amountPending);
   const sql = getSql();
   const rows = await sql`
     insert into fixed_templates (
-      user_id, name, type, amount, frequency, day_of_month, is_active, is_variable, sort_order
+      user_id, name, type, amount, amount_pending, frequency, day_of_month, is_active, is_variable, sort_order
     )
     values (
-      ${userId}, ${input.name}, ${input.type}, ${input.amount},
+      ${userId}, ${input.name}, ${input.type}, ${amount.amount}, ${amount.amountPending},
       ${input.frequency ?? "monthly"}, ${input.dayOfMonth ?? null}, true, ${input.isVariable ?? false},
       (select coalesce(max(sort_order), 0) + 1 from fixed_templates where user_id = ${userId})
     )
@@ -61,6 +68,7 @@ export async function updateTemplate(
     type: FixedTemplate["type"];
     name: string;
     amount: number;
+    amountPending: boolean;
     frequency: RecurringFrequency;
     dayOfMonth: number | null;
     isActive: boolean;
@@ -68,18 +76,22 @@ export async function updateTemplate(
     sortOrder: number;
   }>,
 ): Promise<FixedTemplate | null> {
+  await ensureIncomeAmounts();
   const sql = getSql();
   const existing = await sql`
     select * from fixed_templates where id = ${id} and user_id = ${userId} limit 1
   `;
   if (!existing.length) return null;
   const cur = mapRow(existing[0] as Record<string, unknown>);
+  const amount = incomeAmountState(input.type ?? cur.type, input.amount ?? cur.amount,
+    input.amountPending ?? (input.amount !== undefined || input.type === "expense" ? false : cur.amount_pending));
 
   const rows = await sql`
     update fixed_templates
     set name = ${input.name ?? cur.name},
         type = ${input.type ?? cur.type},
-        amount = ${input.amount ?? cur.amount},
+        amount = ${amount.amount},
+        amount_pending = ${amount.amountPending},
         frequency = ${input.frequency ?? cur.frequency},
         day_of_month = ${input.dayOfMonth !== undefined ? input.dayOfMonth : cur.day_of_month},
         is_active = ${input.isActive !== undefined ? input.isActive : cur.is_active},

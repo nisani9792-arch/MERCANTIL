@@ -14,6 +14,7 @@ export async function PATCH(
     type?: "income" | "expense";
     name?: string;
     amount?: number;
+    amountPending?: boolean;
     frequency?: "monthly" | "bi-monthly";
     dayOfMonth?: number | null;
     isActive?: boolean;
@@ -23,6 +24,8 @@ export async function PATCH(
   if ((body.name !== undefined && !body.name.trim()) ||
       (body.type !== undefined && !["income", "expense"].includes(body.type)) ||
       (body.amount !== undefined && (!Number.isFinite(body.amount) || body.amount < 0)) ||
+      (body.amountPending !== undefined && typeof body.amountPending !== "boolean") ||
+      (body.amountPending && (body.type !== "income" || body.amount !== 0)) ||
       (body.frequency !== undefined && !["monthly", "bi-monthly"].includes(body.frequency)) ||
       (body.isVariable !== undefined && typeof body.isVariable !== "boolean") ||
       (body.dayOfMonth !== undefined && body.dayOfMonth !== null && (!Number.isInteger(body.dayOfMonth) || body.dayOfMonth < 1 || body.dayOfMonth > 31))) {

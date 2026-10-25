@@ -37,18 +37,18 @@ export function TransactionCard({ entry, onTap, onDelete, onTogglePaid }: Transa
           {isWithdrawal ? "העברה בנק ← מזומן" : `${entry.is_variable ? "משתנה" : "קבוע"} · ${entry.payment_method === "cash" ? "מזומן" : entry.payment_method === "card" ? "אשראי" : "בנק"}`}
         </p>
         <p className={cn("mt-1 text-xs font-bold", completed ? "text-success" : status === "overdue" ? "text-error" : "text-primary")}>
-          {statusLabel(status)}{entry.due_date ? ` · ${new Intl.DateTimeFormat("he-IL", { day: "numeric", month: "short" }).format(new Date(`${entry.due_date}T00:00:00`))}` : ""}
+          {entry.amount_pending ? "טרם הוזן סכום" : statusLabel(status)}{entry.due_date ? ` · ${new Intl.DateTimeFormat("he-IL", { day: "numeric", month: "short" }).format(new Date(`${entry.due_date}T00:00:00`))}` : ""}
         </p>
       </button>
       <div className="flex shrink-0 items-center gap-1 sm:gap-2">
-        {onTogglePaid && <button type="button" onClick={(e) => { e.stopPropagation(); onTogglePaid(); }} className={cn("flex h-10 min-w-10 items-center justify-center rounded-xl border px-2 text-xs font-bold", completed ? "border-success/40 bg-success-container text-success" : "border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary")} aria-label={completed ? `ביטול אישור ביצוע עבור ${entry.name}` : `אישור ביצוע עבור ${entry.name}`} title={completed ? "סמן כטרם בוצע" : "אישור ביצוע"}>
+        {onTogglePaid && <button type="button" disabled={Boolean(entry.amount_pending)} onClick={(e) => { e.stopPropagation(); onTogglePaid(); }} className={cn("flex h-10 min-w-10 items-center justify-center rounded-xl border px-2 text-xs font-bold", completed ? "border-success/40 bg-success-container text-success" : "border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary")} aria-label={completed ? `ביטול אישור ביצוע עבור ${entry.name}` : `אישור ביצוע עבור ${entry.name}`} title={completed ? "סמן כטרם בוצע" : "אישור ביצוע"}>
           {completed ? <Check className="h-5 w-5" /> : status === "overdue" ? <Clock3 className="h-5 w-5" /> : <RotateCcw className="h-4 w-4" />}
         </button>}
         <button type="button" onClick={onTap} className={cn(
           "shrink-0 rounded-lg px-1.5 py-1 text-sm font-black sm:text-base",
           isWithdrawal ? "text-primary" : isIncome ? "text-success" : "text-on-surface",
-        )} dir="ltr" aria-label={`עריכת סכום ${formatCurrency(entry.amount)}`}>
-          {formatCurrency(entry.amount)}
+        )} dir="ltr" aria-label={entry.amount_pending ? `הזנת סכום עבור ${entry.name}` : `עריכת סכום ${formatCurrency(entry.amount)}`}>
+          {entry.amount_pending ? "הזן סכום" : formatCurrency(entry.amount)}
         </button>
       </div>
       <button type="button" onClick={(e) => { e.stopPropagation(); onTap(); }} className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full text-primary hover:bg-primary-container sm:flex" aria-label="ערוך שם ופרטים"><Pencil className="h-4 w-4" /></button>

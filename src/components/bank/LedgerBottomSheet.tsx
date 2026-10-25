@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { EXPENSE_CATEGORIES } from "@/lib/constants/budget";
 import { inferExpenseCategory } from "@/lib/ai/smart-category";
+import { incomeAmountInput } from "@/lib/ledger/income-amount";
 import type { LedgerEntryKind, LedgerItemType, MonthlyLedgerEntry, PaymentMethod } from "@/types/ledger";
 
 type AddType = LedgerItemType | "cash_withdrawal";
@@ -25,6 +26,7 @@ type LedgerBottomSheetProps = {
   onSave: (data: {
     name: string;
     amount: number;
+    amountPending: boolean;
     type: LedgerItemType;
     category: string;
     isVariable: boolean;
@@ -81,7 +83,7 @@ export function LedgerBottomSheet({
     }
     if (mode.kind === "edit") {
       setName(restored.name ?? mode.entry.name);
-      setAmount(restored.amount ?? String(mode.entry.amount));
+      setAmount(restored.amount ?? incomeAmountInput(mode.entry));
       setCategory(restored.category ?? mode.entry.category);
       setIsVariable(restored.isVariable ?? mode.entry.is_variable);
       setPaymentMethod(restored.paymentMethod ?? mode.entry.payment_method);
@@ -135,9 +137,9 @@ export function LedgerBottomSheet({
         ? "הוספת הכנסה"
         : "הוספת הוצאה";
   const categoryGuess = inferExpenseCategory(name);
-  const valid = Boolean(name.trim()) && amount.trim() !== "" && Number.isFinite(Number(amount)) && Number(amount) >= 0;
+  const valid = Boolean(name.trim()) && (type === "income" || amount.trim() !== "") && Number.isFinite(Number(amount)) && Number(amount) >= 0;
   const dirty = mode.kind === "edit"
-    ? name !== mode.entry.name || amount !== String(mode.entry.amount) || category !== mode.entry.category || isVariable !== mode.entry.is_variable || paymentMethod !== mode.entry.payment_method || dueDate !== (mode.entry.due_date ?? "")
+    ? name !== mode.entry.name || amount !== incomeAmountInput(mode.entry) || category !== mode.entry.category || isVariable !== mode.entry.is_variable || paymentMethod !== mode.entry.payment_method || dueDate !== (mode.entry.due_date ?? "")
     : Boolean(name.trim() || amount);
 
   const saveButton = (
@@ -149,6 +151,7 @@ export function LedgerBottomSheet({
           await onSave({
             name: name.trim(),
             amount: Number(amount),
+            amountPending: type === "income" && amount.trim() === "",
             type,
             category: type === "income" ? "הכנסה" : category,
             isVariable: type === "expense" && isVariable,
@@ -209,6 +212,7 @@ export function LedgerBottomSheet({
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             dir="ltr"
+            placeholder={type === "income" ? "טרם הוזן סכום" : undefined}
           />
         </div>
         {type === "expense" && !isWithdrawal && (
@@ -287,7 +291,7 @@ export function LedgerBottomSheet({
         {mode.kind === "edit" && onTogglePaid && (
           <button
             type="button"
-            disabled={togglingPaid || saving}
+            disabled={togglingPaid || saving || Boolean(mode.entry.amount_pending)}
             onClick={async () => {
               setTogglingPaid(true);
               try {

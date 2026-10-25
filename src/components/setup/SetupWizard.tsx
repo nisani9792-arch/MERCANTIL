@@ -14,6 +14,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { incomeAmountInput } from "@/lib/ledger/income-amount";
 import { formatCurrency } from "@/lib/utils/format";
 import type { RecurringTemplate } from "@/types/ledger";
 
@@ -68,7 +69,7 @@ export function SetupWizard() {
         if (data.templates.length) {
           setIncomes(data.templates
             .filter((item) => item.type === "income")
-            .map((item) => makeItem(item.name, String(item.amount), false, item.id)));
+            .map((item) => makeItem(item.name, incomeAmountInput(item), false, item.id)));
           setExpenses(data.templates
             .filter((item) => item.type === "expense")
             .map((item) => makeItem(item.name, String(item.amount), item.is_variable, item.id)));
@@ -87,7 +88,6 @@ export function SetupWizard() {
 
   const valid = incomes.some((item) =>
     item.name.trim() &&
-    item.amount.trim() !== "" &&
     Number.isFinite(Number(item.amount)) &&
     Number(item.amount) >= 0
   );
@@ -101,11 +101,12 @@ export function SetupWizard() {
       ...incomes.map((item) => ({ ...item, type: "income" as const, isVariable: false })),
       ...expenses.map((item) => ({ ...item, type: "expense" as const })),
     ]
-      .filter((item) => item.name.trim() && item.amount.trim() !== "")
+      .filter((item) => item.name.trim() && (item.type === "income" || item.amount.trim() !== ""))
       .map((item) => ({
         id: item.templateId,
         name: item.name,
         amount: Number(item.amount),
+        amountPending: item.type === "income" && item.amount.trim() === "",
         type: item.type,
         isVariable: item.isVariable,
       }))

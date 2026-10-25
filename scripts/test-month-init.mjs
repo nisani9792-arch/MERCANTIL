@@ -17,6 +17,9 @@ function loadLedger(created) {
   }).outputText;
   vm.runInNewContext(code, { exports, require: (name) => {
     if (name.endsWith("/client")) return { getSql: () => query };
+    if (name.endsWith("/income-amounts")) return { ensureIncomeAmounts: async () => {} };
+    if (name.endsWith("/income-amount")) return {};
+    if (name.endsWith("/route")) return {};
     if (name.endsWith("/recurring-templates")) return { seedDefaultTemplates: async () => {} };
     if (name.endsWith("/month")) return { currentMonthKey: () => "2026-09" };
     throw new Error(`Unexpected dependency: ${name}`);

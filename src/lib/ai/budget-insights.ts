@@ -26,7 +26,7 @@ export type BudgetAnalysis = {
 
 function formatEntries(entries: MonthlyLedgerEntry[]) {
   const income = entries
-    .filter((e) => e.type === "income" && e.entry_kind === "transaction")
+    .filter((e) => e.type === "income" && e.entry_kind === "transaction" && !e.amount_pending)
     .map((e) => `${e.name}: ₪${e.amount}`)
     .join(", ");
   const fixed = entries
@@ -109,6 +109,7 @@ export async function generateBudgetAnalysis(
 נשאר לגמישות: ₪${summary.disposableRemaining} | נטו: ₪${summary.netAfterAll}
 
 שורות הכנסה: ${income || "—"}
+הכנסות שטרם הוזן להן סכום: ${entries.filter((e) => e.type === "income" && e.amount_pending).map((e) => e.name).join(", ") || "אין"}. סכומים אלה חסרים, אינם אפס ואינם הכנסה זניחה. אל תסיק מהם שמקור ההכנסה לא פעיל. התחזית מבוססת על הסכומים שהוזנו בלבד.
 שורות קבועות: ${fixed || "—"}
 שורות משתנות: ${variable || "—"}
 

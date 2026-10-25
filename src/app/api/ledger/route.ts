@@ -45,6 +45,7 @@ export async function POST(request: Request) {
       name: body.name,
       type: body.entryKind === "cash_withdrawal" ? "expense" : body.type,
       amount: body.amount,
+      amountPending: body.amountPending,
       isVariable: body.isVariable,
       category: body.category,
       notes: body.notes,

@@ -1,4 +1,5 @@
 import { getSql } from "@/lib/db/client";
+import { ensureIncomeAmounts } from "@/lib/db/income-amounts";
 import type { LedgerItemType, MonthlyLedgerEntry } from "@/types/ledger";
 
 export type ReconciliationCandidate = Pick<MonthlyLedgerEntry, "id" | "name" | "amount" | "type" | "category" | "due_date">;
@@ -34,6 +35,7 @@ export function ensureReconciliationSchema() {
 }
 
 export async function listBankReconciliationItems(userId: string, monthKey: string): Promise<BankReconciliationItem[]> {
+  await ensureIncomeAmounts();
   await ensureReconciliationSchema();
   const sql = getSql();
   const [transactionRows, ledgerRows] = await Promise.all([
@@ -54,6 +56,7 @@ export async function listBankReconciliationItems(userId: string, monthKey: stri
         and l.month_key = ${monthKey}
         and l.entry_kind = 'transaction'
         and l.is_paid = false
+        and l.amount_pending = false
         and not exists (
           select 1 from transactions t
           where t.monthly_ledger_entry_id = l.id and t.reconciliation_status = 'matched'
@@ -83,6 +86,7 @@ export async function listBankReconciliationItems(userId: string, monthKey: stri
 }
 
 export async function reconcileBankTransaction(userId: string, transactionId: string, ledgerEntryId: string) {
+  await ensureIncomeAmounts();
   await ensureReconciliationSchema();
   const sql = getSql();
   const rows = await sql`
@@ -93,6 +97,7 @@ export async function reconcileBankTransaction(userId: string, transactionId: st
       select l.id from monthly_ledger l
       where l.id = ${ledgerEntryId} and l.user_id = ${userId}
         and l.entry_kind = 'transaction' and l.is_paid = false
+        and l.amount_pending = false
         and exists (select 1 from source_transaction)
     ), completed_ledger as (
       update monthly_ledger l

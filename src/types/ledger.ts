@@ -11,6 +11,7 @@ export type FixedTemplate = {
   name: string;
   type: LedgerItemType;
   amount: number;
+  amount_pending?: boolean;
   frequency: RecurringFrequency;
   day_of_month: number | null;
   is_active: boolean;
@@ -30,6 +31,7 @@ export type MonthlyLedgerEntry = {
   name: string;
   type: LedgerItemType;
   amount: number;
+  amount_pending?: boolean;
   category: string;
   is_from_template: boolean;
   template_id: string | null;

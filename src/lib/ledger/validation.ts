@@ -9,24 +9,27 @@ export const ledgerCreateSchema = z.object({
   name: text(120),
   type: z.enum(["income", "expense"]),
   amount: z.number().finite().min(0).max(10_000_000),
+  amountPending: z.boolean().optional(),
   isVariable: z.boolean().optional(),
   category: text(80).optional(),
   notes: z.string().trim().max(2_000).optional(),
   entryKind: z.enum(["transaction", "cash_withdrawal"]).optional(),
   paymentMethod: z.enum(["bank", "card", "cash"]).optional(),
   dueDate: dueDate.optional(),
-}).strict();
+}).strict().refine((value) => !value.amountPending || (value.type === "income" && value.amount === 0 && value.entryKind !== "cash_withdrawal"), "סכום חסר מותר להכנסה בלבד");
 
 export const ledgerUpdateSchema = z.object({
   name: text(120).optional(),
   amount: z.number().finite().min(0).max(10_000_000).optional(),
+  amountPending: z.boolean().optional(),
   category: text(80).optional(),
   notes: z.string().trim().max(2_000).nullable().optional(),
   isPaid: z.boolean().optional(),
   paymentMethod: z.enum(["bank", "card", "cash"]).optional(),
   isVariable: z.boolean().optional(),
   dueDate: dueDate.optional(),
-}).strict().refine((value) => Object.keys(value).length > 0, "נדרש לפחות שדה אחד לעדכון");
+}).strict().refine((value) => Object.keys(value).length > 0, "נדרש לפחות שדה אחד לעדכון")
+  .refine((value) => !value.amountPending || ((value.amount === undefined || value.amount === 0) && value.isPaid !== true), "יש להזין סכום לפני אישור ההכנסה");
 
 export const categoryOrderSchema = z.object({
   monthKey,
