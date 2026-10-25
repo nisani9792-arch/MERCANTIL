@@ -246,7 +246,7 @@ export function MonthWorkspace() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-4 pb-24">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs font-bold uppercase tracking-[.16em] text-primary">ניהול שוטף</p><h1 className="mt-1 text-2xl font-black">תנועות החודש</h1></div><div className="flex gap-2 sm:w-auto"><button type="button" disabled={monthTemplateMut.isPending || !data?.summary.initialized} onClick={() => { if (window.confirm("לשמור את כל תנועות החודש כתבניות לחודשים הבאים? התנועות הנוכחיות לא ישתנו.")) monthTemplateMut.mutate(); }} className="flex min-h-11 items-center gap-2 rounded-xl border border-primary/30 px-3 text-xs font-bold text-primary disabled:opacity-50"><LayoutTemplate className="h-4 w-4" />{monthTemplateMut.isPending ? "שומר…" : "שמור חודש כתבנית"}</button><div className="min-w-0 flex-1 sm:w-72"><MonthNavigator /></div></div></div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-xs font-bold uppercase tracking-[.16em] text-primary">התכנון החודשי</p><h1 className="mt-1 text-2xl font-black">הכנסות והוצאות החודש</h1></div><div className="flex gap-2 sm:w-auto"><button type="button" disabled={monthTemplateMut.isPending || !data?.summary.initialized} onClick={() => { if (window.confirm("לשמור את כל תנועות החודש כתבניות לחודשים הבאים? התנועות הנוכחיות לא ישתנו.")) monthTemplateMut.mutate(); }} className="flex min-h-11 items-center gap-2 rounded-xl border border-primary/30 px-3 text-xs font-bold text-primary disabled:opacity-50"><LayoutTemplate className="h-4 w-4" />{monthTemplateMut.isPending ? "שומר…" : "שמור חודש כתבנית"}</button><div className="min-w-0 flex-1 sm:w-72"><MonthNavigator /></div></div></div>
       <SmartEntryBar onParsed={(mode) => { setSheetMode(mode); setSheetOpen(true); }} />
       {saveMessage && <p role="status" className="rounded-xl bg-success-container px-4 py-3 text-sm font-bold text-success">{saveMessage}</p>}
       {(saveMut.isError || deleteMut.isError) && <p role="alert" className="m3-error">השמירה לא אושרה. הנתונים נשארו בטופס — נסה שוב.</p>}
@@ -256,6 +256,7 @@ export function MonthWorkspace() {
         initialized={data?.summary.initialized ?? false}
       />
 
+      <details className="finance-panel"><summary className="cursor-pointer py-2 font-bold">כלים מתקדמים · ביצוע ובנק</summary><div className="mt-4 space-y-4">
       <OpenItemsRollover monthKey={monthKey} onComplete={(message) => showSaveMessage(message, 3500)} />
 
       <PeriodCorrectionCard monthKey={monthKey} onComplete={(message) => showSaveMessage(message, 3500)} />
@@ -263,6 +264,7 @@ export function MonthWorkspace() {
       <BankReconciliationPanel monthKey={monthKey} />
 
       <CashflowCyclePanel monthKey={monthKey} />
+      </div></details>
 
       {data?.summary.initialized && <BudgetStrip summary={data.summary} />}
 

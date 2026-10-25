@@ -10,18 +10,18 @@ type BudgetStripProps = {
 
 export function BudgetStrip({ summary }: BudgetStripProps) {
   const items = [
-    { label: "הכנסה", value: summary.totalIncome, tone: "text-success" },
+    { label: "הכנסות שהוזנו", value: summary.totalIncome, tone: "text-success" },
     { label: "קבוע", value: summary.totalFixedExpenses, tone: "text-on-surface" },
     { label: "משתנה", value: summary.totalVariableExpenses, tone: "text-on-surface-variant" },
     {
-      label: "נשאר",
+      label: "יתרה מהזנה",
       value: summary.disposableRemaining,
       tone: summary.disposableRemaining >= 0 ? "text-primary" : "text-error",
     },
   ];
 
   return (
-    <div className="grid grid-cols-4 gap-1.5">
+    <div><p className="mb-2 text-xs text-on-surface-variant">סיכום הרישומים בלבד · הערכת המחיה כלולה בתכנון שבמסך הבית.</p><div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
       {items.map((item) => (
         <div
           key={item.label}
@@ -33,6 +33,6 @@ export function BudgetStrip({ summary }: BudgetStripProps) {
           </p>
         </div>
       ))}
-    </div>
+    </div></div>
   );
 }

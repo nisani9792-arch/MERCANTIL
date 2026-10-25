@@ -162,6 +162,7 @@ export async function DELETE(request: Request) {
 
   const sql = getSql();
   const { hasPatterns, hasLegacyTemplates } = await getOptionalTables();
+  const planningTable = await sql`select to_regclass('public.monthly_planning_estimates') as name`;
   const before = await sql`
     select count(*)::int as entries, count(distinct month_key)::int as months
     from monthly_ledger where user_id = ${session.userId}
@@ -173,6 +174,7 @@ export async function DELETE(request: Request) {
       ...(hasPatterns ? [sql`delete from ai_merchant_patterns where user_id = ${session.userId}`] : []),
       sql`delete from transactions where user_id = ${session.userId}`,
       sql`delete from monthly_ledger where user_id = ${session.userId}`,
+      ...(planningTable[0]?.name ? [sql`delete from monthly_planning_estimates where user_id = ${session.userId}`] : []),
       sql`delete from fixed_templates where user_id = ${session.userId}`,
       ...(hasLegacyTemplates ? [sql`delete from recurring_templates where user_id = ${session.userId}`] : []),
       sql`delete from categories where user_id = ${session.userId}`,

@@ -1,162 +1,57 @@
 "use client";
-
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { ArrowDownLeft, ArrowUpRight, ChevronLeft, CircleCheck, Clock3, Landmark, Plus, TrendingDown, TrendingUp, WalletCards } from "lucide-react";
-import { AiInsightPanel } from "@/components/bank/AiInsightPanel";
-import { CashflowChart, CategoryChart } from "@/components/bank/FinancialCharts";
 import { MonthNavigator } from "@/components/ui/MonthNavigator";
-import { MonthlyShareButton } from "@/components/bank/MonthlyShareButton";
-import { fetchLive } from "@/lib/api/fetch-live";
+import { CashflowChart, CategoryChart } from "@/components/bank/FinancialCharts";
+import { fetchLive, mutateLive } from "@/lib/api/fetch-live";
+import { monthlyPlan } from "@/lib/ledger/planning";
 import { formatCurrency } from "@/lib/utils/format";
-import type { AnalyticsPayload, MonthlyLedgerEntry, MonthSummary } from "@/types/ledger";
+import type { AnalyticsPayload, MonthlyLedgerEntry } from "@/types/ledger";
 import { useMonthStore } from "@/stores/useMonthStore";
 
-type LedgerPayload = {
-  entries: MonthlyLedgerEntry[];
-  summary: { initialized: boolean };
-};
-
 export function DashboardView() {
-  const monthKey = useMonthStore((s) => s.monthKey);
-
-  const { data, isLoading } = useQuery({
-    queryKey: ["analytics", monthKey],
-    queryFn: () => fetchLive<AnalyticsPayload>(`/api/analytics?month=${monthKey}`),
-    staleTime: 30_000,
-  });
-
-  const { data: ledger } = useQuery({
-    queryKey: ["ledger", monthKey],
-    queryFn: () => fetchLive<LedgerPayload>(`/api/ledger?month=${monthKey}`),
-    staleTime: 30_000,
-  });
-
-  return (
-    <div className="mx-auto max-w-[1440px] space-y-5 pb-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary">מרכז שליטה פיננסי</p>
-          <h1 className="mt-1 text-2xl font-black tracking-tight text-on-surface sm:text-3xl">מה מצב הכסף שלי?</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="min-w-0 flex-1 sm:w-64"><MonthNavigator /></div>
-          <Link href="/month?action=add" className="flex h-12 shrink-0 items-center gap-2 rounded-2xl bg-primary px-4 text-sm font-bold text-on-primary shadow-elevation-1">
-            <Plus className="h-5 w-5" /><span className="hidden sm:inline">תנועה חדשה</span>
-          </Link>
-        </div>
-      </div>
-
-      {isLoading && (
-        <p className="text-center text-sm text-on-surface-variant">טוען...</p>
-      )}
-
-      {data?.summary.initialized && (
-        <>
-          <section className="finance-hero overflow-hidden rounded-[28px] p-5 text-white sm:p-7">
-            <div className="grid gap-6 lg:grid-cols-[1.15fr_.85fr] lg:items-end">
-              <div>
-                <div className="flex items-center gap-2 text-sm text-white/70"><Landmark className="h-4 w-4" />תחזית לסוף החודש</div>
-                <p className="mt-3 text-4xl font-black tracking-tight sm:text-6xl" dir="ltr">{formatCurrency(data.summary.disposableRemaining)}</p>
-                <div className="mt-5 flex flex-wrap gap-x-7 gap-y-3 text-sm">
-                  <Metric icon={ArrowDownLeft} label="הכנסות מתוכננות" value={data.summary.totalIncome} tone="text-emerald-300" />
-                  <Metric icon={ArrowUpRight} label="הוצאות מתוכננות" value={data.summary.totalFixedExpenses + data.summary.totalVariableExpenses} tone="text-sky-300" />
-                </div>
-              </div>
-              <div className="rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm">
-                <div className="flex items-center justify-between text-sm"><span className="text-white/70">ביצוע בפועל</span><span className="font-bold">{data.summary.totalIncome > 0 ? Math.min(100, Math.max(0, data.summary.actualExpenses / data.summary.totalIncome * 100)).toFixed(0) : 0}% מההכנסה</span></div>
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-gradient-to-l from-emerald-400 to-cyan-400" style={{ width: `${data.summary.totalIncome > 0 ? Math.min(100, data.summary.actualExpenses / data.summary.totalIncome * 100) : 0}%` }} /></div>
-                <div className="mt-4 grid grid-cols-2 gap-4"><div><span className="text-xs text-white/60">נטו בפועל</span><p className="mt-1 text-xl font-black" dir="ltr">{formatCurrency(data.summary.actualNet)}</p></div><div><span className="text-xs text-white/60">עוד צפוי לרדת</span><p className="mt-1 text-xl font-black" dir="ltr">{formatCurrency(Math.max(0, data.summary.totalFixedExpenses + data.summary.totalVariableExpenses - data.summary.actualExpenses))}</p></div></div>
-                {data.averages.monthsIncluded >= 2 && (
-                  <div className="mt-4 flex items-center gap-2 border-t border-white/10 pt-3 text-xs text-white/75">
-                    {data.summary.totalFixedExpenses + data.summary.totalVariableExpenses <= data.averages.avgExpense ? <TrendingDown className="h-4 w-4 text-emerald-300" /> : <TrendingUp className="h-4 w-4 text-amber-300" />}
-                    <span>ההוצאות החודש {Math.abs((data.summary.totalFixedExpenses + data.summary.totalVariableExpenses) - data.averages.avgExpense).toLocaleString("he-IL", { maximumFractionDigits: 0 })} ₪ {data.summary.totalFixedExpenses + data.summary.totalVariableExpenses <= data.averages.avgExpense ? "מתחת" : "מעל"} לממוצע שלך</span>
-                  </div>
-                )}
-              </div>
-            </div>
-            <CashflowAllocation summary={data.summary} />
-          </section>
-
-          <div className="grid gap-5 xl:grid-cols-12">
-            <section className="finance-panel xl:col-span-8">
-              <PanelTitle title="תזרים מזומנים" subtitle="הכנסות מול הוצאות — 6 חודשים" />
-              <CashflowChart data={data.trend} />
-            </section>
-            <section className="finance-panel xl:col-span-4">
-              <PanelTitle title="הוצאות לפי קטגוריה" subtitle="איפה הכסף מתרכז החודש" />
-              <CategoryChart data={data.expenseBreakdown} />
-            </section>
-
-            <section className="finance-panel xl:col-span-4">
-              <PanelTitle title="הכסף שלי" subtitle="יתרות מחושבות לפי הרישומים" />
-              <BalanceRow icon={Landmark} label="נטו הכנסות והוצאות בפועל" value={data.summary.actualNet} />
-              <BalanceRow icon={WalletCards} label="מזומן בארנק" value={data.summary.cashBalance} accent />
-              <div className="mt-3 grid grid-cols-2 gap-2 rounded-2xl bg-surface-container/60 p-3 text-center"><div><p className="text-[11px] text-on-surface-variant">נמשך</p><strong className="text-sm">{formatCurrency(data.summary.cashWithdrawnThisMonth)}</strong></div><div className="border-s border-outline-variant"><p className="text-[11px] text-on-surface-variant">שולם במזומן</p><strong className="text-sm">{formatCurrency(data.summary.cashSpentThisMonth)}</strong></div></div>
-            </section>
-            <section className="finance-panel xl:col-span-4">
-              <PanelTitle title="עוד צפוי החודש" subtitle="רישומים שעדיין לא סומנו כבוצעו" />
-              <div className="space-y-1">
-                {(ledger?.entries ?? []).filter((entry) => !entry.is_paid && entry.entry_kind === "transaction").slice(0, 5).map((entry) => <div key={entry.id} className="flex items-center gap-3 rounded-xl px-2 py-2.5 hover:bg-surface-container/50"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-warning-container text-warning"><Clock3 className="h-4 w-4" /></div><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{entry.name}</p><p className="text-[11px] text-on-surface-variant">{entry.amount_pending ? "טרם הוזן סכום" : entry.type === "income" ? "הכנסה צפויה" : "תשלום צפוי"}</p></div><strong className={entry.type === "income" ? "text-success" : "text-on-surface"} dir="ltr">{entry.amount_pending ? "—" : formatCurrency(entry.amount)}</strong></div>)}
-                {!(ledger?.entries ?? []).some((entry) => !entry.is_paid) && <div className="flex h-36 flex-col items-center justify-center text-success"><CircleCheck className="h-8 w-8" /><p className="mt-2 text-sm font-bold">הכול מעודכן</p></div>}
-              </div>
-              <Link href="/month" className="mt-3 flex items-center justify-between border-t border-outline-variant pt-3 text-sm font-bold text-primary">לכל תנועות החודש <ChevronLeft className="h-4 w-4" /></Link>
-            </section>
-            <div className="xl:col-span-4"><AiInsightPanel /></div>
-          </div>
-
-          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end"><MonthlyShareButton summary={data.summary} /><Link href="/month" className="flex min-h-[48px] items-center justify-center rounded-2xl border border-outline-variant px-5 text-sm font-semibold text-primary">עריכת החודש</Link></div>
-        </>
-      )}
-
-      {!data?.summary.initialized && !isLoading && (
-        <section className="m3-card rounded-2xl border-dashed border-primary/40 bg-primary-container/20 p-5 text-center">
-          <p className="text-sm text-on-surface-variant">החודש עדיין לא אותחל</p>
-          <Link
-            href="/month"
-            className="m3-btn-primary mt-3 inline-flex min-h-[48px] items-center px-6 py-2"
-          >
-            פתח חודש מתבנית
-          </Link>
-        </section>
-      )}
-    </div>
-  );
+  const month = useMonthStore((s) => s.monthKey);
+  const [expanded, setExpanded] = useState(false);
+  const analytics = useQuery({ queryKey: ["analytics", month], queryFn: () => fetchLive<AnalyticsPayload>(`/api/analytics?month=${month}`) });
+  const ledger = useQuery({ queryKey: ["ledger", month], queryFn: () => fetchLive<{ entries: MonthlyLedgerEntry[] }>(`/api/ledger?month=${month}`) });
+  const estimate = useQuery({ queryKey: ["planning", month], queryFn: () => fetchLive<{ amount: number | null }>(`/api/preferences/planning?month=${month}`) });
+  const summary = analytics.data?.summary;
+  const missing = ledger.data?.entries.filter((e) => e.type === "income" && e.amount_pending) ?? [];
+  const ready = analytics.isSuccess && ledger.isSuccess && estimate.isSuccess;
+  const plan = ready && summary ? monthlyPlan(summary.totalIncome, summary.totalFixedExpenses, summary.totalVariableExpenses, estimate.data.amount) : null;
+  const error = analytics.isError || ledger.isError || estimate.isError;
+  return <div className="mx-auto max-w-5xl space-y-5 pb-6">
+    <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><h1 className="text-2xl font-black sm:text-3xl">התכנון שלי</h1><p className="mt-2 text-sm text-on-surface-variant">הקבועים במקום אחד. משלימים מידע בקצב שלך.</p></div><div className="sm:w-64"><MonthNavigator /></div></header>
+    {error ? <div role="alert" className="finance-panel"><p>לא הצלחנו לטעון את התכנון. הסכומים יוצגו כשהמידע ייטען.</p><button className="m3-btn-primary mt-3 min-h-11 px-4" onClick={() => { void analytics.refetch(); void ledger.refetch(); void estimate.refetch(); }}>ניסיון חוזר</button></div> : !ready ? <p role="status">טוען את התכנון…</p> : null}
+    {ready && summary && plan && <>
+      {!summary.initialized ? <section className="finance-panel text-center"><h2 className="font-bold">מתחילים מההכנסות וההוצאות הקבועות</h2><Link className="m3-btn-primary mt-3 inline-flex min-h-12 items-center px-5" href="/month">פתיחת החודש</Link></section> : <>
+        <section className="finance-hero rounded-[28px] p-5 text-white sm:p-7"><p className="text-sm text-white/80">{missing.length || estimate.data.amount === null ? "יתרה לתכנון · תמונה חלקית" : "יתרה משוערת לתכנון"}</p><p className="mt-3 text-4xl font-black sm:text-6xl" dir="ltr">{formatCurrency(plan.remaining)}</p><p className="mt-3 text-sm text-white/80">הכנסות שהוזנו, פחות הקבועות והמשתנות בתכנון.</p><div className="mt-5 grid grid-cols-1 gap-4 border-t border-white/20 pt-4 sm:grid-cols-3"><Amount label="הכנסות שהוזנו" value={summary.totalIncome} /><Amount label="התחייבויות קבועות" value={summary.totalFixedExpenses} /><Amount label="משתנות בתכנון" value={plan.variable} /></div><p className="mt-4 text-xs text-white/70">זו אינדיקציה לפי הנתונים שהזנת, לא יתרת חשבון הבנק.</p></section>
+        {missing.length > 0 && <section className="finance-panel"><h2 className="font-bold">נותרו {missing.length} הכנסות להשלמה</h2><p className="my-2 text-sm">{missing.map((e) => e.name).join(" · ")}</p><p className="text-sm text-on-surface-variant">הסכומים החסרים אינם אפס. היתרה תתעדכן כשתמלא אותם.</p><Link href="/month" className="mt-3 inline-flex min-h-11 items-center font-bold text-primary">להשלמת הסכומים ←</Link></section>}
+        <EstimateEditor key={month} month={month} amount={estimate.data.amount} recorded={summary.totalVariableExpenses} remainder={plan.unrecordedEstimate} />
+      </>}
+      <nav aria-label="פעולות בתכנון" className="grid gap-3 sm:grid-cols-3"><Link href="/month" className="finance-panel font-bold text-primary">עריכת החודש ←</Link><Link href="/templates" className="finance-panel font-bold text-primary">הקבועים שלי ←</Link><Link href="/finance" className="finance-panel font-bold text-primary">חסכונות וחובות ←</Link></nav>
+      {summary.initialized && <section className="finance-panel"><button type="button" aria-expanded={expanded} aria-controls="planning-charts" onClick={() => setExpanded(!expanded)} className="flex min-h-11 w-full items-center justify-between font-bold">מגמות ופירוט הוצאות <span aria-hidden="true">{expanded ? "−" : "+"}</span></button>{expanded && <div id="planning-charts" className="mt-4 grid gap-5 md:grid-cols-2"><div><h2 className="font-bold">הנתונים שהוזנו לאורך החודשים</h2><p className="mb-3 text-xs text-on-surface-variant">ללא הערכת המחיה; חודשים חלקיים אינם בני השוואה מלאה.</p><CashflowChart data={analytics.data.trend} /></div><div><h2 className="mb-3 font-bold">הוצאות שהוזנו לפי קטגוריה</h2><CategoryChart data={analytics.data.expenseBreakdown} /></div></div>}</section>}
+    </>}
+  </div>;
 }
-
-function PanelTitle({ title, subtitle }: { title: string; subtitle: string }) { return <div className="mb-3"><h2 className="text-lg font-black text-on-surface">{title}</h2><p className="mt-0.5 text-xs text-on-surface-variant">{subtitle}</p></div>; }
-function Metric({ icon: Icon, label, value, tone }: { icon: typeof ArrowDownLeft; label: string; value: number; tone: string }) { return <div className="flex items-center gap-2"><Icon className={`h-5 w-5 ${tone}`} /><div><p className="text-xs text-white/60">{label}</p><strong dir="ltr">{formatCurrency(value)}</strong></div></div>; }
-function BalanceRow({ icon: Icon, label, value, accent }: { icon: typeof Landmark; label: string; value: number; accent?: boolean }) { return <div className="flex items-center gap-3 border-b border-outline-variant py-3 last:border-0"><div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${accent ? "bg-primary-container text-primary" : "bg-surface-container text-on-surface-variant"}`}><Icon className="h-5 w-5" /></div><div className="min-w-0 flex-1"><p className="text-xs text-on-surface-variant">{label}</p><strong className="text-xl" dir="ltr">{formatCurrency(value)}</strong></div></div>; }
-
-function CashflowAllocation({ summary }: { summary: MonthSummary }) {
-  const expense = summary.totalFixedExpenses + summary.totalVariableExpenses;
-  const scale = Math.max(summary.totalIncome, expense, 1);
-  const fixedPct = summary.totalFixedExpenses / scale * 100;
-  const variablePct = summary.totalVariableExpenses / scale * 100;
-  const freePct = Math.max(0, summary.totalIncome - expense) / scale * 100;
-  const deficitPct = Math.max(0, expense - summary.totalIncome) / scale * 100;
-
-  return (
-    <div className="mt-6 border-t border-white/10 pt-4">
-      <div className="mb-2 flex items-center justify-between gap-3 text-xs">
-        <span className="font-bold text-white/85">מפת התזרים המתוכנן</span>
-        <span className="text-white/55">כל שקל מקבל תפקיד</span>
-      </div>
-      <div className="flex h-3.5 overflow-hidden rounded-full bg-white/10" dir="rtl" aria-label="חלוקת ההכנסה המתוכננת">
-        <span className="bg-sky-400" style={{ width: `${fixedPct}%` }} />
-        <span className="bg-violet-400" style={{ width: `${variablePct}%` }} />
-        {freePct > 0 && <span className="bg-emerald-400" style={{ width: `${freePct}%` }} />}
-        {deficitPct > 0 && <span className="bg-rose-400" style={{ width: `${deficitPct}%` }} />}
-      </div>
-      <div className="mt-3 grid grid-cols-3 gap-2 text-[11px] sm:flex sm:gap-6">
-        <FlowLegend color="bg-sky-400" label="קבועות" value={summary.totalFixedExpenses} />
-        <FlowLegend color="bg-violet-400" label="משתנות" value={summary.totalVariableExpenses} />
-        <FlowLegend color={summary.disposableRemaining >= 0 ? "bg-emerald-400" : "bg-rose-400"} label={summary.disposableRemaining >= 0 ? "פנוי" : "חריגה"} value={Math.abs(summary.disposableRemaining)} />
-      </div>
-    </div>
-  );
+function Amount({ label, value }: { label: string; value: number }) {
+  return <div><p className="text-xs text-white/75">{label}</p><strong className="mt-1 block text-xl" dir="ltr">{formatCurrency(value)}</strong></div>;
 }
-
-function FlowLegend({ color, label, value }: { color: string; label: string; value: number }) {
-  return <div className="min-w-0"><span className="flex items-center gap-1.5 text-white/60"><i className={`h-2 w-2 shrink-0 rounded-full ${color}`} />{label}</span><strong className="mt-0.5 block truncate text-white" dir="ltr">{formatCurrency(value)}</strong></div>;
+function EstimateEditor({ month, amount, recorded, remainder }: { month: string; amount: number | null; recorded: number; remainder: number }) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const qc = useQueryClient();
+  const save = useMutation({ mutationFn: async () => {
+    const input = draft ?? (amount === null ? "" : String(amount));
+    const value = input.trim() === "" ? null : Number(input);
+    if (value !== null && (!Number.isFinite(value) || value < 0)) throw new Error("יש להזין סכום חיובי או להשאיר ריק");
+    const res = await mutateLive("/api/preferences/planning", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ month, amount: value }) });
+    if (!res.ok) throw new Error("ההערכה לא נשמרה. בדוק את הסכום ונסה שוב.");
+    return res.json() as Promise<{ amount: number | null }>;
+  }, onSuccess: (value) => { qc.setQueryData(["planning", month], value); setDraft(null); } });
+  return <section className="finance-panel"><h2 className="text-lg font-bold">הערכה למחיה וקניות</h2><p className="mt-1 text-sm text-on-surface-variant">סכום כללי לכל ההוצאות המשתנות בחודש הזה. אין צורך להזין כל קנייה.</p>
+    <form className="mt-4 flex flex-wrap items-end gap-3" onSubmit={(e) => { e.preventDefault(); save.mutate(); }}><label className="min-w-0 flex-1 text-sm">הערכה חודשית בש״ח — אופציונלי<input disabled={save.isPending} value={draft ?? (amount === null ? "" : String(amount))} onChange={(e) => { setDraft(e.target.value); save.reset(); }} type="number" inputMode="decimal" min="0" max="999999999" step="0.01" placeholder="טרם הוזנה הערכה" className="mt-1 block min-h-12 w-full rounded-xl border border-outline-variant bg-surface px-3" /></label><button disabled={save.isPending} className="m3-btn-primary min-h-12 px-5">{save.isPending ? "שומר…" : "שמירת הערכה"}</button></form>
+    <p className="mt-3 text-xs text-on-surface-variant">{amount === null ? "טרם הוזנה הערכה. כרגע נספרות רק ההוצאות המשתנות שהזנת." : `הוזנו ${formatCurrency(recorded)} בהוצאות משתנות; עוד ${formatCurrency(remainder)} נכללים בהערכה. אם ההוצאות שהזנת עוברות את ההערכה, הסכום הגבוה קובע.`}</p><p className="mt-2 text-xs text-on-surface-variant">כל ההוצאות שמסומנות ״משתנות״ נכללות בהערכה הזו, ללא תוספת כפולה. ריק פירושו לא ידוע; 0 הוא הערכה מפורשת.</p>
+    {save.isError && <p role="alert" className="mt-2 text-error">{save.error.message}</p>}{save.isSuccess && <p role="status" className="mt-2 text-success">ההערכה נשמרה</p>}
+  </section>;
 }
