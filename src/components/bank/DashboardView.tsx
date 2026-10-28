@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import { InitMonthPanel } from "@/components/ledger/InitMonthPanel";
 import { MonthNavigator } from "@/components/ui/MonthNavigator";
 import { CashflowChart, CategoryChart } from "@/components/bank/FinancialCharts";
 import { fetchLive, mutateLive } from "@/lib/api/fetch-live";
@@ -24,7 +25,7 @@ export function DashboardView() {
     <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><h1 className="text-2xl font-black sm:text-3xl">התכנון שלי</h1><p className="mt-2 text-sm text-on-surface-variant">הקבועים במקום אחד. משלימים מידע בקצב שלך.</p></div><div className="sm:w-64"><MonthNavigator /></div></header>
     {error ? <div role="alert" className="finance-panel"><p>לא הצלחנו לטעון את התכנון. הסכומים יוצגו כשהמידע ייטען.</p><button className="m3-btn-primary mt-3 min-h-11 px-4" onClick={() => { void analytics.refetch(); void ledger.refetch(); void estimate.refetch(); }}>ניסיון חוזר</button></div> : !ready ? <p role="status">טוען את התכנון…</p> : null}
     {ready && summary && plan && <>
-      {!summary.initialized ? <section className="finance-panel text-center"><h2 className="font-bold">מתחילים מההכנסות וההוצאות הקבועות</h2><Link className="m3-btn-primary mt-3 inline-flex min-h-12 items-center px-5" href="/month">פתיחת החודש</Link></section> : <>
+      {!summary.initialized ? <InitMonthPanel monthKey={month} initialized={false} /> : <>
         <section aria-label="סיכום התכנון" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Amount label="יתרה לתכנון" value={plan.remaining} featured />
           <Amount label="הכנסות שהוזנו" value={summary.totalIncome} />
@@ -35,13 +36,14 @@ export function DashboardView() {
           <p>{missing.length || estimate.data.amount === null ? "תמונה חלקית · לפי הסכומים שהוזנו" : "הערכה לפי התכנון החודשי"} · לא יתרת בנק</p>
           {missing.length > 0 && <Link href="/month" className="inline-flex min-h-10 items-center font-bold text-primary">{missing.length === 1 ? "הכנסה אחת להשלמה" : missing.length + " הכנסות להשלמה"} ←</Link>}
         </div>
-        <div className="grid gap-4 lg:grid-cols-2">
-          <section className="finance-panel min-w-0"><h2 className="text-lg font-bold">הכנסות מול הוצאות</h2><p className="mb-4 mt-1 text-xs text-on-surface-variant">הרישומים שלך לאורך 6 חודשים</p><CashflowChart data={analytics.data.trend} /></section>
-          <section className="finance-panel min-w-0"><h2 className="text-lg font-bold">חלוקת ההוצאות</h2><p className="mb-4 mt-1 text-xs text-on-surface-variant">לפי הקטגוריות שהזנת החודש</p><CategoryChart data={analytics.data.expenseBreakdown} /></section>
-        </div>
-        <p className="text-xs text-on-surface-variant">התרשימים מציגים רישומים בלבד, ללא הערכת המחיה. חודשים חלקיים עשויים להשתנות.</p>
         <details className="finance-panel"><summary className="cursor-pointer py-2 text-sm font-bold">הערכה למחיה וקניות <span className="font-normal text-on-surface-variant">· {estimate.data.amount === null ? "לא הוגדרה" : formatCurrency(estimate.data.amount)}</span></summary><div className="border-t border-outline-variant pt-4"><EstimateEditor key={month} month={month} amount={estimate.data.amount} recorded={summary.totalVariableExpenses} remainder={plan.unrecordedEstimate} /></div></details>
       </>}
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          <section className="finance-panel min-w-0"><h2 className="text-lg font-bold">הכנסות מול הוצאות</h2><p className="mb-4 mt-1 text-xs text-on-surface-variant">רק חודשים עם רישומים מוצגים</p><CashflowChart data={analytics.data.trend} /></section>
+          <section className="finance-panel min-w-0"><h2 className="text-lg font-bold">חלוקת ההוצאות</h2><p className="mb-4 mt-1 text-xs text-on-surface-variant">לפי הקטגוריות שהזנת החודש</p><CategoryChart data={analytics.data.expenseBreakdown} /></section>
+        </div>
+        <p className="text-xs text-on-surface-variant">נצברו {analytics.data.trend.filter((point) => point.hasData !== false).length} חודשים עם נתונים. ממוצעים לפי פריט מופיעים ברשימת ההיסטוריה אחרי 3 חודשי רישום. התרשימים מציגים רישומים בלבד, ללא הערכת המחיה. חודשים חלקיים עשויים להשתנות.</p>
       <nav aria-label="פעולות בתכנון" className="flex flex-wrap gap-2"><Link href="/month" className="inline-flex min-h-11 items-center rounded-xl border border-outline-variant px-4 text-sm font-bold text-primary">עריכת החודש ←</Link><Link href="/templates" className="inline-flex min-h-11 items-center rounded-xl border border-outline-variant px-4 text-sm font-bold text-primary">הקבועים שלי ←</Link><Link href="/finance" className="inline-flex min-h-11 items-center rounded-xl border border-outline-variant px-4 text-sm font-bold text-primary">חסכונות וחובות ←</Link></nav>
     </>}
   </div>;

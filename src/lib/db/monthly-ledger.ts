@@ -313,7 +313,8 @@ export async function initMonthFromTemplates(
   await ensureIncomeAmounts();
   const sql = getSql();
   const chosenIds = Array.from(new Set((templateIds ?? []).filter((id) => /^[0-9a-f-]{36}$/i.test(id))));
-  if (templateIds && chosenIds.length === 0) return { created: 0, skipped: true };
+  // A new month is always empty until the user explicitly chooses items.
+  if (chosenIds.length === 0) return { created: 0, skipped: true };
   // One atomic statement copies only missing templates. The unique index on
   // user/month/template also makes repeated or concurrent taps idempotent.
   const rows = await sql`insert into monthly_ledger (

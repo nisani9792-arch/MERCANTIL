@@ -27,10 +27,12 @@ function compact(value: number) {
 
 export function CashflowChart({ data }: { data: MonthTrendPoint[] }) {
   const [view, setView] = useState<"flow" | "net">("flow");
-  const chartData = data.map((point) => ({
+  const chartData = data.filter((point) => point.hasData !== false).map((point) => ({
     ...point,
     label: formatMonthLabel(point.monthKey).replace(/ \d{4}$/, ""),
   }));
+
+  if (!chartData.length) return <div className="flex h-60 items-center justify-center text-sm text-on-surface-variant">המגמות יופיעו כאן ככל שתוסיף נתונים.</div>;
 
   return (
     <div className="w-full">

@@ -51,6 +51,7 @@ export async function getSixMonthTrend(
     const p = byKey.get(monthKey) ?? { income: 0, expense: 0 };
     return {
       monthKey,
+      hasData: byKey.has(monthKey),
       income: p.income,
       expense: p.expense,
       net: p.income - p.expense,
@@ -90,7 +91,7 @@ export async function getHistoricalAverages(
 export function getHistoricalAveragesFromTrend(
   trend: MonthTrendPoint[],
 ): HistoricalAverages {
-  const withData = trend.filter((t) => t.income > 0 || t.expense > 0);
+  const withData = trend.filter((t) => t.hasData ?? (t.income > 0 || t.expense > 0));
   const divisor = withData.length || 1;
   const avgIncome =
     withData.reduce((s, t) => s + t.income, 0) / divisor;

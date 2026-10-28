@@ -68,6 +68,7 @@ export type MonthSummary = {
 
 export type MonthTrendPoint = {
   monthKey: string;
+  hasData?: boolean;
   income: number;
   expense: number;
   net: number;

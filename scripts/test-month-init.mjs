@@ -29,7 +29,7 @@ function loadLedger(created) {
 
 test("initialization returns the inserted count", async () => {
   const ledger = loadLedger(3);
-  const result = await ledger.init("test-user", "2026-09");
+  const result = await ledger.init("test-user", "2026-09", ["11111111-1111-1111-1111-111111111111"]);
   assert.equal(result.created, 3);
   assert.equal(result.skipped, false);
   assert.match(ledger.query().text, /insert into monthly_ledger/);
@@ -37,7 +37,7 @@ test("initialization returns the inserted count", async () => {
 
 test("existing monthly edits are never updated; only missing templates are copied", async () => {
   const ledger = loadLedger(1);
-  await ledger.init("test-user", "2026-10");
+  await ledger.init("test-user", "2026-10", ["11111111-1111-1111-1111-111111111111"]);
   const query = ledger.query();
   assert.match(query.text, /not exists/);
   assert.match(query.text, /e.template_id = t.id/);
@@ -48,7 +48,12 @@ test("existing monthly edits are never updated; only missing templates are copie
 });
 
 test("no eligible new templates produces an explicit skipped result", async () => {
-  const result = await loadLedger(0).init("test-user", "2026-09");
+  const result = await loadLedger(0).init("test-user", "2026-09", ["11111111-1111-1111-1111-111111111111"]);
   assert.equal(result.created, 0);
   assert.equal(result.skipped, true);
+});
+
+test("a new month stays empty without an explicit selection", async () => {
+ const ledger = loadLedger(3); const result=await ledger.init("test-user", "2026-11");
+ assert.equal(result.created,0); assert.equal(result.skipped,true); assert.equal(ledger.query(),undefined);
 });
