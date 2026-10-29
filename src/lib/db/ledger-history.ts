@@ -18,25 +18,27 @@ export async function listHistoryChoices(userId: string, month: string) {
       select *, lower(trim(name)) as item_key from monthly_ledger
       where user_id = ${userId} and month_key < ${month} and entry_kind = 'transaction'
     ), latest as (
-      select distinct on (item_key, type) * from previous
-      order by item_key, type, month_key desc, updated_at desc, id
+      select distinct on (item_key, type, is_variable, payment_method) * from previous
+      order by item_key, type, is_variable, payment_method, month_key desc, updated_at desc, id
     ), monthly as (
-      select item_key, type, month_key, sum(amount) as amount,
+      select item_key, type, is_variable, payment_method, month_key, sum(amount) as amount,
         bool_or(amount_pending) as pending
       from previous where month_key >= to_char(to_date(${month} || '-01', 'YYYY-MM-DD') - interval '6 months', 'YYYY-MM')
-      group by item_key, type, month_key
+      group by item_key, type, is_variable, payment_method, month_key
     ), patterns as (
-      select item_key, type, count(*) filter(where not pending)::int as samples,
+      select item_key, type, is_variable, payment_method, count(*) filter(where not pending)::int as samples,
         round(avg(amount) filter(where not pending), 2) as average
-      from monthly group by item_key, type
+      from monthly group by item_key, type, is_variable, payment_method
     )
     select l.id, l.name, l.type, l.amount, l.amount_pending, l.is_variable, l.category,
       l.month_key as last_month, coalesce(p.samples, 0) as samples, p.average,
       exists(select 1 from monthly_ledger current
         where current.user_id = ${userId} and current.month_key = ${month}
           and current.type = l.type and lower(trim(current.name)) = l.item_key
+          and current.is_variable = l.is_variable and current.payment_method = l.payment_method
           and current.entry_kind = 'transaction') as already_added
     from latest l left join patterns p on p.item_key = l.item_key and p.type = l.type
+      and p.is_variable = l.is_variable and p.payment_method = l.payment_method
     order by l.type desc, l.name
     limit 500`;
   return rows.map((row) => ({
@@ -56,10 +58,10 @@ export async function addFromHistory(userId: string, month: string, ids: string[
   const results = await sql.transaction([
     sql`select pg_advisory_xact_lock(hashtextextended(${userId + ":" + month}, 0))`,
     sql`with chosen as (
-      select distinct on (lower(trim(name)), type) * from monthly_ledger
+      select distinct on (lower(trim(name)), type, is_variable, payment_method) * from monthly_ledger
       where user_id = ${userId} and month_key < ${month} and entry_kind = 'transaction'
         and id = any(${ids}::uuid[])
-      order by lower(trim(name)), type, month_key desc, updated_at desc, id
+      order by lower(trim(name)), type, is_variable, payment_method, month_key desc, updated_at desc, id
     )
     insert into monthly_ledger(user_id, month_key, name, type, amount, amount_pending,
       category, is_from_template, template_id, is_variable, is_paid, notes,
@@ -76,6 +78,7 @@ export async function addFromHistory(userId: string, month: string, ids: string[
     from chosen s where not exists (
       select 1 from monthly_ledger e where e.user_id = ${userId} and e.month_key = ${month}
         and e.entry_kind = 'transaction' and e.type = s.type and lower(trim(e.name)) = lower(trim(s.name))
+        and e.is_variable = s.is_variable and e.payment_method = s.payment_method
     ) on conflict do nothing returning id`,
   ]);
   return { created: results[1].length };
