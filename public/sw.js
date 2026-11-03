@@ -1,4 +1,4 @@
-const CACHE = "mercantil-v10";
+const CACHE = "mercantil-v11";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(self.skipWaiting());
