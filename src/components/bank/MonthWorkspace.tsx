@@ -610,7 +610,23 @@ export function MonthWorkspace() {
         onTogglePaid={
           sheetMode?.kind === "edit"
             ? async () => {
-          …134 tokens truncated…r ? saveMut.error.message : undefined}
+                await togglePaidMut.mutateAsync(sheetMode.entry);
+              }
+            : undefined
+        }
+        onCreateTemplate={
+          sheetMode?.kind === "edit"
+            ? async ({ frequency, dayOfMonth }) => {
+                return createTemplateMut.mutateAsync({
+                  entryId: sheetMode.entry.id,
+                  frequency,
+                  dayOfMonth,
+                });
+              }
+            : undefined
+        }
+        saving={saveMut.isPending}
+        error={saveMut.isError ? saveMut.error.message : undefined}
         onSave={async (d) => {
           await saveMut.mutateAsync({
             id: sheetMode?.kind === "edit" ? sheetMode.entry.id : undefined,
