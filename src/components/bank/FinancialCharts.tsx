@@ -48,7 +48,7 @@ export function CashflowChart({ data }: { data: MonthTrendPoint[] }) {
         <BarChart data={chartData} margin={{ top: 12, right: 4, left: -12, bottom: 0 }} barGap={4}>
           <defs>
             <linearGradient id="incomeBar" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#00a878" /><stop offset="100%" stopColor="#38d9a9" /></linearGradient>
-            <linearGradient id="expenseBar" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#2878ff" /><stop offset="100%" stopColor="#74a6ff" /></linearGradient>
+            <linearGradient id="expenseBar" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#b55b50" /><stop offset="100%" stopColor="#d68b81" /></linearGradient>
           </defs>
           <CartesianGrid stroke="currentColor" strokeOpacity={0.08} vertical={false} />
           <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "currentColor", opacity: 0.55 }} />
@@ -70,7 +70,7 @@ export function CashflowChart({ data }: { data: MonthTrendPoint[] }) {
       </ResponsiveContainer>
       </div>
       <div className="mt-1 flex justify-center gap-5 text-[11px] text-on-surface-variant" dir="rtl">
-        {view === "flow" ? <><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-[#00a878]" />הכנסות</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-[#2878ff]" />הוצאות</span></> : <span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-[#00a878]" />יתרה לאחר הוצאות</span>}
+        {view === "flow" ? <><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-[#00a878]" />הכנסות</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-[#b55b50]" />הוצאות</span></> : <span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-[#00a878]" />יתרה לאחר הוצאות</span>}
       </div>
     </div>
   );

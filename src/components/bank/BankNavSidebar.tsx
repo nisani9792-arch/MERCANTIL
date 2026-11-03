@@ -1,12 +1,12 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Settings, Leaf } from "lucide-react";
+import { BarChart3, Settings } from "lucide-react";
 import { navItems } from "@/components/bank/nav-items";
 export function BankNavSidebar() {
   const pathname = usePathname();
   return (
-    <aside className="bank-sidebar sticky top-[65px] hidden h-[calc(100dvh-65px)] w-60 shrink-0 flex-col justify-between p-5 lg:flex">
+    <aside className="bank-sidebar sticky top-[65px] hidden h-[calc(100dvh-65px)] w-52 shrink-0 flex-col justify-between p-5 lg:flex">
       <div>
         <p className="mb-4 px-3 text-[10px] font-bold tracking-wider text-on-surface-variant">
           התכנון האישי שלך
@@ -23,7 +23,7 @@ export function BankNavSidebar() {
                   : undefined
               }
               className={
-                "flex min-h-16 items-center gap-3 rounded-xl px-3 py-3 " +
+                "flex min-h-12 items-center gap-3 rounded-lg px-3 py-2 " +
                 (pathname === item.href ||
                 (item.href === "/library" && pathname === "/templates")
                   ? "bg-primary-container text-primary"
@@ -33,9 +33,7 @@ export function BankNavSidebar() {
               <item.icon className="h-5 w-5 shrink-0" />
               <span>
                 <b className="block text-sm font-semibold">{item.label}</b>
-                <small className="mt-0.5 block text-[11px] opacity-80">
-                  {item.description}
-                </small>
+
               </span>
             </Link>
           ))}
@@ -59,14 +57,7 @@ export function BankNavSidebar() {
           </Link>
         </div>
       </div>
-      <div className="rounded-xl bg-surface-container-low p-4">
-        <Leaf className="mb-2 h-5 w-5 text-primary" />
-        <p className="text-xs leading-6 text-on-surface-variant">
-          קצת סדר בכל חודש.
-          <br />
-          יותר בהירות לאורך זמן.
-        </p>
-      </div>
+
     </aside>
   );
 }

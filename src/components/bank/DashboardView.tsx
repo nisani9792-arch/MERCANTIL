@@ -181,7 +181,7 @@ export function DashboardView() {
               <CategoryChart data={analytics.data.expenseBreakdown} />
             </section>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="workspace-shortcuts grid gap-3 sm:grid-cols-2">
             <Link
               href="/month"
               className="finance-panel flex items-center gap-4"

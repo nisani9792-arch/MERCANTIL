@@ -227,7 +227,7 @@ export function FinancialSnapshot() {
                 {visible.map((item) => (
                   <article
                     key={item.id}
-                    className="finance-panel flex flex-col"
+                    className="finance-panel finance-record flex flex-col"
                   >
                     <div className="mb-4 flex items-start gap-3">
                       <span className="rounded-lg bg-primary-container p-2 text-primary">

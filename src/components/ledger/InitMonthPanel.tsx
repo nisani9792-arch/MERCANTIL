@@ -229,7 +229,7 @@ function HistoryPicker({
                   <label
                     key={item.id}
                     className={
-                      "flex min-h-20 cursor-pointer items-center gap-3 p-3 " +
+                      "flex min-h-16 cursor-pointer items-center gap-3 p-3 " +
                       (item.alreadyAdded
                         ? "bg-surface-container/50 text-on-surface-variant"
                         : selected.includes(item.id)

@@ -342,14 +342,10 @@ export function MonthWorkspace() {
     <div className="workspace-page">
       <PageHeading
         title="החודש שלי"
-        description="רשימה אחת ברורה. מוסיפים רק את מה שרלוונטי לחודש הזה."
+        description="הכנסות, הוצאות ומה שצריך להשלים החודש."
         action={
-          <div className="workspace-month-picker">
-            <MonthNavigator />
-          </div>
-        }
-      />
-      <div className="workspace-toolbar">
+          <div className="month-heading-actions">
+            <div className="workspace-month-picker"><MonthNavigator /></div>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
@@ -359,16 +355,29 @@ export function MonthWorkspace() {
             <Plus className="h-4 w-4" />
             {view === "income" ? "הכנסה חדשה" : "הוצאה חדשה"}
           </button>
-          <Link href="/library" className="workspace-button">
-            <Library className="h-4 w-4" />
-            בחירה מהספרייה
-          </Link>
-          <Link href="/templates" className="workspace-button">טעינת חודש מתבנית</Link>
+          <details className="workspace-source-menu"
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.currentTarget.open = false;
+                event.currentTarget.querySelector("summary")?.focus();
+              }
+            }}
+            onBlur={(event) => {
+              if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false;
+            }}
+          >
+            <summary className="workspace-button cursor-pointer list-none">
+              <Library className="h-4 w-4" /> מהספרייה <span aria-hidden="true">⌄</span>
+            </summary>
+            <div className="workspace-source-options">
+              <Link href="/library"><b>מחודשים קודמים</b><small>בחירת פריטים מההיסטוריה</small></Link>
+              <Link href="/templates"><b>טעינת חודש מתבנית</b><small>בחירת פריטים והעתקת סכומים</small></Link>
+            </div>
+          </details>
         </div>
-        <span className="workspace-muted hidden sm:inline">
-          חודש חדש מתחיל ריק
-        </span>
-      </div>
+          </div>
+        }
+      />
       {saveMessage && (
         <p role="status" className="workspace-notice">
           {saveMessage}
@@ -509,6 +518,7 @@ export function MonthWorkspace() {
           </>
         )
       )}
+      <div className="workspace-tools" aria-label="כלי עבודה נוספים">
       <details className="finance-panel">
         <summary className="cursor-pointer text-sm font-semibold">
           הוספה בשפה חופשית
@@ -594,6 +604,7 @@ export function MonthWorkspace() {
           ))}
         </div>
       </details>
+      </div>
       <LedgerBottomSheet
         open={sheetOpen}
         mode={sheetMode}
