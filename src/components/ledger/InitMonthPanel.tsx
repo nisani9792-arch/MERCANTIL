@@ -271,7 +271,7 @@ function HistoryPicker({
                           <Check className="h-4 w-4" />
                           כבר נוסף
                         </span>
-                      ) : item.type === "income" ? (
+                      ) : item.type === "income" || item.amountPending ? (
                         "סכום להשלמה"
                       ) : (
                         <span dir="ltr">{formatCurrency(item.amount)}</span>
