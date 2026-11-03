@@ -30,14 +30,16 @@ export function StatCard({
   value,
   note,
   featured = false,
+  tone,
 }: {
   label: string;
   value: number | null;
   note?: string;
   featured?: boolean;
+  tone?: "income" | "expense";
 }) {
   return (
-    <div className={"stat-card" + (featured ? " stat-card-featured" : "")}>
+    <div data-flow={tone} className={"stat-card" + (featured ? " stat-card-featured" : "")}>
       <span>{label}</span>
       <strong dir="ltr">{value === null ? "—" : formatCurrency(value)}</strong>
       {note && <small>{note}</small>}

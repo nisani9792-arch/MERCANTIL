@@ -395,9 +395,10 @@ export function MonthWorkspace() {
         data && (
           <>
             <div className="month-summary grid grid-cols-3 gap-2 sm:gap-3">
-              <StatCard label="הכנסות" value={data.summary.totalIncome} />
+              <StatCard tone="income" label="הכנסות" value={data.summary.totalIncome} />
               <StatCard
                 label="הוצאות"
+                tone="expense"
                 value={
                   data.summary.totalFixedExpenses +
                   data.summary.totalVariableExpenses
@@ -425,6 +426,7 @@ export function MonthWorkspace() {
                 ).map(([key, label, count]) => (
                   <button
                     key={key}
+                    data-flow={key}
                     role="tab"
                     aria-selected={view === key}
                     aria-controls="month-items"

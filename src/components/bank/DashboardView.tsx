@@ -104,6 +104,7 @@ export function DashboardView() {
                 />
                 <StatCard
                   label="הכנסות שהוזנו"
+                  tone="income"
                   value={summary.totalIncome}
                   note={
                     missing.some((e) => e.type === "income") ? "יש סכומים להשלמה" : "לפי הרישומים שלך"
@@ -111,11 +112,13 @@ export function DashboardView() {
                 />
                 <StatCard
                   label="הוצאות קבועות"
+                  tone="expense"
                   value={summary.totalFixedExpenses}
                   note="חשבונות והתחייבויות"
                 />
                 <StatCard
                   label="הוצאות משתנות בתכנון"
+                  tone="expense"
                   value={plan.variable}
                   note={
                     estimate.data.amount === null

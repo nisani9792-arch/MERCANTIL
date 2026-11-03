@@ -20,17 +20,14 @@ export function TransactionCard({
   const status = paymentStatus(entry),
     done = status === "completed";
   return (
-    <article className="m3-tx-card relative flex min-h-20 items-center gap-3 bg-surface-container-lowest px-4 py-3">
+    <article data-flow={entry.entry_kind === "cash_withdrawal" ? "transfer" : entry.type}
+      data-pending={!!entry.amount_pending}
+      className="m3-tx-card ledger-row relative flex min-h-20 items-center gap-3 bg-surface-container-lowest px-4 py-3">
       <span
-        className={
-          "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold " +
-          (entry.type === "income"
-            ? "bg-success-container text-success"
-            : "bg-surface-container text-on-surface-variant")
-        }
+        className="ledger-direction flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-lg font-bold"
         aria-hidden="true"
       >
-        {entry.type === "income" ? "↗" : "↙"}
+        {entry.entry_kind === "cash_withdrawal" ? "⇄" : entry.type === "income" ? "↗" : "↙"}
       </span>
       <button
         onClick={onTap}
@@ -39,11 +36,12 @@ export function TransactionCard({
       >
         <span className="min-w-0">
           <b className="block truncate text-sm font-semibold">{entry.name}</b>
-          <small className="mt-1 block truncate text-[11px] text-on-surface-variant">
+          <small className="mt-1 flex items-center gap-2 text-[11px] text-on-surface-variant">
+            <span className="ledger-kind">{entry.entry_kind === "cash_withdrawal" ? "העברה" : entry.type === "income" ? "הכנסה" : "הוצאה"}</span>
+            <span className="truncate">
             {entry.entry_kind === "cash_withdrawal"
               ? "העברה למזומן"
-              : entry.category +
-                " · " +
+              : (entry.category !== entry.name ? entry.category + " · " : "") +
                 (entry.is_variable ? "משתנה" : "קבועה")}
             {entry.amount_pending
               ? " · סכום להשלמה"
@@ -54,16 +52,14 @@ export function TransactionCard({
                     month: "short",
                   }).format(new Date(entry.due_date + "T00:00:00"))
                 : ""}
+            </span>
           </small>
         </span>
         <strong
-          className={
-            "shrink-0 text-sm font-bold " +
-            (entry.amount_pending ? "text-primary" : "text-on-surface")
-          }
+          className="ledger-amount shrink-0 text-sm font-bold"
           dir="ltr"
         >
-          {entry.amount_pending ? "הזן סכום" : formatCurrency(entry.amount)}
+          {entry.amount_pending ? <span className="ledger-missing" dir="rtl">להשלמה</span> : formatCurrency(entry.amount)}
         </strong>
       </button>
       {onTogglePaid && (

@@ -333,3 +333,21 @@ summary::-webkit-details-marker { display: none; }
 .history-selection-bar[data-selected="true"] { position: fixed; inset-inline: 16px; bottom: calc(80px + env(safe-area-inset-bottom)); z-index: 25; padding: 12px 16px; border: 1px solid var(--m3-color-outline-variant); border-radius: 12px; background: var(--m3-color-surface-container-lowest); box-shadow: var(--m3-elevation-2); }
 .history-standalone:has(.history-selection-bar[data-selected="true"]) { padding-bottom: 100px; }
 @media (min-width: 1024px) { .history-selection-bar[data-selected="true"] { inset-inline-start: 276px; inset-inline-end: 36px; bottom: 24px; } }
+
+/* Consistent income/expense cues: colour, text and direction, never colour alone. */
+:root { --ledger-income: #126451; --ledger-income-bg: #edf8f2; --ledger-expense: #9d3b35; --ledger-expense-bg: #fff3ef; --ledger-missing: #855100; --ledger-missing-bg: #fff3d6; }
+[data-theme="dark"] { --ledger-income: #8bdfbd; --ledger-income-bg: #18382d; --ledger-expense: #ffb4a8; --ledger-expense-bg: #3e2624; --ledger-missing: #f4ce80; --ledger-missing-bg: #3c3019; }
+[data-flow="income"] { --ledger-flow: var(--ledger-income); --ledger-flow-bg: var(--ledger-income-bg); }
+[data-flow="expense"] { --ledger-flow: var(--ledger-expense); --ledger-flow-bg: var(--ledger-expense-bg); }
+[data-flow="transfer"] { --ledger-flow: var(--m3-color-on-surface-variant); --ledger-flow-bg: var(--m3-color-surface-container); }
+.workspace-list .m3-tx-card.ledger-row { border-inline-start: 3px solid var(--ledger-flow); }
+.ledger-direction, .ledger-kind { color: var(--ledger-flow); background: var(--ledger-flow-bg); }
+.ledger-kind { display: inline-block; flex-shrink: 0; padding: 2px 6px; border-radius: 5px; font-size: 10px; font-weight: 700; }
+.ledger-amount { color: var(--ledger-flow); font-variant-numeric: tabular-nums; }
+.ledger-missing { display: inline-block; background: var(--ledger-missing-bg); color: var(--ledger-missing); padding: 5px 8px; border-radius: 6px; font-size: 12px; }
+.stat-card[data-flow] { border-top: 3px solid var(--ledger-flow); background: var(--ledger-flow-bg); }
+.stat-card[data-flow] > strong { color: var(--ledger-flow); }
+.workspace-tabs button[data-flow="income"], .workspace-tabs button[data-flow="expense"] { color: var(--ledger-flow); }
+.workspace-tabs button[data-flow][aria-selected="true"] { border-bottom-color: var(--ledger-flow, var(--m3-color-primary)); background: var(--ledger-flow-bg, transparent); border-radius: 8px 8px 0 0; }
+.workspace-tabs button[data-flow] > span { color: inherit; background: var(--ledger-flow-bg, var(--m3-color-surface-container)); }
+@media (max-width: 399px) { .ledger-row { gap: 8px; padding-inline: 10px; } .ledger-direction { display: none; } }
