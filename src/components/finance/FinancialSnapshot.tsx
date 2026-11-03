@@ -1,31 +1,420 @@
 "use client";
-
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { BadgeDollarSign, BellRing, Building2, FileText, HandCoins, Landmark, Pencil, PiggyBank, Plus, ShieldCheck, Trash2, WalletCards } from "lucide-react";
+import { Plus, Search, Pencil, Building2, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { BottomSheet } from "@/components/ui/BottomSheet";
+import { PageHeading, StatCard, EmptyState } from "@/components/ui/Workspace";
+import { snapshotTotal } from "@/lib/ledger/workspace";
 import { formatCurrency } from "@/lib/utils/format";
-import type { FinancialItemKind, FinancialSnapshotItem } from "@/lib/db/financial-snapshot";
-
-type Draft = { id?: string; kind: FinancialItemKind; name: string; institution: string; amount: string; dueDate: string; notes: string };
-const empty: Draft = { kind: "account", name: "", institution: "", amount: "", dueDate: "", notes: "" };
-const labels: Record<FinancialItemKind, string> = { account: "חשבון בנק", savings: "חיסכון", deposit: "פקדון", provident_fund: "קופת גמל", pension: "פנסיה", insurance: "ביטוח", loan: "הלוואה", income_source: "מקור הכנסה", planned_expense: "הוצאה מתוכננת", reminder: "תזכורת", note: "פתק פיננסי" };
-const kinds: FinancialItemKind[] = ["account", "savings", "deposit", "provident_fund", "pension", "insurance", "loan", "income_source", "planned_expense", "reminder", "note"];
-
+import type {
+  FinancialItemKind,
+  FinancialSnapshotItem,
+} from "@/lib/db/financial-snapshot";
+type Draft = {
+  id?: string;
+  kind: FinancialItemKind;
+  name: string;
+  institution: string;
+  amount: string;
+  dueDate: string;
+  notes: string;
+};
+const empty: Draft = {
+  kind: "account",
+  name: "",
+  institution: "",
+  amount: "",
+  dueDate: "",
+  notes: "",
+};
+const labels: Record<FinancialItemKind, string> = {
+  account: "חשבון בנק",
+  savings: "חיסכון",
+  deposit: "פיקדון",
+  provident_fund: "קופת גמל",
+  pension: "פנסיה",
+  insurance: "ביטוח",
+  loan: "הלוואה",
+  income_source: "מקור הכנסה",
+  planned_expense: "הוצאה מתוכננת",
+  reminder: "תזכורת",
+  note: "פתק פיננסי",
+};
+const tabs = [
+  {
+    key: "assets",
+    label: "נכסים וחסכונות",
+    kinds: ["account", "savings", "deposit", "provident_fund", "pension"],
+  },
+  {
+    key: "debts",
+    label: "חובות והתחייבויות",
+    kinds: ["loan", "insurance", "planned_expense"],
+  },
+  { key: "income", label: "מקורות הכנסה", kinds: ["income_source"] },
+  { key: "notes", label: "תזכורות ופתקים", kinds: ["reminder", "note"] },
+] as const;
 export function FinancialSnapshot() {
-  const qc = useQueryClient(); const [draft, setDraft] = useState<Draft | null>(null); const [initial, setInitial] = useState<Draft | null>(null);
-  const { data, isLoading } = useQuery({ queryKey: ["financial-snapshot"], queryFn: async () => { const res = await fetch("/api/financial-snapshot", { cache: "no-store" }); if (!res.ok) throw new Error("failed"); return res.json() as Promise<{ items: FinancialSnapshotItem[] }>; } });
-  const save = useMutation({ mutationFn: async (value: Draft) => { const res = await fetch(value.id ? `/api/financial-snapshot/${value.id}` : "/api/financial-snapshot", { method: value.id ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...value, amount: value.amount === "" ? null : Number(value.amount), dueDate: value.dueDate || null }) }); const body = await res.json().catch(() => ({})) as { error?: string }; if (!res.ok) throw new Error(body.error || "השמירה נכשלה"); }, onSuccess: () => { setDraft(null); setInitial(null); qc.invalidateQueries({ queryKey: ["financial-snapshot"] }); } });
-  const remove = useMutation({ mutationFn: async (id: string) => { const res = await fetch(`/api/financial-snapshot/${id}`, { method: "DELETE" }); if (!res.ok) throw new Error("מחיקה נכשלה"); }, onSuccess: () => qc.invalidateQueries({ queryKey: ["financial-snapshot"] }) });
-  const items = data?.items ?? []; const balances = items.filter((i) => ["account", "savings", "deposit", "provident_fund", "pension"].includes(i.kind)).reduce((sum, i) => sum + (i.amount ?? 0), 0); const debts = items.filter((i) => i.kind === "loan").reduce((sum, i) => sum + (i.amount ?? 0), 0); const expectedIncome = items.filter((i) => i.kind === "income_source").reduce((sum, i) => sum + (i.amount ?? 0), 0); const planned = items.filter((i) => i.kind === "planned_expense" || i.kind === "insurance").reduce((sum, i) => sum + (i.amount ?? 0), 0);
-  const edit = (item: FinancialSnapshotItem) => { const next: Draft = { id: item.id, kind: item.kind, name: item.name, institution: item.institution ?? "", amount: item.amount === null ? "" : String(item.amount), dueDate: item.due_date ?? "", notes: item.notes ?? "" }; setDraft(next); setInitial(next); };
-  return <div className="mx-auto max-w-5xl space-y-5 pb-24"><header className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold tracking-[.16em] text-primary">תמונה פיננסית אישית</p><h1 className="mt-1 text-2xl font-black">המידע שחשוב לך</h1><p className="mt-1 text-sm text-on-surface-variant">נשמר בנפרד מהתנועות והתכנון החודשי.</p></div><button type="button" onClick={() => { setDraft(empty); setInitial(empty); }} className="m3-btn-primary flex min-h-12 items-center gap-2 px-5"><Plus className="h-5 w-5" />כרטיסייה חדשה</button></header>
-    <section className="finance-hero grid gap-3 rounded-[28px] p-5 text-white sm:grid-cols-2 xl:grid-cols-4"><Stat label="נכסים וחיסכון" value={balances} /><Stat label="הלוואות" value={debts} /><Stat label="הכנסות צפויות" value={expectedIncome} /><Stat label="הוצאות וביטוחים" value={planned} /></section>
-    {isLoading ? <p className="text-center text-sm text-on-surface-variant">טוען את התמונה הפיננסית…</p> : <div className="grid gap-4 sm:grid-cols-2">{kinds.map((kind) => <Group key={kind} kind={kind} items={items.filter((item) => item.kind === kind)} onEdit={edit} onDelete={(item) => window.confirm(`למחוק את ${item.name}?`) && remove.mutate(item.id)} />)}</div>}
-    {(save.isError || remove.isError) && <p role="alert" className="m3-error">{save.error?.message ?? "הפעולה נכשלה"}</p>}
-    <BottomSheet open={Boolean(draft)} onClose={() => { setDraft(null); setInitial(null); }} title={draft?.id ? "עריכת כרטיסייה" : "כרטיסייה חדשה"} dirty={Boolean(draft && initial && JSON.stringify(draft) !== JSON.stringify(initial))} footer={draft ? <button type="button" disabled={!draft.name.trim() || save.isPending} onClick={() => save.mutate(draft)} className="m3-btn-primary min-h-[54px] w-full">{save.isPending ? "שומר…" : "שמירת הכרטיסייה"}</button> : undefined}>{draft && <Form draft={draft} setDraft={setDraft} />}</BottomSheet>
-  </div>;
+  const qc = useQueryClient();
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [initial, setInitial] = useState<Draft | null>(null);
+  const [tab, setTab] = useState("assets");
+  const [search, setSearch] = useState("");
+  const query = useQuery({
+    queryKey: ["financial-snapshot"],
+    queryFn: async () => {
+      const res = await fetch("/api/financial-snapshot", { cache: "no-store" });
+      if (!res.ok) throw new Error("failed");
+      return res.json() as Promise<{ items: FinancialSnapshotItem[] }>;
+    },
+  });
+  const save = useMutation({
+    mutationFn: async (value: Draft) => {
+      const res = await fetch(
+        value.id
+          ? "/api/financial-snapshot/" + value.id
+          : "/api/financial-snapshot",
+        {
+          method: value.id ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...value,
+            amount: value.amount === "" ? null : Number(value.amount),
+            dueDate: value.dueDate || null,
+          }),
+        },
+      );
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) throw new Error(body.error || "השמירה נכשלה");
+    },
+    onSuccess: () => {
+      setDraft(null);
+      setInitial(null);
+      void qc.invalidateQueries({ queryKey: ["financial-snapshot"] });
+    },
+  });
+  const remove = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch("/api/financial-snapshot/" + id, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("המחיקה נכשלה");
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["financial-snapshot"] }),
+  });
+  const items = query.data?.items ?? [];
+  const selected = tabs.find((t) => t.key === tab)!;
+  const visible = items.filter(
+    (i) =>
+      (selected.kinds as readonly string[]).includes(i.kind) &&
+      (i.name + " " + (i.institution ?? "") + " " + (i.notes ?? ""))
+        .toLocaleLowerCase()
+        .includes(search.trim().toLocaleLowerCase()),
+  );
+  const total = (group: readonly string[]) => snapshotTotal(items, group);
+  const missing = items.filter(
+    (i) =>
+      i.is_active &&
+      i.amount === null &&
+      i.kind !== "note" &&
+      i.kind !== "reminder",
+  ).length;
+  function open(value: Draft) {
+    save.reset();
+    setDraft(value);
+    setInitial(value);
+  }
+  const edit = (i: FinancialSnapshotItem) =>
+    open({
+      id: i.id,
+      kind: i.kind,
+      name: i.name,
+      institution: i.institution ?? "",
+      amount: i.amount === null ? "" : String(i.amount),
+      dueDate: i.due_date ?? "",
+      notes: i.notes ?? "",
+    });
+  return (
+    <div className="workspace-page">
+      <PageHeading
+        title="נכסים וחובות"
+        description="כל המידע שחשוב לשמור, מחולק לקבוצות שקל למצוא."
+        action={
+          <button
+            className="workspace-button workspace-button-primary"
+            onClick={() => open({ ...empty, kind: selected.kinds[0] })}
+          >
+            <Plus className="h-4 w-4" />
+            הוספת פריט
+          </button>
+        }
+      />
+      {query.isPending ? (
+        <p role="status" className="workspace-loading">
+          טוען מידע…
+        </p>
+      ) : query.isError ? (
+        <div role="alert" className="workspace-notice">
+          לא הצלחנו לטעון את המידע.{" "}
+          <button className="underline" onClick={() => void query.refetch()}>
+            ניסיון חוזר
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            <StatCard
+              label="נכסים וחסכונות שהוזנו"
+              value={total(tabs[0].kinds)}
+              note="כולל חסכונות ארוכי טווח"
+            />
+            <StatCard
+              label="יתרות הלוואות שהוזנו"
+              value={total(["loan"])}
+              note="לפי סכומי ההלוואות ששמרת"
+            />
+          </div>
+          {missing > 0 && (
+            <p className="workspace-muted">
+              ל־{missing} פריטים עדיין חסר סכום. הסיכומים כוללים סכומים ידועים
+              של פריטים פעילים בלבד.
+            </p>
+          )}
+          <div
+            className="workspace-tabs finance-tabs"
+            role="tablist"
+            aria-label="קבוצת מידע"
+          >
+            {tabs.map((t) => (
+              <button
+                key={t.key}
+                role="tab"
+                id={"finance-tab-" + t.key}
+                aria-controls="finance-items"
+                aria-selected={tab === t.key}
+                onClick={() => {
+                  setTab(t.key);
+                  setSearch("");
+                }}
+              >
+                {t.label}
+                <span className="ms-2 text-[11px]">
+                  {
+                    items.filter((i) =>
+                      (t.kinds as readonly string[]).includes(i.kind),
+                    ).length
+                  }
+                </span>
+              </button>
+            ))}
+          </div>
+          <label className="workspace-search">
+            <Search className="h-4 w-4 shrink-0 text-on-surface-variant" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              aria-label="חיפוש במידע הפיננסי"
+              placeholder="חיפוש שם, מוסד או הערה"
+            />
+          </label>
+          <div
+            role="tabpanel"
+            id="finance-items"
+            aria-labelledby={"finance-tab-" + tab}
+          >
+            {visible.length ? (
+              <div className="grid gap-4 md:grid-cols-2">
+                {visible.map((item) => (
+                  <article
+                    key={item.id}
+                    className="finance-panel flex flex-col"
+                  >
+                    <div className="mb-4 flex items-start gap-3">
+                      <span className="rounded-lg bg-primary-container p-2 text-primary">
+                        <Building2 className="h-4 w-4" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <h2 className="text-sm font-bold">{item.name}</h2>
+                        <p className="mt-1 text-xs text-on-surface-variant">
+                          {labels[item.kind]}
+                          {item.institution ? " · " + item.institution : ""}
+                          {!item.is_active ? " · לא פעיל" : ""}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => edit(item)}
+                        aria-label={"עריכת " + item.name}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg text-primary hover:bg-primary-container"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                    </div>
+                    {item.kind !== "note" && item.kind !== "reminder" && (
+                      <strong
+                        className="mb-3 block text-2xl font-bold"
+                        dir="ltr"
+                      >
+                        {item.amount === null
+                          ? "טרם הוזן סכום"
+                          : formatCurrency(item.amount)}
+                      </strong>
+                    )}
+                    {item.notes && (
+                      <p className="whitespace-pre-wrap break-words text-sm leading-7 text-on-surface-variant">
+                        {item.notes}
+                      </p>
+                    )}
+                    {item.due_date && (
+                      <p className="mt-3 text-xs text-primary">
+                        תאריך: {item.due_date.slice(0, 10)}
+                      </p>
+                    )}
+                    <div className="mt-auto flex justify-end pt-4">
+                      <button
+                        aria-label={"מחיקת " + item.name}
+                        onClick={() => {
+                          if (window.confirm("למחוק את " + item.name + "?"))
+                            remove.mutate(item.id);
+                        }}
+                        className="flex min-h-10 items-center gap-1.5 text-xs text-on-surface-variant hover:text-error"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        מחיקה
+                      </button>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <EmptyState
+                title={search ? "לא נמצאו פריטים" : "עוד אין כאן פריטים"}
+                description={
+                  search
+                    ? "אפשר לשנות את מילות החיפוש."
+                    : "הוסף מידע כשהוא רלוונטי לך. אין צורך למלא את כל הקבוצות."
+                }
+              />
+            )}
+          </div>
+          <p className="workspace-muted">
+            המידע כאן נשמר בנפרד מהתכנון החודשי. סכומים מתעדכנים כשאתה עורך
+            אותם.
+          </p>
+        </>
+      )}
+      {(save.isError || remove.isError) && (
+        <p role="alert" className="m3-error">
+          {save.error?.message ?? remove.error?.message}
+        </p>
+      )}
+      <BottomSheet
+        open={!!draft}
+        onClose={() => {
+          setDraft(null);
+          setInitial(null);
+        }}
+        title={draft?.id ? "עריכת פריט" : "פריט חדש"}
+        dirty={
+          !!draft &&
+          !!initial &&
+          JSON.stringify(draft) !== JSON.stringify(initial)
+        }
+        footer={
+          draft ? (
+            <button
+              disabled={
+                !draft.name.trim() ||
+                save.isPending ||
+                (draft.amount !== "" &&
+                  (!Number.isFinite(Number(draft.amount)) ||
+                    Number(draft.amount) < 0))
+              }
+              onClick={() => save.mutate(draft)}
+              className="m3-btn-primary min-h-12 w-full"
+            >
+              {save.isPending ? "שומר…" : "שמירת הפריט"}
+            </button>
+          ) : undefined
+        }
+      >
+        {draft && <Form draft={draft} setDraft={setDraft} />}
+      </BottomSheet>
+    </div>
+  );
 }
-function Stat({ label, value }: { label: string; value: number }) { return <div className="rounded-2xl border border-white/10 bg-white/10 p-4"><p className="text-xs text-white/70">{label}</p><strong dir="ltr" className="mt-1 block text-2xl">{formatCurrency(value)}</strong></div>; }
-function Group({ kind, items, onEdit, onDelete }: { kind: FinancialItemKind; items: FinancialSnapshotItem[]; onEdit: (item: FinancialSnapshotItem) => void; onDelete: (item: FinancialSnapshotItem) => void }) { const Icon = kind === "account" ? Landmark : kind === "savings" || kind === "provident_fund" || kind === "pension" ? PiggyBank : kind === "deposit" ? Building2 : kind === "insurance" ? ShieldCheck : kind === "loan" ? HandCoins : kind === "income_source" ? BadgeDollarSign : kind === "planned_expense" ? WalletCards : kind === "note" ? FileText : BellRing; return <section className="finance-panel !p-0 overflow-hidden"><div className="flex items-center gap-3 border-b border-outline-variant p-4"><div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary-container text-primary"><Icon className="h-5 w-5" /></div><h2 className="font-black">{labels[kind]}</h2></div><div className="divide-y divide-outline-variant">{items.map((item) => <article key={item.id} className="flex min-h-[66px] items-center gap-2 p-3"><button type="button" className="min-w-0 flex-1 text-start" onClick={() => onEdit(item)}><b className="block truncate text-sm">{item.name}</b><small className="block truncate text-on-surface-variant">{item.institution || item.due_date || item.notes || "ללא פרטים נוספים"}</small></button>{item.amount !== null && <strong dir="ltr" className="text-sm">{formatCurrency(item.amount)}</strong>}<button type="button" aria-label="עריכה" onClick={() => onEdit(item)} className="flex h-10 w-10 items-center justify-center rounded-xl text-primary"><Pencil className="h-4 w-4" /></button><button type="button" aria-label="מחיקה" onClick={() => onDelete(item)} className="flex h-10 w-10 items-center justify-center rounded-xl text-error"><Trash2 className="h-4 w-4" /></button></article>)}{!items.length && <p className="p-4 text-center text-xs text-on-surface-variant">אין עדיין פריטים</p>}</div></section>; }
-function Form({ draft, setDraft }: { draft: Draft; setDraft: (value: Draft) => void }) { return <div className="grid gap-4"><label><span className="m3-label">סוג</span><select className="m3-input mt-1 w-full px-3 py-3" value={draft.kind} onChange={(e) => setDraft({ ...draft, kind: e.target.value as FinancialItemKind })}>{(Object.keys(labels) as FinancialItemKind[]).map((kind) => <option key={kind} value={kind}>{labels[kind]}</option>)}</select></label><label><span className="m3-label">שם</span><input autoFocus className="m3-input mt-1 w-full px-3 py-3" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="למשל: חשבון עו״ש" /></label><label><span className="m3-label">בנק / גוף מנהל</span><input className="m3-input mt-1 w-full px-3 py-3" value={draft.institution} onChange={(e) => setDraft({ ...draft, institution: e.target.value })} /></label><div className="grid grid-cols-2 gap-3"><label><span className="m3-label">סכום</span><input type="number" inputMode="decimal" dir="ltr" className="m3-input mt-1 w-full px-3 py-3" value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} placeholder="אופציונלי" /></label><label><span className="m3-label">תאריך לתזכורת</span><input type="date" className="m3-input mt-1 w-full px-3 py-3" value={draft.dueDate} onChange={(e) => setDraft({ ...draft, dueDate: e.target.value })} /></label></div><label><span className="m3-label">הערה</span><textarea className="m3-input mt-1 min-h-24 w-full px-3 py-3" value={draft.notes} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} /></label></div>; }
+function Form({
+  draft,
+  setDraft,
+}: {
+  draft: Draft;
+  setDraft: (value: Draft) => void;
+}) {
+  return (
+    <div className="grid gap-4">
+      <label>
+        <span className="m3-label">סוג</span>
+        <select
+          className="m3-input mt-1 w-full px-3 py-3"
+          value={draft.kind}
+          onChange={(e) =>
+            setDraft({ ...draft, kind: e.target.value as FinancialItemKind })
+          }
+        >
+          {(Object.keys(labels) as FinancialItemKind[]).map((kind) => (
+            <option key={kind} value={kind}>
+              {labels[kind]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        <span className="m3-label">שם</span>
+        <input
+          className="m3-input mt-1 w-full px-3 py-3"
+          value={draft.name}
+          onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+          placeholder="למשל: חשבון עו״ש"
+        />
+      </label>
+      <label>
+        <span className="m3-label">בנק / גוף מנהל</span>
+        <input
+          className="m3-input mt-1 w-full px-3 py-3"
+          value={draft.institution}
+          onChange={(e) => setDraft({ ...draft, institution: e.target.value })}
+        />
+      </label>
+      <div className="grid grid-cols-2 gap-3">
+        <label>
+          <span className="m3-label">סכום</span>
+          <input
+            type="number"
+            inputMode="decimal"
+            dir="ltr"
+            className="m3-input mt-1 w-full px-3 py-3"
+            value={draft.amount}
+            onChange={(e) => setDraft({ ...draft, amount: e.target.value })}
+            placeholder="אופציונלי"
+          />
+        </label>
+        <label>
+          <span className="m3-label">תאריך לתזכורת</span>
+          <input
+            type="date"
+            className="m3-input mt-1 w-full px-3 py-3"
+            value={draft.dueDate}
+            onChange={(e) => setDraft({ ...draft, dueDate: e.target.value })}
+          />
+        </label>
+      </div>
+      <label>
+        <span className="m3-label">הערה</span>
+        <textarea
+          className="m3-input mt-1 min-h-24 w-full px-3 py-3"
+          value={draft.notes}
+          onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
+        />
+      </label>
+    </div>
+  );
+}

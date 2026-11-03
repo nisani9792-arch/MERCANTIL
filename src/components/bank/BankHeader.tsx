@@ -1,160 +1,51 @@
 "use client";
-
-import Image from "next/image";
 import Link from "next/link";
-import { Menu, ShieldCheck, SlidersHorizontal, X } from "lucide-react";
-import { useState } from "react";
+import { Settings, Moon, Sun, Leaf } from "lucide-react";
 import { useTheme } from "@/components/providers/ThemeProvider";
-import { navItems } from "@/components/bank/nav-items";
-import { cn } from "@/lib/utils/cn";
-
-type BankHeaderProps = {
-  userName: string;
-};
-
-export function BankHeader({ userName }: BankHeaderProps) {
+export function BankHeader({ userName }: { userName: string }) {
   const { theme, toggleTheme } = useTheme();
-  const [menuOpen, setMenuOpen] = useState(false);
-
   return (
-    <>
-      <header className="bank-header safe-top z-20 shrink-0 border-b border-outline-variant bg-surface-container-lowest">
-        <div className="flex items-center justify-between gap-2 px-3 py-2.5 sm:px-4 lg:px-6">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <button
-              type="button"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container lg:hidden"
-              aria-label="תפריט"
-              onClick={() => setMenuOpen(true)}
-            >
-              <Menu className="h-6 w-6" />
-            </button>
-            <Link href="/dashboard" className="mx-auto shrink-0 lg:mx-0">
-              <Image
-                src="/merkanpil-header.png"
-                alt="מרכנפיל"
-                width={200}
-                height={72}
-                className="h-14 w-auto rounded-xl object-contain sm:h-16 lg:h-[72px]"
-                priority
-              />
-            </Link>
-          </div>
-
-          <div className="hidden min-w-0 flex-col items-center text-center sm:flex sm:flex-1">
-            <span className="truncate text-sm font-bold text-primary">הכסף של {userName}</span>
-            <span className="flex items-center gap-1 text-xs text-on-surface-variant">
-              <ShieldCheck className="h-3.5 w-3.5" /> מבינים אותך מצונן.
+    <header className="bank-header safe-top z-30 border-b border-outline-variant">
+      <div className="flex h-16 items-center justify-between gap-3 px-4 lg:px-7">
+        <Link
+          href="/dashboard"
+          aria-label="מרכנפיל — מבט על"
+          className="flex items-center gap-2.5"
+        >
+          <span className="rounded-xl bg-primary p-2 text-on-primary">
+            <Leaf className="h-5 w-5" />
+          </span>
+          <span className="text-xl font-bold tracking-tight">
+            מרכנפיל
+            <span className="ms-3 hidden text-xs font-normal text-on-surface-variant sm:inline">
+              עושים סדר בכסף
             </span>
-          </div>
-
-          <div className="flex shrink-0 items-center gap-0.5">
-            <HeaderIcon label={theme === "light" ? "מצב כהה" : "מצב בהיר"} onClick={toggleTheme}>
-              <span className="text-base">{theme === "light" ? "🌙" : "☀️"}</span>
-            </HeaderIcon>
-            <HeaderIcon label="הגדרות קבועות" href="/templates">
-              <SlidersHorizontal className="h-5 w-5" />
-            </HeaderIcon>
-          </div>
-        </div>
-      </header>
-
-      {menuOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
+          </span>
+        </Link>
+        <div className="flex items-center gap-2">
+          <span className="me-2 hidden max-w-40 truncate text-xs text-on-surface-variant sm:block">
+            {userName}
+          </span>
           <button
-            type="button"
-            className="absolute inset-0 bg-black/40"
-            aria-label="סגור תפריט"
-            onClick={() => setMenuOpen(false)}
-          />
-          <aside className="absolute inset-y-0 start-0 flex w-[min(100%,280px)] flex-col bg-surface-container-lowest shadow-elevation-2 safe-top safe-bottom">
-            <div className="flex items-center justify-between border-b border-outline-variant px-4 py-3">
-              <Image
-                src="/merkanpil-header.png"
-                alt="מרכנפיל"
-                width={160}
-                height={56}
-                className="h-12 w-auto rounded-xl object-contain"
-              />
-              <button
-                type="button"
-                className="flex h-10 w-10 items-center justify-center rounded-full hover:bg-surface-container"
-                aria-label="סגור"
-                onClick={() => setMenuOpen(false)}
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <nav className="flex-1 overflow-y-auto p-3">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setMenuOpen(false)}
-                    className="mb-1 flex min-h-[48px] items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-on-surface-variant hover:bg-surface-container"
-                  >
-                    <Icon className="h-5 w-5 shrink-0" />
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </nav>
-            <div className="border-t border-outline-variant p-4">
-              <Link
-                href="/month?action=add"
-                onClick={() => setMenuOpen(false)}
-                className="flex min-h-[48px] items-center justify-center rounded-full bg-primary px-4 py-3 text-sm font-semibold text-on-primary"
-              >
-                + הוספת תנועה ידנית
-              </Link>
-            </div>
-          </aside>
+            onClick={toggleTheme}
+            aria-label={theme === "light" ? "מצב כהה" : "מצב בהיר"}
+            className="flex h-10 w-10 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container"
+          >
+            {theme === "light" ? (
+              <Moon className="h-4 w-4" />
+            ) : (
+              <Sun className="h-4 w-4" />
+            )}
+          </button>
+          <Link
+            href="/settings"
+            aria-label="הגדרות"
+            className="flex h-10 w-10 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container"
+          >
+            <Settings className="h-4 w-4" />
+          </Link>
         </div>
-      )}
-    </>
-  );
-}
-
-function HeaderIcon({
-  children,
-  label,
-  href,
-  onClick,
-  className,
-}: {
-  children: React.ReactNode;
-  label: string;
-  href?: string;
-  onClick?: () => void;
-  className?: string;
-}) {
-  const base =
-    "flex h-11 w-11 items-center justify-center rounded-full text-on-surface-variant transition-colors hover:bg-surface-container hover:text-primary";
-
-  if (href) {
-    return (
-      <Link
-        href={href}
-        className={cn(base, className)}
-        aria-label={label}
-        title={label}
-      >
-        {children}
-      </Link>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      className={cn(base, className)}
-      aria-label={label}
-      title={label}
-      onClick={onClick}
-    >
-      {children}
-    </button>
+      </div>
+    </header>
   );
 }

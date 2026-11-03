@@ -1,23 +1,41 @@
 import {
   Home,
   CalendarDays,
-  LayoutTemplate,
+  Library,
   Landmark,
-  SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
-
 export type NavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
   mobileLabel?: string;
+  description?: string;
 };
-
 export const navItems: NavItem[] = [
-  { href: "/dashboard", label: "סקירה פיננסית", mobileLabel: "סקירה", icon: Home },
-  { href: "/month", label: "תנועות החודש", mobileLabel: "תנועות", icon: CalendarDays },
-  { href: "/templates", label: "תכנון קבוע", mobileLabel: "תכנון", icon: LayoutTemplate },
-  { href: "/finance", label: "מידע", mobileLabel: "מידע", icon: Landmark },
-  { href: "/setup", label: "אשף הגדרה", mobileLabel: "הגדרה", icon: SlidersHorizontal },
+  {
+    href: "/dashboard",
+    label: "מבט על",
+    icon: Home,
+    description: "התמונה החודשית",
+  },
+  {
+    href: "/month",
+    label: "החודש שלי",
+    icon: CalendarDays,
+    description: "הכנסות והוצאות",
+  },
+  {
+    href: "/library",
+    label: "ספריית פריטים",
+    mobileLabel: "הספרייה",
+    icon: Library,
+    description: "בחירה מההיסטוריה",
+  },
+  {
+    href: "/finance",
+    label: "נכסים וחובות",
+    icon: Landmark,
+    description: "המידע הפיננסי",
+  },
 ];

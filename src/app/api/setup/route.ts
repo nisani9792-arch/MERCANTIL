@@ -109,9 +109,6 @@ export async function POST(request: Request) {
         type = excluded.type,
         amount = excluded.amount,
         amount_pending = excluded.amount_pending,
-        frequency = excluded.frequency,
-        day_of_month = excluded.day_of_month,
-        is_active = excluded.is_active,
         is_variable = excluded.is_variable,
         sort_order = excluded.sort_order,
         updated_at = now()

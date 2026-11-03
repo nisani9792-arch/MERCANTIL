@@ -1,98 +1,109 @@
 "use client";
-
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Plus } from "lucide-react";
-import { cn } from "@/lib/utils/cn";
+import { BarChart3, Settings, Leaf } from "lucide-react";
 import { navItems } from "@/components/bank/nav-items";
-
 export function BankNavSidebar() {
   const pathname = usePathname();
-
   return (
-    <aside className="bank-sidebar hidden w-64 shrink-0 lg:block">
-      <div className="p-4">
-        <Link
-          href="/month"
-          className="mb-5 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-2xl bg-white px-3 py-2.5 text-sm font-bold text-slate-950 transition-transform hover:-translate-y-0.5"
-        >
-          <Plus className="h-4 w-4 shrink-0" />
-          <span>ניהול החודש</span>
-        </Link>
-
-        <nav className="space-y-0.5">
-          {navItems.map((item) => {
-            const active = pathname === item.href;
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex min-h-[44px] items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all",
-                  active
-                    ? "bg-white/12 font-bold text-white"
-                    : "text-slate-400 hover:bg-white/7 hover:text-white",
-                )}
-              >
-                <Icon className="h-5 w-5 shrink-0" />
-                {item.label}
-              </Link>
-            );
-          })}
+    <aside className="bank-sidebar sticky top-[65px] hidden h-[calc(100dvh-65px)] w-60 shrink-0 flex-col justify-between p-5 lg:flex">
+      <div>
+        <p className="mb-4 px-3 text-[10px] font-bold tracking-wider text-on-surface-variant">
+          התכנון האישי שלך
+        </p>
+        <nav className="space-y-2" aria-label="ניווט ראשי">
+          {navItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={
+                pathname === item.href ||
+                (item.href === "/library" && pathname === "/templates")
+                  ? "page"
+                  : undefined
+              }
+              className={
+                "flex min-h-16 items-center gap-3 rounded-xl px-3 py-3 " +
+                (pathname === item.href ||
+                (item.href === "/library" && pathname === "/templates")
+                  ? "bg-primary-container text-primary"
+                  : "text-on-surface-variant hover:bg-surface-container-low")
+              }
+            >
+              <item.icon className="h-5 w-5 shrink-0" />
+              <span>
+                <b className="block text-sm font-semibold">{item.label}</b>
+                <small className="mt-0.5 block text-[11px] opacity-80">
+                  {item.description}
+                </small>
+              </span>
+            </Link>
+          ))}
         </nav>
-
-        <div className="my-5 border-t border-white/10 px-3 pt-4">
-          <p className="text-xs leading-relaxed text-slate-500">
-            שליטה בתזרים, במזומן ובתכנון החודשי — במקום אחד.
-          </p>
+        <div className="mt-6 border-t border-outline-variant pt-4">
+          <Link
+            href="/trends"
+            aria-current={pathname === "/trends" ? "page" : undefined}
+            className="flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-on-surface-variant"
+          >
+            <BarChart3 className="h-4 w-4" />
+            מגמות לאורך זמן
+          </Link>
+          <Link
+            href="/settings"
+            aria-current={pathname === "/settings" ? "page" : undefined}
+            className="flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-on-surface-variant"
+          >
+            <Settings className="h-4 w-4" />
+            הגדרות
+          </Link>
         </div>
+      </div>
+      <div className="rounded-xl bg-surface-container-low p-4">
+        <Leaf className="mb-2 h-5 w-5 text-primary" />
+        <p className="text-xs leading-6 text-on-surface-variant">
+          קצת סדר בכל חודש.
+          <br />
+          יותר בהירות לאורך זמן.
+        </p>
       </div>
     </aside>
   );
 }
-
 export function BankMobileNav() {
   const pathname = usePathname();
-
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-outline-variant bg-surface-container-lowest/95 backdrop-blur-md safe-bottom lg:hidden">
-      <div className="mx-auto flex max-w-lg items-stretch justify-around px-1 pt-1">
-        {navItems.map((item) => {
-          const active = pathname === item.href;
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                "flex min-h-[56px] min-w-[56px] flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1 text-[10px] transition-colors active:scale-95",
-                active
-                  ? "font-semibold text-primary"
-                  : "text-on-surface-variant",
-              )}
-            >
-              <Icon className={cn("h-5 w-5", active && "stroke-[2.5px]")} />
-              <span className="leading-tight">{item.mobileLabel ?? item.label}</span>
-            </Link>
-          );
-        })}
+    <nav
+      aria-label="ניווט ראשי"
+      className="fixed inset-x-0 bottom-0 z-30 border-t border-outline-variant bg-surface-container-lowest safe-bottom lg:hidden"
+    >
+      <div className="mx-auto flex max-w-xl justify-around px-2 py-2">
+        {navItems.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            aria-current={
+              pathname === item.href ||
+              (item.href === "/library" && pathname === "/templates")
+                ? "page"
+                : undefined
+            }
+            className={
+              "flex min-h-12 min-w-16 flex-col items-center justify-center gap-1 rounded-xl px-3 text-[11px] " +
+              (pathname === item.href ||
+              (item.href === "/library" && pathname === "/templates")
+                ? "bg-primary-container font-bold text-primary"
+                : "text-on-surface-variant")
+            }
+          >
+            <item.icon className="h-5 w-5" />
+            {item.mobileLabel ?? item.label}
+          </Link>
+        ))}
       </div>
     </nav>
   );
 }
-
 export function BankMobileFab() {
-  const pathname = usePathname();
-  if (pathname === "/month") return null;
-
-  return (
-    <Link
-      href="/month?action=add"
-      className="m3-fab fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] start-4 z-40 flex h-14 w-14 items-center justify-center rounded-full shadow-elevation-2 transition-transform active:scale-95 lg:hidden"
-      aria-label="ניהול חודש"
-    >
-      <Plus className="h-7 w-7" />
-    </Link>
-  );
+  return null;
 }

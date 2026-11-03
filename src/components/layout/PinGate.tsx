@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
+
 import Script from "next/script";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Delete } from "lucide-react";
+import { Delete, Leaf } from "lucide-react";
 import { InstallPrompt } from "@/components/layout/InstallPrompt";
 import {
   TURNSTILE_LOGIN_ACTION,
@@ -175,17 +175,10 @@ export function PinGate() {
         strategy="afterInteractive"
         onReady={renderTurnstile}
       />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(201,162,39,0.1),transparent_55%)]" />
+
       <div className="m3-card relative w-full max-w-sm p-5 sm:p-8">
         <div className="mb-5 flex flex-col items-center text-center">
-          <Image
-            src="/merkanpil.png"
-            alt="מרכנפיל"
-            width={280}
-            height={100}
-            priority
-            className="h-auto w-full max-w-[280px] rounded-2xl object-contain"
-          />
+          <span className="mb-4 rounded-2xl bg-primary-container p-4 text-primary"><Leaf className="h-8 w-8"/></span><h1 className="text-2xl font-bold">ברוך הבא למרכנפיל</h1><p className="mt-2 text-sm text-on-surface-variant">קצת סדר בכסף, יותר שקט בראש.</p>
           <p className="mt-3 text-sm font-semibold text-on-surface">קוד גישה</p>
         </div>
 

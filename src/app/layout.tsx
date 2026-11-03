@@ -12,8 +12,8 @@ const heebo = Heebo({
 });
 
 export const metadata: Metadata = {
-  title: "מרכנפיל. מבינים אותך מצונן.",
-  description: "ניהול כלכלי חכם מבוסס AI — בנקאי, חכם, מבוסס Gemini",
+  title: "מרכנפיל — עושים סדר בכסף",
+  description: "תכנון חודשי ברור של הכנסות, הוצאות והתחייבויות",
   other: {
     "app-build": process.env.RENDER_GIT_COMMIT?.slice(0, 12) ?? "local",
   },
@@ -40,8 +40,8 @@ export const viewport: Viewport = {
   maximumScale: 5,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#0b1728" },
-    { media: "(prefers-color-scheme: dark)", color: "#0b1728" },
+    { media: "(prefers-color-scheme: light)", color: "#126957" },
+    { media: "(prefers-color-scheme: dark)", color: "#126957" },
   ],
 };
 

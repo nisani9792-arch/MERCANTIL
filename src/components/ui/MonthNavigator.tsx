@@ -22,7 +22,7 @@ export function MonthNavigator() {
 
   return (
     <div
-      className="flex items-center gap-1.5 rounded-2xl border border-outline-variant bg-surface-container-low px-1.5 py-1.5"
+      className="flex items-center gap-1.5 rounded-xl border border-outline-variant bg-surface-container-lowest px-1 py-1"
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
@@ -35,7 +35,7 @@ export function MonthNavigator() {
         ›
       </button>
 
-      <label className="relative flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-surface px-2 py-2.5 text-center text-sm font-black text-on-surface transition-colors hover:bg-surface-container-high">
+      <label className="relative flex min-w-0 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl px-2 py-2 text-center text-sm font-semibold text-on-surface transition-colors hover:bg-surface-container-high">
         <CalendarDays className="h-4 w-4 shrink-0 text-primary" />
         <span className="truncate">{formatMonthLabel(monthKey)}</span>
         <input
@@ -55,7 +55,15 @@ export function MonthNavigator() {
       >
         ‹
       </button>
-      {monthKey !== currentMonthKey() && <button type="button" onClick={() => setMonthKey(currentMonthKey())} className="shrink-0 rounded-lg px-2 py-2 text-[11px] font-black text-primary hover:bg-primary-container">היום</button>}
+      {monthKey !== currentMonthKey() && (
+        <button
+          type="button"
+          onClick={() => setMonthKey(currentMonthKey())}
+          className="shrink-0 rounded-lg px-2 py-2 text-[11px] font-black text-primary hover:bg-primary-container"
+        >
+          החודש
+        </button>
+      )}
     </div>
   );
 }

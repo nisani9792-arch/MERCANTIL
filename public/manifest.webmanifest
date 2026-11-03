@@ -1,6 +1,6 @@
 {
   "id": "/",
-  "name": "מרכנפיל. מבינים אותך מצונן.",
+  "name": "מרכנפיל — עושים סדר בכסף",
   "short_name": "מרכנפיל",
   "description": "ניהול משק בית חכם — הכנסות והוצאות חודשיות",
   "lang": "he",
@@ -9,8 +9,8 @@
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#f4f8fb",
-  "theme_color": "#0b1728",
+  "background_color": "#f5f6f3",
+  "theme_color": "#126957",
   "icons": [
     {
       "src": "/icon-192.png",
