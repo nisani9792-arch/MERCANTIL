@@ -328,12 +328,17 @@ export async function initMonthFromTemplates(
       case when ${keepLegacyAmounts} or t.id = any(${copyIds}::uuid[]) then t.amount_pending else true end, t.name,
       true, t.id, t.is_variable, false, null,
       case when t.day_of_month is null then null else make_date(${Number(monthKey.slice(0, 4))}, ${Number(monthKey.slice(5))}, least(t.day_of_month, extract(day from (make_date(${Number(monthKey.slice(0, 4))}, ${Number(monthKey.slice(5))}, 1) + interval '1 month - 1 day'))::int)) end
-    from fixed_templates t
-    where t.user_id = ${userId} and t.is_active = true
-      and (${chosenIds.length} = 0 or t.id = any(${chosenIds}::uuid[]))
-      and (t.frequency = 'monthly' or ${Number(monthKey.slice(5))} % 2 = 1)
-      and not exists (select 1 from monthly_ledger e
-        where e.user_id = ${userId} and e.month_key = ${monthKey} and e.template_id = t.id)
+    from (
+      select distinct on (lower(trim(name)), type, is_variable) * from fixed_templates
+      where user_id = ${userId} and is_active = true
+        and id = any(${chosenIds}::uuid[])
+        and (frequency = 'monthly' or ${Number(monthKey.slice(5))} % 2 = 1)
+      order by lower(trim(name)), type, is_variable, updated_at desc, id
+    ) t
+    where not exists (select 1 from monthly_ledger e
+        where e.user_id = ${userId} and e.month_key = ${monthKey}
+          and (e.template_id = t.id or (e.entry_kind = 'transaction' and e.type = t.type
+            and lower(trim(e.name)) = lower(trim(t.name)) and e.is_variable = t.is_variable)))
     on conflict do nothing
     returning id`;
   const created = rows.length;
