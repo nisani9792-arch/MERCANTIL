@@ -16,7 +16,7 @@ export const ledgerCreateSchema = z.object({
   entryKind: z.enum(["transaction", "cash_withdrawal"]).optional(),
   paymentMethod: z.enum(["bank", "card", "cash"]).optional(),
   dueDate: dueDate.optional(),
-}).strict().refine((value) => !value.amountPending || (value.type === "income" && value.amount === 0 && value.entryKind !== "cash_withdrawal"), "סכום חסר מותר להכנסה בלבד");
+}).strict().refine((value) => !value.amountPending || (value.amount === 0 && value.entryKind !== "cash_withdrawal"), "סכום חסר מחייב סכום אפס ואינו מותר למשיכת מזומן");
 
 export const ledgerUpdateSchema = z.object({
   name: text(120).optional(),
@@ -29,7 +29,7 @@ export const ledgerUpdateSchema = z.object({
   isVariable: z.boolean().optional(),
   dueDate: dueDate.optional(),
 }).strict().refine((value) => Object.keys(value).length > 0, "נדרש לפחות שדה אחד לעדכון")
-  .refine((value) => !value.amountPending || ((value.amount === undefined || value.amount === 0) && value.isPaid !== true), "יש להזין סכום לפני אישור ההכנסה");
+  .refine((value) => !value.amountPending || ((value.amount === undefined || value.amount === 0) && value.isPaid !== true), "יש להזין סכום לפני אישור הרישום");
 
 export const categoryOrderSchema = z.object({
   monthKey,

@@ -46,19 +46,20 @@ export function TemplateList() {
   const qc = useQueryClient();
   const monthKey = useMonthStore((s) => s.monthKey);
   const addToMonth = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ ids, copyAmountIds }: { ids: string[]; copyAmountIds?: string[] }) => {
       const res = await fetch("/api/ledger/init-month", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ monthKey, templateIds: [id] }),
+        body: JSON.stringify({ monthKey, templateIds: ids, copyAmountIds }),
       });
       if (!res.ok) throw new Error("ההוספה לא אושרה");
       return res.json() as Promise<{ created: number }>;
     },
     onSuccess: async (result) => {
+      setLoadingTemplate(false);
       setMessage(
         result.created
-          ? "הפריט נוסף לחודש הנבחר"
+          ? `נוספו ${result.created} פריטים לחודש הנבחר`
           : "הפריט כבר קיים בחודש או שאינו חל בו לפי התדירות",
       );
       await Promise.all(
@@ -68,6 +69,9 @@ export function TemplateList() {
       );
     },
   });
+  const [loadingTemplate, setLoadingTemplate] = useState(false);
+  const [selectedTemplates, setSelectedTemplates] = useState<string[]>([]);
+  const [copyAmounts, setCopyAmounts] = useState<string[]>([]);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [initialDraft, setInitialDraft] = useState<Draft | null>(null);
   const [message, setMessage] = useState("");
@@ -136,6 +140,9 @@ export function TemplateList() {
   });
 
   const templates = data?.templates ?? [];
+  const eligible = templates.filter((item) => item.is_active &&
+    (item.frequency === "monthly" || Number(monthKey.slice(5)) % 2 === 1));
+  const selectedIds = selectedTemplates.filter((id) => eligible.some((item) => item.id === id));
   const income = templates.filter(
     (item) => item.type === "income" && item.name.includes(search.trim()),
   );
@@ -168,7 +175,7 @@ export function TemplateList() {
       isVariable: item.is_variable,
     });
   const groupProps = {
-    onAdd: (item: RecurringTemplate) => addToMonth.mutate(item.id),
+    onAdd: (item: RecurringTemplate) => addToMonth.mutate({ ids: [item.id] }),
     adding: addToMonth.isPending,
     onEdit: edit,
     onToggle: (item: RecurringTemplate) =>
@@ -185,7 +192,7 @@ export function TemplateList() {
   return (
     <div className="workspace-page">
       <PageHeading
-        title="פריטים קבועים"
+        title="תבנית חודשית"
         description="ספרייה לשימוש חוזר. בחירת הפריטים לכל חודש נעשית בידיך."
         action={
           <button
@@ -200,7 +207,7 @@ export function TemplateList() {
       <div className="workspace-tabs">
         <Link href="/library">מחודשים קודמים</Link>
         <Link href="/templates" aria-current="page">
-          פריטים קבועים
+          תבנית חודשית
         </Link>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -225,9 +232,18 @@ export function TemplateList() {
         <div className="workspace-month-picker">
           <MonthNavigator />
         </div>
-        <p className="workspace-muted">
-          לחיצה על + ליד פריט מוסיפה אותו לחודש הנבחר.
-        </p>
+        <button
+          className="workspace-button workspace-button-primary"
+          disabled={isLoading || isError || eligible.length === 0 || addToMonth.isPending}
+          onClick={() => {
+            setSelectedTemplates(eligible.map((item) => item.id));
+            setCopyAmounts(eligible.filter((item) => item.type === "expense" && !item.amount_pending).map((item) => item.id));
+            addToMonth.reset();
+            setLoadingTemplate(true);
+          }}
+        >
+          <CopyPlus className="h-4 w-4" /> טעינת חודש מתבנית
+        </button>
       </div>
       {addToMonth.isError && (
         <p role="alert" className="m3-error">
@@ -276,6 +292,53 @@ export function TemplateList() {
           {...groupProps}
         />
       </div>
+      <BottomSheet
+        key={monthKey}
+        open={loadingTemplate}
+        onClose={() => { if (!addToMonth.isPending) setLoadingTemplate(false); }}
+        title="טעינת חודש מתבנית"
+        footer={
+          <button className="m3-btn-primary min-h-11 w-full"
+            disabled={addToMonth.isPending || selectedIds.length === 0}
+            onClick={() => addToMonth.mutate({ ids: selectedIds, copyAmountIds: copyAmounts.filter((id) => selectedIds.includes(id)) })}>
+            {addToMonth.isPending ? "טוען…" : `הוספת ${selectedIds.length} פריטים לחודש`}
+          </button>
+        }
+      >
+        <p className="mb-4 text-sm text-on-surface-variant">
+          טעינה לחודש {monthKey}. אפשר לשנות את הבחירה לפני ההוספה.
+          סמן ״העתקת סכום״ כדי לשמור סכום קבוע; ללא הסימון הפריט ימתין למילוי בחודש הזה.
+          פריטים שכבר נטענו מהתבנית לא יתווספו שוב, ועריכות קיימות יישמרו.
+          פריטים לא פעילים או שאינם חלים בחודש הזה אינם נכללים.
+        </p>
+        <button type="button" className="min-h-11 text-sm font-bold text-primary"
+          disabled={addToMonth.isPending}
+          onClick={() => setSelectedTemplates(selectedIds.length === eligible.length ? [] : eligible.map((item) => item.id))}>
+          {selectedIds.length === eligible.length ? "ניקוי הבחירה" : "בחירת הכול"}
+        </button>
+        <div className="divide-y divide-outline-variant">
+          {eligible.map((item) => (
+            <div key={item.id} className="flex flex-wrap min-h-16 items-center gap-3 py-3">
+              <label className="flex min-w-0 flex-1 items-center gap-3"><input type="checkbox" className="h-5 w-5 accent-primary"
+                checked={selectedIds.includes(item.id)} disabled={addToMonth.isPending}
+                onChange={() => setSelectedTemplates((ids) => ids.includes(item.id) ? ids.filter((id) => id !== item.id) : [...ids, item.id])} />
+              <span className="min-w-0 flex-1"><b className="block text-sm">{item.name}</b>
+                <span className="text-xs text-on-surface-variant">{item.type === "income" ? "הכנסה" : "הוצאה"}</span>
+              </span>
+              </label>
+              <label className="flex min-h-11 items-center gap-2 text-xs">
+                <input type="checkbox" className="h-5 w-5 accent-primary"
+                  aria-label={`העתקת סכום עבור ${item.name}`}
+                  checked={copyAmounts.includes(item.id)}
+                  disabled={!selectedIds.includes(item.id) || !!item.amount_pending || addToMonth.isPending}
+                  onChange={() => setCopyAmounts((ids) => ids.includes(item.id) ? ids.filter((id) => id !== item.id) : [...ids, item.id])} />
+                {item.amount_pending ? "סכום להשלמה" : `העתקת סכום ${formatCurrency(item.amount)}`}
+              </label>
+            </div>
+          ))}
+        </div>
+        {addToMonth.isError && <p role="alert" className="text-sm text-error">הטעינה נכשלה. הבחירה נשמרה ואפשר לנסות שוב.</p>}
+      </BottomSheet>
       <BottomSheet
         open={Boolean(draft)}
         onClose={() => {

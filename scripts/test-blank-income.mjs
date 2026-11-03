@@ -38,15 +38,16 @@ test("blank income remains distinct from an explicit zero and from an entered sa
   assert.equal(incomeAmountInput({ amount: 0, amount_pending: false }), "0");
   assert.equal(incomeAmountInput({ amount: 7000 }), "7000");
   assert.equal(incomeAmountState("income", 0, true).amountPending, true);
-  assert.throws(() => incomeAmountState("expense", 0, true));
+  assert.equal(incomeAmountState("expense", 0, true).amountPending, true);
+  assert.throws(() => incomeAmountState("expense", 100, true));
   assert.throws(() => incomeAmountState("income", 7000, true));
 });
 
-test("API validation accepts blank income, rejects blank expenses and contradictory confirmations", () => {
+test("API validation accepts blank income, accepts blank expenses and contradictory confirmations", () => {
   const { ledgerCreateSchema, ledgerUpdateSchema } = load("src/lib/ledger/validation.ts");
   const input = { name: "משכורת", type: "income", amount: 0, amountPending: true };
   assert.equal(ledgerCreateSchema.safeParse(input).success, true);
-  assert.equal(ledgerCreateSchema.safeParse({ ...input, type: "expense" }).success, false);
+  assert.equal(ledgerCreateSchema.safeParse({ ...input, type: "expense" }).success, true);
   assert.equal(ledgerCreateSchema.safeParse({ ...input, amount: 1200 }).success, false);
   assert.equal(ledgerUpdateSchema.safeParse({ amount: 0, amountPending: true, isPaid: true }).success, false);
   assert.equal(ledgerUpdateSchema.safeParse({ amount: 1200, amountPending: false }).success, true);
@@ -101,4 +102,20 @@ test("migration is serialized, additive, one-time and never touches the informat
   }
   assert.match(statements[0].text, /pg_advisory_xact_lock/);
   assert.doesNotMatch(statements.map((s) => s.text).join("\n"), /delete|financial_snapshot_items/i);
+});
+
+
+test("template loading passes an explicit per-item amount selection to atomic SQL", async () => {
+  const calls = [];
+  const sql = async (parts, ...values) => { calls.push({ text: parts.join("?"), values }); return []; };
+  const db = ledger(sql);
+  const id = "11111111-1111-1111-1111-111111111111";
+  await db.initMonthFromTemplates("owner", "2026-11", [id], []);
+  assert.match(calls[0].text, /case when.*then t.amount else 0 end/s);
+  assert.match(calls[0].text, /then t.amount_pending else true end/s);
+  assert.ok(calls[0].values.includes(false));
+  assert.match(calls[0].text, /on conflict do nothing/);
+  calls.length = 0;
+  await db.initMonthFromTemplates("owner", "2026-11", [id]);
+  assert.ok(calls[0].values.includes(true), "existing one-item action keeps stored amount");
 });

@@ -21,7 +21,7 @@ export default function LibraryPage() {
         <Link href="/library" aria-current="page">
           מחודשים קודמים
         </Link>
-        <Link href="/templates">פריטים קבועים</Link>
+        <Link href="/templates">תבנית חודשית</Link>
       </div>
       <InitMonthPanel
         monthKey={month}

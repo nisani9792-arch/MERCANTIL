@@ -309,10 +309,13 @@ export async function initMonthFromTemplates(
   userId: string,
   monthKey: string,
   templateIds?: string[],
+  copyAmountIds?: string[],
 ): Promise<{ created: number; skipped: boolean }> {
   await ensureIncomeAmounts();
   const sql = getSql();
   const chosenIds = Array.from(new Set((templateIds ?? []).filter((id) => /^[0-9a-f-]{36}$/i.test(id))));
+  const copyIds = Array.from(new Set((copyAmountIds ?? []).filter((id) => /^[0-9a-f-]{36}$/i.test(id))));
+  const keepLegacyAmounts = copyAmountIds === undefined;
   // A new month is always empty until the user explicitly chooses items.
   if (chosenIds.length === 0) return { created: 0, skipped: true };
   // One atomic statement copies only missing templates. The unique index on
@@ -320,7 +323,9 @@ export async function initMonthFromTemplates(
   const rows = await sql`insert into monthly_ledger (
       user_id, month_key, name, type, amount, amount_pending, category,
       is_from_template, template_id, is_variable, is_paid, notes, due_date
-    ) select t.user_id, ${monthKey}, t.name, t.type, t.amount, t.amount_pending, t.name,
+    ) select t.user_id, ${monthKey}, t.name, t.type,
+      case when ${keepLegacyAmounts} or t.id = any(${copyIds}::uuid[]) then t.amount else 0 end,
+      case when ${keepLegacyAmounts} or t.id = any(${copyIds}::uuid[]) then t.amount_pending else true end, t.name,
       true, t.id, t.is_variable, false, null,
       case when t.day_of_month is null then null else make_date(${Number(monthKey.slice(0, 4))}, ${Number(monthKey.slice(5))}, least(t.day_of_month, extract(day from (make_date(${Number(monthKey.slice(0, 4))}, ${Number(monthKey.slice(5))}, 1) + interval '1 month - 1 day'))::int)) end
     from fixed_templates t
@@ -453,7 +458,7 @@ export async function updateLedgerEntry(
   const amount = incomeAmountState(cur.type, input.amount ?? cur.amount,
     input.amountPending ?? (input.amount !== undefined ? false : cur.amount_pending));
   if (input.isPaid === true && amount.amountPending) {
-    throw new RouteError(400, "INVALID_REQUEST", "יש להזין סכום לפני אישור ההכנסה");
+    throw new RouteError(400, "INVALID_REQUEST", "יש להזין סכום לפני אישור הרישום");
   }
 
   const rows = await sql`

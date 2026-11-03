@@ -35,6 +35,15 @@ export function ensureIncomeAmounts(): Promise<void> {
         where type = 'income' and amount = 0.10
           and not exists (select 1 from app_schema_migrations where name = 'blank_income_amounts_v1')`,
       sql`insert into app_schema_migrations (name) values ('blank_income_amounts_v1') on conflict do nothing`,
+      sql`do $$ begin
+        if not exists (select 1 from app_schema_migrations where name = 'blank_monthly_expenses_v1') then
+          alter table fixed_templates drop constraint if exists fixed_templates_pending_income;
+          alter table fixed_templates add constraint fixed_templates_pending_amount check (not amount_pending or amount = 0);
+          alter table monthly_ledger drop constraint if exists monthly_ledger_pending_income;
+          alter table monthly_ledger add constraint monthly_ledger_pending_amount check (not amount_pending or (amount = 0 and not is_paid));
+          insert into app_schema_migrations (name) values ('blank_monthly_expenses_v1');
+        end if;
+      end $$`,
     ]).then(() => undefined).catch((error) => {
       ready = null;
       throw error;

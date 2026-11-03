@@ -188,7 +188,7 @@ export function LedgerBottomSheet({
   const categoryGuess = inferExpenseCategory(name);
   const valid =
     Boolean(name.trim()) &&
-    (type === "income" || amount.trim() !== "") &&
+    (!isWithdrawal || amount.trim() !== "") &&
     Number.isFinite(Number(amount)) &&
     Number(amount) >= 0;
   const dirty =
@@ -210,7 +210,7 @@ export function LedgerBottomSheet({
           await onSave({
             name: name.trim(),
             amount: Number(amount),
-            amountPending: type === "income" && amount.trim() === "",
+            amountPending: !isWithdrawal && amount.trim() === "",
             type,
             category: type === "income" ? "הכנסה" : category,
             isVariable: type === "expense" && isVariable,
@@ -294,7 +294,7 @@ export function LedgerBottomSheet({
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
             dir="ltr"
-            placeholder={type === "income" ? "טרם הוזן סכום" : undefined}
+            placeholder={!isWithdrawal ? "טרם הוזן סכום" : undefined}
           />
         </div>
         {type === "expense" && !isWithdrawal && (

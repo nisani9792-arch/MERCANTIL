@@ -363,6 +363,7 @@ export function MonthWorkspace() {
             <Library className="h-4 w-4" />
             בחירה מהספרייה
           </Link>
+          <Link href="/templates" className="workspace-button">טעינת חודש מתבנית</Link>
         </div>
         <span className="workspace-muted hidden sm:inline">
           חודש חדש מתחיל ריק
@@ -609,23 +610,7 @@ export function MonthWorkspace() {
         onTogglePaid={
           sheetMode?.kind === "edit"
             ? async () => {
-                await togglePaidMut.mutateAsync(sheetMode.entry);
-              }
-            : undefined
-        }
-        onCreateTemplate={
-          sheetMode?.kind === "edit"
-            ? async ({ frequency, dayOfMonth }) => {
-                return createTemplateMut.mutateAsync({
-                  entryId: sheetMode.entry.id,
-                  frequency,
-                  dayOfMonth,
-                });
-              }
-            : undefined
-        }
-        saving={saveMut.isPending}
-        error={saveMut.isError ? saveMut.error.message : undefined}
+          …134 tokens truncated…r ? saveMut.error.message : undefined}
         onSave={async (d) => {
           await saveMut.mutateAsync({
             id: sheetMode?.kind === "edit" ? sheetMode.entry.id : undefined,
