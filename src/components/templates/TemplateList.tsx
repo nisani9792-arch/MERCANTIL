@@ -140,8 +140,12 @@ export function TemplateList() {
   });
 
   const templates = data?.templates ?? [];
-  const eligible = templates.filter((item) => item.is_active &&
+  const applicable = templates.filter((item) => item.is_active &&
     (item.frequency === "monthly" || Number(monthKey.slice(5)) % 2 === 1));
+  const eligible = Array.from(new Map(
+    [...applicable].sort((a, b) => (a.updated_at ?? "").localeCompare(b.updated_at ?? ""))
+      .map((item) => [JSON.stringify([item.name.trim().toLocaleLowerCase(), item.type, item.is_variable]), item]),
+  ).values());
   const selectedIds = selectedTemplates.filter((id) => eligible.some((item) => item.id === id));
   const income = templates.filter(
     (item) => item.type === "income" && item.name.includes(search.trim()),
@@ -311,6 +315,7 @@ export function TemplateList() {
           פריטים שכבר נטענו מהתבנית לא יתווספו שוב, ועריכות קיימות יישמרו.
           פריטים לא פעילים או שאינם חלים בחודש הזה אינם נכללים.
         </p>
+        {applicable.length > eligible.length && <p className="mb-2 text-xs text-on-surface-variant">פריטים כפולים בתבנית מוצגים פעם אחת, לפי העדכון האחרון. התבנית המקורית נשמרת.</p>}
         <button type="button" className="min-h-11 text-sm font-bold text-primary"
           disabled={addToMonth.isPending}
           onClick={() => setSelectedTemplates(selectedIds.length === eligible.length ? [] : eligible.map((item) => item.id))}>
