@@ -49,7 +49,7 @@ export function DashboardView() {
   const ready = analytics.isSuccess && ledger.isSuccess && estimate.isSuccess;
   const missing =
     ledger.data?.entries.filter(
-      (e) => e.type === "income" && e.amount_pending,
+      (e) => e.amount_pending,
     ) ?? [];
   const plan =
     ready && summary
@@ -100,13 +100,13 @@ export function DashboardView() {
                   label="יתרה משוערת לתכנון"
                   value={plan.remaining}
                   featured
-                  note="הכנסות פחות הוצאות בתכנון"
+                  note={missing.length ? "התכנון חלקי — יש סכומים להשלמה" : "הכנסות פחות הוצאות בתכנון"}
                 />
                 <StatCard
                   label="הכנסות שהוזנו"
                   value={summary.totalIncome}
                   note={
-                    missing.length ? "יש סכומים להשלמה" : "לפי הרישומים שלך"
+                    missing.some((e) => e.type === "income") ? "יש סכומים להשלמה" : "לפי הרישומים שלך"
                   }
                 />
                 <StatCard
@@ -126,14 +126,14 @@ export function DashboardView() {
               </div>
               {missing.length > 0 && (
                 <Link
-                  href="/month?view=income"
+                  href={missing.every((e) => e.type === "income") ? "/month?view=income" : "/month"}
                   className="workspace-notice flex items-center justify-between gap-3"
                 >
                   <span className="flex items-center gap-2">
                     <CircleAlert className="h-4 w-4 shrink-0" />
                     {missing.length === 1
-                      ? "נותר סכום הכנסה אחד להשלמה"
-                      : missing.length + " סכומי הכנסה להשלמה"}
+                      ? "נותר סכום אחד להשלמה"
+                      : missing.length + " סכומים להשלמה"}
                   </span>
                   <span className="shrink-0 text-xs font-bold">להשלמה ←</span>
                 </Link>
