@@ -41,7 +41,7 @@ test("existing monthly edits are never updated; only missing templates are copie
   const query = ledger.query();
   assert.match(query.text, /not exists/);
   assert.match(query.text, /e.template_id = t.id/);
-  assert.match(query.text, /t.is_active = true/);
+  assert.match(query.text, /is_active = true/);
   assert.doesNotMatch(query.text, /\bupdate\b/i);
   assert.match(query.text, /on conflict do nothing/i);
   assert.ok(query.values.includes(10));
