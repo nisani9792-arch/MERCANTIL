@@ -415,3 +415,21 @@ summary::-webkit-details-marker { display: none; }
   .month-heading-actions { width: 100%; justify-content: flex-start; }
   .month-heading-actions > .workspace-month-picker { flex-basis: 100%; }
 }
+
+.payment-folders { display: grid; gap: 14px; }
+.credit-folder { border: 1px solid var(--m3-color-outline-variant); border-radius: 12px; background: var(--m3-color-surface-container-lowest); }
+.credit-folder > summary { display: flex; align-items: center; gap: 12px; min-height: 70px; padding: 12px 16px; cursor: pointer; list-style: none; color: var(--m3-color-primary); background: var(--m3-color-primary-container); border-radius: 11px; }
+.credit-folder > summary b { font-size: 14px; }
+.credit-folder > summary small { display: block; font-size: 11px; margin-top: 3px; color: var(--m3-color-on-surface-variant); }
+.credit-folder-total { text-align: end; font-size: 16px; font-variant-numeric: tabular-nums; }
+.credit-folder-chevron { transition: transform .15s; }
+.credit-folder[open] .credit-folder-chevron { transform: rotate(180deg); }
+.credit-folder > .workspace-list { margin: 0 10px 10px; }
+.payment-count { font-size: 11px; font-weight: 500; opacity: .8; margin-inline-start: 5px; }
+.payment-folder-hint { padding: 10px 14px; font-size: 11px; line-height: 1.7; color: var(--m3-color-on-surface-variant); }
+.payment-group-label { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 650; color: var(--m3-color-on-surface-variant); margin-bottom: 8px; }
+.payment-empty { padding: 16px; text-align: center; border: 1px dashed var(--m3-color-outline-variant); border-radius: 10px; color: var(--m3-color-on-surface-variant); font-size: 12px; }
+[data-drag-over="true"] { outline: 2px solid var(--m3-color-primary); outline-offset: 3px; background: var(--m3-color-primary-container); }
+.ledger-row[draggable="true"] { cursor: grab; }
+.ledger-row[draggable="true"]:active { cursor: grabbing; }
+@media (max-width: 639px) { .credit-folder > summary { gap: 8px; padding: 10px 12px; } .credit-folder-total { font-size: 14px; } }

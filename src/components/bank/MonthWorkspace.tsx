@@ -9,6 +9,7 @@ import {
   LedgerBottomSheet,
   type LedgerSheetMode,
 } from "@/components/bank/LedgerBottomSheet";
+import { PaymentFolders } from "@/components/bank/PaymentFolders";
 import { TransactionCard } from "@/components/bank/TransactionCard";
 import { SmartEntryBar } from "@/components/bank/SmartEntryBar";
 import Link from "next/link";
@@ -164,6 +165,23 @@ export function MonthWorkspace() {
         qc.invalidateQueries({ queryKey: ["ai-insights", monthKey] }),
         qc.invalidateQueries({ queryKey: ["cashflow-cycle", monthKey] }),
       ]);
+    },
+  });
+
+  const paymentGroupMut = useMutation({
+    mutationFn: async ({ entry, card }: { entry: MonthlyLedgerEntry; card: boolean }) => {
+      const res = await mutateLive(`/api/ledger/${entry.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paymentMethod: card ? "card" : "bank", dueDate: card ? `${entry.month_key}-10` : null }),
+      });
+      const body = await res.json() as { entry?: MonthlyLedgerEntry; error?: string };
+      if (!res.ok || !body.entry) throw new Error(body.error || "העברת ההוצאה לא נשמרה");
+      return body.entry;
+    },
+    onSuccess: async (saved) => {
+      qc.setQueryData<LedgerResponse>(["ledger", saved.month_key], (current) => current ? { ...current, entries: current.entries.map((entry) => entry.id === saved.id ? saved : entry) } : current);
+      showSaveMessage(saved.payment_method === "card" ? "ההוצאה הועברה לכרטיס האשראי — חיוב בעשירי" : "ההוצאה הועברה לתשלום ידני");
+      await Promise.allSettled([refetchAll(), qc.invalidateQueries({queryKey: ["templates"]}), qc.invalidateQueries({queryKey: ["cashflow-cycle", monthKey]})]);
     },
   });
 
@@ -383,9 +401,9 @@ export function MonthWorkspace() {
           {saveMessage}
         </p>
       )}
-      {(saveMut.isError || deleteMut.isError || togglePaidMut.isError) && (
+      {(saveMut.isError || deleteMut.isError || togglePaidMut.isError || paymentGroupMut.isError) && (
         <p role="alert" className="m3-error">
-          {togglePaidMut.error?.message ??
+          {paymentGroupMut.error?.message ?? togglePaidMut.error?.message ??
             "השמירה לא אושרה. הפרטים נשארו בטופס ואפשר לנסות שוב."}
         </p>
       )}
@@ -476,19 +494,14 @@ export function MonthWorkspace() {
                 role="tabpanel"
                 aria-labelledby={"month-tab-" + view}
               >
-                {visible.length ? (
-                  <div className="workspace-list">
-                    {visible.map((entry) => (
-                      <TransactionCard
-                        key={entry.id}
-                        entry={entry}
-                        busy={togglePaidMut.isPending}
-                        onTap={() => openEdit(entry)}
-                        onDelete={() => deleteMut.mutate(entry.id)}
-                        onTogglePaid={() => togglePaidMut.mutate(entry)}
-                      />
-                    ))}
-                  </div>
+                {(visible.length || view !== "income") ? (
+                  <PaymentFolders
+                    entries={visible} allEntries={entries} showExpenses={view !== "income"}
+                    busy={paymentGroupMut.isPending || togglePaidMut.isPending}
+                    onMove={(entry, card) => paymentGroupMut.mutate({ entry, card })}
+                    onTap={openEdit} onDelete={(entry) => deleteMut.mutate(entry.id)}
+                    onTogglePaid={(entry) => togglePaidMut.mutate(entry)}
+                  />
                 ) : (
                   <EmptyState
                     title={

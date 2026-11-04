@@ -322,12 +322,14 @@ export async function initMonthFromTemplates(
   // user/month/template also makes repeated or concurrent taps idempotent.
   const rows = await sql`insert into monthly_ledger (
       user_id, month_key, name, type, amount, amount_pending, category,
-      is_from_template, template_id, is_variable, is_paid, notes, due_date
+      is_from_template, template_id, is_variable, is_paid, notes, due_date, payment_method
     ) select t.user_id, ${monthKey}, t.name, t.type,
       case when ${keepLegacyAmounts} or t.id = any(${copyIds}::uuid[]) then t.amount else 0 end,
       case when ${keepLegacyAmounts} or t.id = any(${copyIds}::uuid[]) then t.amount_pending else true end, t.name,
       true, t.id, t.is_variable, false, null,
-      case when t.day_of_month is null then null else make_date(${Number(monthKey.slice(0, 4))}, ${Number(monthKey.slice(5))}, least(t.day_of_month, extract(day from (make_date(${Number(monthKey.slice(0, 4))}, ${Number(monthKey.slice(5))}, 1) + interval '1 month - 1 day'))::int)) end
+      case when t.payment_method = 'card' then make_date(${Number(monthKey.slice(0, 4))}, ${Number(monthKey.slice(5))}, 10)
+        when t.day_of_month is null then null else make_date(${Number(monthKey.slice(0, 4))}, ${Number(monthKey.slice(5))}, least(t.day_of_month, extract(day from (make_date(${Number(monthKey.slice(0, 4))}, ${Number(monthKey.slice(5))}, 1) + interval '1 month - 1 day'))::int)) end,
+      t.payment_method
     from (
       select distinct on (lower(trim(name)), type, is_variable) * from fixed_templates
       where user_id = ${userId} and is_active = true
@@ -375,7 +377,7 @@ export async function addLedgerEntry(
       ${userId}, ${input.monthKey}, ${input.name}, ${input.type},
       ${amount.amount}, ${amount.amountPending}, ${category}, false, null, ${input.isVariable ?? false},
       false, ${input.notes ?? null}, ${input.entryKind ?? "transaction"},
-      ${input.paymentMethod ?? "bank"}, ${input.dueDate ?? null}
+      ${input.paymentMethod ?? "bank"}, ${input.type === "expense" && input.paymentMethod === "card" ? `${input.monthKey}-10` : input.dueDate ?? null}
     )
     returning *
   `;
@@ -401,10 +403,10 @@ export async function createTemplateFromLedgerEntry(
 
   const inserted = await sql`
     insert into fixed_templates (
-      user_id, name, type, amount, amount_pending, frequency, day_of_month, is_active, is_variable, sort_order, source_ledger_entry_id
+      user_id, name, type, amount, amount_pending, frequency, day_of_month, is_active, is_variable, sort_order, source_ledger_entry_id, payment_method
     ) values (
       ${userId}, ${entry.name}, ${entry.type}, ${entry.amount}, ${entry.amount_pending ?? false}, ${input.frequency}, ${input.dayOfMonth}, true, ${entry.is_variable},
-      (select coalesce(max(sort_order), 0) + 1 from fixed_templates where user_id = ${userId}), ${entry.id}
+      (select coalesce(max(sort_order), 0) + 1 from fixed_templates where user_id = ${userId}), ${entry.id}, ${entry.payment_method}
     )
     on conflict (source_ledger_entry_id) where source_ledger_entry_id is not null do nothing
     returning *
@@ -433,13 +435,13 @@ export async function createTemplatesFromMonth(userId: string, monthKey: string)
   const sql = getSql();
   const rows = await sql`
     insert into fixed_templates (
-      user_id, name, type, amount, amount_pending, frequency, day_of_month, is_active, is_variable, sort_order, source_ledger_entry_id
+      user_id, name, type, amount, amount_pending, frequency, day_of_month, is_active, is_variable, sort_order, source_ledger_entry_id, payment_method
     )
     select e.user_id, e.name, e.type, e.amount, e.amount_pending, 'monthly',
       case when e.due_date is null then null else extract(day from e.due_date)::int end,
       true, e.is_variable,
       row_number() over (order by e.type desc, e.name) + (select coalesce(max(sort_order), 0) from fixed_templates where user_id = ${userId}),
-      e.id
+      e.id, e.payment_method
     from monthly_ledger e
     where e.user_id = ${userId} and e.month_key = ${monthKey} and e.entry_kind = 'transaction'
     on conflict (source_ledger_entry_id) where source_ledger_entry_id is not null do nothing
@@ -460,6 +462,10 @@ export async function updateLedgerEntry(
   `;
   if (!existing.length) return null;
   const cur = mapRow(existing[0] as Record<string, unknown>);
+  if (input.paymentMethod === "card" && (cur.type !== "expense" || cur.entry_kind !== "transaction")) {
+    throw new RouteError(400, "INVALID_REQUEST", "רק הוצאה רגילה יכולה להשתייך לכרטיס האשראי");
+  }
+  const dueDate = input.paymentMethod === "card" ? `${cur.month_key}-10` : input.dueDate !== undefined ? input.dueDate : cur.due_date;
   const amount = incomeAmountState(cur.type, input.amount ?? cur.amount,
     input.amountPending ?? (input.amount !== undefined ? false : cur.amount_pending));
   if (input.isPaid === true && amount.amountPending) {
@@ -467,13 +473,13 @@ export async function updateLedgerEntry(
   }
 
   const rows = await sql`
-    update monthly_ledger
+    with updated as (update monthly_ledger
     set name = ${input.name ?? cur.name},
         amount = ${amount.amount},
         amount_pending = ${amount.amountPending},
         category = ${input.category ?? cur.category},
         is_paid = ${amount.amountPending ? false : input.isPaid ?? cur.is_paid},
-        due_date = ${input.dueDate !== undefined ? input.dueDate : cur.due_date},
+        due_date = ${dueDate},
         completed_at = case when ${amount.amountPending || input.isPaid === false} then null when ${input.isPaid === true} then now() else completed_at end,
         confirmation_source = ${input.confirmationSource ?? cur.confirmation_source},
         payment_method = ${input.paymentMethod ?? cur.payment_method},
@@ -481,7 +487,12 @@ export async function updateLedgerEntry(
         notes = ${input.notes !== undefined ? input.notes : cur.notes},
         updated_at = now()
     where id = ${id} and user_id = ${userId}
-    returning *
+    returning *), synced_template as (
+      update fixed_templates t set payment_method = e.payment_method, updated_at = now()
+      from updated e where ${input.paymentMethod !== undefined} and t.user_id = ${userId}
+        and t.id = e.template_id and e.type = 'expense' and e.entry_kind = 'transaction'
+      returning t.id
+    ) select * from updated
   `;
   const updated = mapRow(rows[0] as Record<string, unknown>);
   const action = input.isPaid === true && !cur.is_paid ? "confirmed" : input.isPaid === false && cur.is_paid ? "reopened" : "updated";

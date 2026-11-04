@@ -119,3 +119,25 @@ test("template loading passes an explicit per-item amount selection to atomic SQ
   await db.initMonthFromTemplates("owner", "2026-11", [id]);
   assert.ok(calls[0].values.includes(true), "existing one-item action keeps stored amount");
 });
+
+
+test("card grouping rejects income and cash transfers before writing", async () => {
+  for (const entry of [pendingIncome, {...pendingIncome, type: "expense", entry_kind: "cash_withdrawal"}]) {
+    const calls = [];
+    const sql = async (parts) => { calls.push(parts.join("?")); return [entry]; };
+    await assert.rejects(() => ledger(sql).updateLedgerEntry("owner", entry.id, {paymentMethod: "card"}), /רק הוצאה רגילה/);
+    assert.equal(calls.length, 1);
+  }
+});
+
+test("card grouping sets day ten and synchronizes only the linked user's template atomically", async () => {
+  const calls = [];
+  const source = {...pendingIncome, type: "expense", month_key: "2026-11", amount: 100, amount_pending: false, template_id: "template-1"};
+  const sql = async (parts, ...values) => { calls.push({text:parts.join("?"),values});return [source]; };
+  await ledger(sql).updateLedgerEntry("owner", source.id, {paymentMethod:"card",dueDate:"2026-11-01"});
+  const write=calls.find(c=>c.text.includes("update monthly_ledger"));
+  assert.ok(write.values.includes("2026-11-10"));
+  assert.match(write.text,/synced_template/);
+  assert.match(write.text,/t.user_id =/);
+  assert.match(write.text,/t.id = e.template_id/);
+});

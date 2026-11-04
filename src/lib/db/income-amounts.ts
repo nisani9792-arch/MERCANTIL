@@ -11,6 +11,7 @@ export function ensureIncomeAmounts(): Promise<void> {
       sql`create table if not exists app_schema_migrations (name text primary key, applied_at timestamptz not null default now())`,
       sql`alter table fixed_templates add column if not exists amount_pending boolean not null default false`,
       sql`alter table monthly_ledger add column if not exists amount_pending boolean not null default false`,
+      sql`alter table fixed_templates add column if not exists payment_method text not null default 'bank'`,
       // Early versions rejected zero, which was the reason for the 0.10 workaround.
       sql`do $$
         declare c record;

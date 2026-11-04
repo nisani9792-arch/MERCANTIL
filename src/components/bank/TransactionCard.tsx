@@ -1,5 +1,5 @@
 "use client";
-import { Check, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Check, CreditCard, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils/format";
 import type { MonthlyLedgerEntry } from "@/types/ledger";
 import { paymentStatus, statusLabel } from "@/lib/ledger/payment-status";
@@ -9,6 +9,7 @@ type Props = {
   onDelete: () => void;
   onTogglePaid?: () => void;
   busy?: boolean;
+  onMovePayment?: (card: boolean) => void;
 };
 export function TransactionCard({
   entry,
@@ -16,11 +17,14 @@ export function TransactionCard({
   onDelete,
   onTogglePaid,
   busy = false,
+  onMovePayment,
 }: Props) {
   const status = paymentStatus(entry),
     done = status === "completed";
   return (
-    <article data-flow={entry.entry_kind === "cash_withdrawal" ? "transfer" : entry.type}
+    <article draggable={Boolean(onMovePayment) && !busy}
+      onDragStart={(event) => { event.dataTransfer.setData("application/x-mercantil-entry", entry.id); event.dataTransfer.effectAllowed = "move"; }}
+      data-flow={entry.entry_kind === "cash_withdrawal" ? "transfer" : entry.type}
       data-pending={!!entry.amount_pending}
       className="m3-tx-card ledger-row relative flex min-h-20 items-center gap-3 bg-surface-container-lowest px-4 py-3">
       <span
@@ -90,6 +94,11 @@ export function TransactionCard({
           <MoreHorizontal className="h-4 w-4" />
         </summary>
         <div className="absolute end-0 top-10 z-20 w-40 rounded-xl border border-outline-variant bg-surface-container-lowest p-1 shadow-elevation-2">
+          {onMovePayment && <button disabled={busy}
+            onClick={(event) => { event.currentTarget.closest("details")?.removeAttribute("open"); onMovePayment(entry.payment_method !== "card"); }}
+            className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-sm hover:bg-surface-container">
+            <CreditCard className="h-4 w-4" />{entry.payment_method === "card" ? "לתשלום ידני" : "לכרטיס האשראי"}
+          </button>}
           <button
             onClick={onTap}
             className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-sm hover:bg-surface-container"
