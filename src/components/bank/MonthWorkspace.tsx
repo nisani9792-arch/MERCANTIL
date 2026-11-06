@@ -41,6 +41,7 @@ export function MonthWorkspace() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [sheetMode, setSheetMode] = useState<LedgerSheetMode | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [advancedLoaded, setAdvancedLoaded] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
   const messageTimer = useRef<number | null>(null);
   const qc = useQueryClient();
@@ -64,15 +65,15 @@ export function MonthWorkspace() {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["ledger", monthKey],
     queryFn: () => fetchLive<LedgerResponse>(`/api/ledger?month=${monthKey}`),
-    staleTime: 0,
+    staleTime: 30_000,
   });
 
   async function refetchAll() {
     await Promise.all([
       qc.invalidateQueries({ queryKey: ["ledger-history", monthKey] }),
       qc.refetchQueries({ queryKey: ["ledger", monthKey] }),
-      qc.refetchQueries({ queryKey: ["analytics", monthKey] }),
-      qc.refetchQueries({ queryKey: ["ai-insights", monthKey] }),
+      qc.invalidateQueries({ queryKey: ["analytics", monthKey] }),
+      qc.invalidateQueries({ queryKey: ["ai-insights", monthKey] }),
     ]);
   }
 
@@ -545,11 +546,11 @@ export function MonthWorkspace() {
           />
         </div>
       </details>
-      <details className="finance-panel">
+      <details className="finance-panel" onToggle={(event) => { if (event.currentTarget.open) setAdvancedLoaded(true); }}>
         <summary className="cursor-pointer py-2 font-bold">
           כלים מתקדמים
         </summary>
-        <div className="mt-4 space-y-4">
+        {advancedLoaded && <div className="mt-4 space-y-4">
           <button
             type="button"
             disabled={monthTemplateMut.isPending || !data?.summary.initialized}
@@ -579,7 +580,7 @@ export function MonthWorkspace() {
           <BankReconciliationPanel monthKey={monthKey} />
 
           <CashflowCyclePanel monthKey={monthKey} />
-        </div>
+        </div>}
       </details>
       <details className="finance-panel">
         <summary className="cursor-pointer text-sm font-semibold">

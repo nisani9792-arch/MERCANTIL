@@ -62,6 +62,8 @@ export type MonthSummary = {
   cashBalance: number;
   cashWithdrawnThisMonth: number;
   cashSpentThisMonth: number;
+  pendingIncomeCount?: number;
+  pendingExpenseCount?: number;
   entryCount: number;
   initialized: boolean;
 };

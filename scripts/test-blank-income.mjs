@@ -141,3 +141,27 @@ test("card grouping sets day ten and synchronizes only the linked user's templat
   assert.match(write.text,/t.user_id =/);
   assert.match(write.text,/t.id = e.template_id/);
 });
+
+
+test("a prepared database skips migration locks and DDL on a cold worker", async () => {
+  let reads = 0;
+  const sql = async () => { reads++; return [{ready:true}]; };
+  sql.transaction = () => { throw new Error("migration must not run again"); };
+  const db = load("src/lib/db/income-amounts.ts", {"@/lib/db/client":{getSql:()=>sql}});
+  await Promise.all([db.ensureIncomeAmounts(), db.ensureIncomeAmounts()]);
+  assert.equal(reads,1);
+});
+
+test("prepared payment tracking reads its marker and preferences without schema writes", async () => {
+  const calls=[];
+  const sql=async(parts)=>{const text=parts.join("?");calls.push(text);return text.includes("as ready")?[{ready:true}]:[{category_order:["דיור"]}];};
+  const result=await ledger(sql).getMonthlyCategoryOrder("owner","2026-11");
+  assert.equal(result[0],"דיור");assert.equal(calls.length,2);
+  assert.doesNotMatch(calls.join(" "),/alter table|create table|create index/);
+});
+
+test("summary sums cents exactly and keeps unknown amounts distinct", async () => {
+  const entries=[{...pendingIncome,id:"a",amount:0.1,amount_pending:false},{...pendingIncome,id:"b",amount:0.2,amount_pending:false},{...pendingIncome,id:"c",type:"expense",amount:0.1,amount_pending:false},pendingIncome];
+  const summary=await ledger(async()=>[{withdrawn:0.3,spent:0.1}]).getMonthSummary("owner","2026-11",entries);
+  assert.equal(summary.totalIncome,0.3);assert.equal(summary.disposableRemaining,0.2);assert.equal(summary.cashBalance,0.2);assert.equal(summary.pendingIncomeCount,1);assert.equal(summary.pendingExpenseCount,0);
+});

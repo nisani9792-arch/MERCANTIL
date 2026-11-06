@@ -22,9 +22,11 @@ export default async function AppLayout({
   const session = await getSession();
   if (!session) redirect("/login");
 
-  const user = await findUserById(session.userId);
+  const [user, configured] = await Promise.all([
+    findUserById(session.userId), hasFinancialSetup(session.userId),
+  ]);
   if (!user) redirect("/login");
-  const setupRequired = !(await hasFinancialSetup(session.userId));
+  const setupRequired = !configured;
 
   return (
     <BankShell

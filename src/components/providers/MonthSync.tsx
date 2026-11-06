@@ -25,7 +25,7 @@ export function MonthSync() {
       } catch { /* the active device keeps its last confirmed server view */ }
     };
     void pull().finally(() => { hydrated.current = true; });
-    const timer = window.setInterval(() => { if (document.visibilityState === "visible") void pull(); }, 15_000);
+    const timer = window.setInterval(() => { if (document.visibilityState === "visible") void pull(); }, 30_000);
     return () => { cancelled = true; window.clearInterval(timer); };
   }, [setMonthKey]);
 

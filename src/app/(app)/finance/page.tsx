@@ -1,3 +1,2 @@
-import { FinancialSnapshot } from "@/components/finance/FinancialSnapshot";
-
-export default function FinancePage() { return <FinancialSnapshot />; }
+import { redirect } from "next/navigation";
+export default function FinancePage() { redirect("/dashboard"); }

@@ -23,20 +23,13 @@ import {
 import { fetchLive, mutateLive } from "@/lib/api/fetch-live";
 import { monthlyPlan } from "@/lib/ledger/planning";
 import { formatCurrency } from "@/lib/utils/format";
-import type { AnalyticsPayload, MonthlyLedgerEntry } from "@/types/ledger";
+import type { AnalyticsPayload } from "@/types/ledger";
 import { useMonthStore } from "@/stores/useMonthStore";
 export function DashboardView() {
   const month = useMonthStore((s) => s.monthKey);
   const analytics = useQuery({
     queryKey: ["analytics", month],
     queryFn: () => fetchLive<AnalyticsPayload>("/api/analytics?month=" + month),
-  });
-  const ledger = useQuery({
-    queryKey: ["ledger", month],
-    queryFn: () =>
-      fetchLive<{ entries: MonthlyLedgerEntry[] }>(
-        "/api/ledger?month=" + month,
-      ),
   });
   const estimate = useQuery({
     queryKey: ["planning", month],
@@ -46,11 +39,9 @@ export function DashboardView() {
       ),
   });
   const summary = analytics.data?.summary;
-  const ready = analytics.isSuccess && ledger.isSuccess && estimate.isSuccess;
-  const missing =
-    ledger.data?.entries.filter(
-      (e) => e.amount_pending,
-    ) ?? [];
+  const ready = analytics.isSuccess && estimate.isSuccess;
+  const missingIncome = summary?.pendingIncomeCount ?? 0;
+  const missing = missingIncome + (summary?.pendingExpenseCount ?? 0);
   const plan =
     ready && summary
       ? monthlyPlan(
@@ -64,7 +55,7 @@ export function DashboardView() {
     <div className="workspace-page">
       <PageHeading
         eyebrow="עושים סדר, חודש אחרי חודש"
-        title="מבט על"
+        title="סקירה וסטטיסטיקות"
         description="ההכנסות, ההתחייבויות ומה שנשאר בתכנון שלך."
         action={
           <div className="workspace-month-picker">
@@ -72,13 +63,12 @@ export function DashboardView() {
           </div>
         }
       />
-      {analytics.isError || ledger.isError || estimate.isError ? (
+      {analytics.isError || estimate.isError ? (
         <div role="alert" className="workspace-notice">
           לא הצלחנו לטעון את הנתונים.{" "}
           <button
             onClick={() => {
               void analytics.refetch();
-              void ledger.refetch();
               void estimate.refetch();
             }}
             className="underline"
@@ -100,14 +90,14 @@ export function DashboardView() {
                   label="יתרה משוערת לתכנון"
                   value={plan.remaining}
                   featured
-                  note={missing.length ? "התכנון חלקי — יש סכומים להשלמה" : "הכנסות פחות הוצאות בתכנון"}
+                  note={missing ? "התכנון חלקי — יש סכומים להשלמה" : "הכנסות פחות הוצאות בתכנון"}
                 />
                 <StatCard
                   label="הכנסות שהוזנו"
                   tone="income"
                   value={summary.totalIncome}
                   note={
-                    missing.some((e) => e.type === "income") ? "יש סכומים להשלמה" : "לפי הרישומים שלך"
+                    missingIncome > 0 ? "יש סכומים להשלמה" : "לפי הרישומים שלך"
                   }
                 />
                 <StatCard
@@ -127,16 +117,16 @@ export function DashboardView() {
                   }
                 />
               </div>
-              {missing.length > 0 && (
+              {missing > 0 && (
                 <Link
-                  href={missing.every((e) => e.type === "income") ? "/month?view=income" : "/month"}
+                  href={missingIncome === missing ? "/month?view=income" : "/month"}
                   className="workspace-notice flex items-center justify-between gap-3"
                 >
                   <span className="flex items-center gap-2">
                     <CircleAlert className="h-4 w-4 shrink-0" />
-                    {missing.length === 1
+                    {missing === 1
                       ? "נותר סכום אחד להשלמה"
-                      : missing.length + " סכומים להשלמה"}
+                      : missing + " סכומים להשלמה"}
                   </span>
                   <span className="shrink-0 text-xs font-bold">להשלמה ←</span>
                 </Link>
@@ -168,8 +158,8 @@ export function DashboardView() {
               <SectionHeading
                 title="הכנסות מול הוצאות"
                 description="החודשים שבהם הזנת נתונים"
-                href="/trends"
-                linkText="כל המגמות"
+                href="#statistics"
+                linkText="לממוצעים"
               />
               <CashflowChart data={analytics.data.trend} />
             </section>
@@ -181,6 +171,15 @@ export function DashboardView() {
               <CategoryChart data={analytics.data.expenseBreakdown} />
             </section>
           </div>
+          <section id="statistics" className="finance-panel scroll-mt-20">
+            <SectionHeading title="סטטיסטיקות לאורך זמן" description="לפי החודשים שבהם הזנת נתונים, ללא הערכת המחיה" />
+            {analytics.data.averages.monthsIncluded >= 3 ? <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <StatCard label="ממוצע הכנסות" value={analytics.data.averages.avgIncome} tone="income" />
+              <StatCard label="ממוצע הוצאות" value={analytics.data.averages.avgExpense} tone="expense" />
+              <StatCard label="נטו ממוצע" value={analytics.data.averages.avgNet} />
+            </div> : <p className="workspace-muted">נרשמו {analytics.data.averages.monthsIncluded} חודשים. ממוצעים יוצגו לאחר לפחות 3 חודשי נתונים.</p>}
+            <p className="workspace-muted mt-3">חודשים ריקים אינם נספרים כאפס. רישומים חלקיים עשויים להשפיע על הממוצעים.</p>
+          </section>
           <div className="workspace-shortcuts grid gap-3 sm:grid-cols-2">
             <Link
               href="/month"

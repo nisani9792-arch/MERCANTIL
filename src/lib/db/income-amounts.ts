@@ -6,7 +6,14 @@ let ready: Promise<void> | null = null;
 export function ensureIncomeAmounts(): Promise<void> {
   if (!ready) {
     const sql = getSql();
-    ready = sql.transaction([
+    ready = (async () => {
+      try {
+        const rows = await sql`select exists(select 1 from app_schema_migrations where name = 'income_amounts_card_v2') as ready`;
+        if (rows[0]?.ready) return;
+      } catch (error) {
+        if ((error as {code?: string}).code !== "42P01") throw error;
+      }
+      await sql.transaction([
       sql`select pg_advisory_xact_lock(742026101)`,
       sql`create table if not exists app_schema_migrations (name text primary key, applied_at timestamptz not null default now())`,
       sql`alter table fixed_templates add column if not exists amount_pending boolean not null default false`,
@@ -45,7 +52,9 @@ export function ensureIncomeAmounts(): Promise<void> {
           insert into app_schema_migrations (name) values ('blank_monthly_expenses_v1');
         end if;
       end $$`,
-    ]).then(() => undefined).catch((error) => {
+      sql`insert into app_schema_migrations (name) values ('income_amounts_card_v2') on conflict do nothing`,
+      ]);
+    })().catch((error) => {
       ready = null;
       throw error;
     });

@@ -18,6 +18,9 @@ async function ensurePaymentTrackingSchema() {
   if (!paymentTrackingSchemaReady) {
     const sql = getSql();
     paymentTrackingSchemaReady = (async () => {
+      await ensureIncomeAmounts();
+      const version = await sql`select exists(select 1 from app_schema_migrations where name = 'payment_tracking_schema_v1') as ready`;
+      if (version[0]?.ready) return;
       await sql`alter table monthly_ledger add column if not exists due_date date`;
       await sql`alter table monthly_ledger add column if not exists completed_at timestamptz`;
       await sql`alter table monthly_ledger add column if not exists confirmation_source text not null default 'manual'`;
@@ -42,6 +45,7 @@ async function ensurePaymentTrackingSchema() {
         updated_at timestamptz not null default now(),
         primary key (user_id, month_key)
       )`;
+      await sql`insert into app_schema_migrations (name) values ('payment_tracking_schema_v1') on conflict do nothing`;
     })().catch((error) => {
       paymentTrackingSchemaReady = null;
       throw error;
@@ -252,19 +256,18 @@ export async function getMonthSummary(
 ): Promise<MonthSummary> {
   const entries = providedEntries ?? await listLedgerEntries(userId, monthKey);
   const transactions = entries.filter((e) => e.entry_kind === "transaction");
-  const totalIncome = transactions
-    .filter((e) => e.type === "income")
-    .reduce((s, e) => s + e.amount, 0);
-  const fixedExpenses = transactions
-    .filter((e) => e.type === "expense" && !e.is_variable)
-    .reduce((s, e) => s + e.amount, 0);
-  const variableExpenses = transactions
-    .filter((e) => e.type === "expense" && e.is_variable)
-    .reduce((s, e) => s + e.amount, 0);
+  const sum = (items: MonthlyLedgerEntry[]) => items.reduce((cents, entry) => cents + Math.round(entry.amount * 100), 0) / 100;
+  const rounded = (value: number) => Math.round(value * 100) / 100;
+  const totalIncome = sum(transactions
+    .filter((e) => e.type === "income"));
+  const fixedExpenses = sum(transactions
+    .filter((e) => e.type === "expense" && !e.is_variable));
+  const variableExpenses = sum(transactions
+    .filter((e) => e.type === "expense" && e.is_variable));
 
-  const remainingForVariable = totalIncome - fixedExpenses;
-  const actualIncome = transactions.filter(e => e.type === 'income' && e.is_paid).reduce((s,e) => s + e.amount, 0);
-  const actualExpenses = transactions.filter(e => e.type === 'expense' && e.is_paid).reduce((s,e) => s + e.amount, 0);
+  const remainingForVariable = rounded(totalIncome - fixedExpenses);
+  const actualIncome = sum(transactions.filter(e => e.type === 'income' && e.is_paid));
+  const actualExpenses = sum(transactions.filter(e => e.type === 'expense' && e.is_paid));
 
   const sql = getSql();
   const cashRows = await sql`
@@ -276,30 +279,29 @@ export async function getMonthSummary(
   `;
   const cashWithdrawn = Number(cashRows[0]?.withdrawn ?? 0);
   const cashSpent = Number(cashRows[0]?.spent ?? 0);
-  const cashWithdrawnThisMonth = entries
-    .filter((e) => e.entry_kind === "cash_withdrawal")
-    .reduce((s, e) => s + e.amount, 0);
-  const cashSpentThisMonth = entries
-    .filter((e) => e.entry_kind === "transaction" && e.type === "expense" && e.payment_method === "cash" && e.is_paid)
-    .reduce((s, e) => s + e.amount, 0);
+  const cashWithdrawnThisMonth = sum(entries
+    .filter((e) => e.entry_kind === "cash_withdrawal"));
+  const cashSpentThisMonth = sum(entries
+    .filter((e) => e.entry_kind === "transaction" && e.type === "expense" && e.payment_method === "cash" && e.is_paid));
 
   return {
     monthKey,
     totalIncome,
     totalFixedExpenses: fixedExpenses,
-    fixedExpensesPaid: transactions
-      .filter((e) => e.type === "expense" && !e.is_variable && e.is_paid)
-      .reduce((s, e) => s + e.amount, 0),
+    fixedExpensesPaid: sum(transactions
+      .filter((e) => e.type === "expense" && !e.is_variable && e.is_paid)),
     totalVariableExpenses: variableExpenses,
     remainingForVariable,
-    disposableRemaining: remainingForVariable - variableExpenses,
-    netAfterAll: totalIncome - fixedExpenses - variableExpenses,
+    disposableRemaining: rounded(remainingForVariable - variableExpenses),
+    netAfterAll: rounded(totalIncome - fixedExpenses - variableExpenses),
     actualIncome,
     actualExpenses,
-    actualNet: actualIncome - actualExpenses,
-    cashBalance: cashWithdrawn - cashSpent,
+    actualNet: rounded(actualIncome - actualExpenses),
+    cashBalance: rounded(cashWithdrawn - cashSpent),
     cashWithdrawnThisMonth,
     cashSpentThisMonth,
+    pendingIncomeCount: transactions.filter((e) => e.type === "income" && e.amount_pending).length,
+    pendingExpenseCount: transactions.filter((e) => e.type === "expense" && e.amount_pending).length,
     entryCount: entries.length,
     initialized: entries.length > 0,
   };

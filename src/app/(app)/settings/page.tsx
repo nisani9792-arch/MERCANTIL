@@ -21,8 +21,8 @@ export default function SettingsPage() {
       icon: LayoutTemplate,
     },
     {
-      href: "/trends",
-      title: "מגמות לאורך זמן",
+      href: "/dashboard#statistics",
+      title: "סטטיסטיקות",
       description: "להסתכל על התמונה שנבנית לאורך החודשים",
       icon: BarChart3,
     },

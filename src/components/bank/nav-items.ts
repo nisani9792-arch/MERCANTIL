@@ -2,7 +2,6 @@ import {
   Home,
   CalendarDays,
   Library,
-  Landmark,
   type LucideIcon,
 } from "lucide-react";
 export type NavItem = {
@@ -15,7 +14,8 @@ export type NavItem = {
 export const navItems: NavItem[] = [
   {
     href: "/dashboard",
-    label: "מבט על",
+    label: "סקירה וסטטיסטיקות",
+    mobileLabel: "סקירה",
     icon: Home,
     description: "התמונה החודשית",
   },
@@ -31,11 +31,5 @@ export const navItems: NavItem[] = [
     mobileLabel: "הספרייה",
     icon: Library,
     description: "בחירה מההיסטוריה",
-  },
-  {
-    href: "/finance",
-    label: "נכסים וחובות",
-    icon: Landmark,
-    description: "המידע הפיננסי",
   },
 ];

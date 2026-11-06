@@ -54,7 +54,7 @@ export async function getSixMonthTrend(
       hasData: byKey.has(monthKey),
       income: p.income,
       expense: p.expense,
-      net: p.income - p.expense,
+      net: Math.round((p.income - p.expense) * 100) / 100,
     };
   });
 }
@@ -99,9 +99,9 @@ export function getHistoricalAveragesFromTrend(
     withData.reduce((s, t) => s + t.expense, 0) / divisor;
 
   return {
-    avgIncome,
-    avgExpense,
-    avgNet: avgIncome - avgExpense,
+    avgIncome: Math.round(avgIncome * 100) / 100,
+    avgExpense: Math.round(avgExpense * 100) / 100,
+    avgNet: Math.round((avgIncome - avgExpense) * 100) / 100,
     monthsIncluded: withData.length,
   };
 }
