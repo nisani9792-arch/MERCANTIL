@@ -1,0 +1,1 @@
+import React from 'react';import {createRoot} from 'react-dom/client';import {MonthSync} from '@/components/providers/MonthSync';import {useMonthStore} from '@/stores/useMonthStore';const w=window as any;w.store=useMonthStore;w.root=createRoot(document.getElementById('root')!);w.root.render(<MonthSync/>);

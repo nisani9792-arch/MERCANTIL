@@ -4,13 +4,13 @@ import { isDatabaseConfigured } from "@/lib/db/client";
 
 export function getAuthSetupError(): string | null {
   if (!isDatabaseConfigured()) {
-    return "DATABASE_URL לא מוגדר בשרת. הוסף ב-Render → Environment.";
+    return "חיבור מסד הנתונים אינו מוגדר בשרת.";
   }
   if (!isSessionConfigured()) {
-    return "SESSION_SECRET לא מוגדר בשרת (מינימום 16 תווים).";
+    return "שירות ההתחברות אינו מוגדר בשרת.";
   }
   if (!isPinConfigured()) {
-    return "קוד גישה לא תקין.";
+    return "קוד הגישה אינו מוגדר בשרת.";
   }
   return null;
 }

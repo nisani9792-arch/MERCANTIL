@@ -2,9 +2,10 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "test": "node verify-postgres.cjs && node verify-setup.cjs"
+    "test": "node verify-postgres.cjs && node verify-setup.cjs && node verify-month-sync.cjs"
   },
   "dependencies": {
-    "@electric-sql/pglite": "0.5.11"
+    "@electric-sql/pglite": "0.5.11",
+    "jsdom": "26.1.0"
   }
 }

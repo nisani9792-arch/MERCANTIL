@@ -5,13 +5,14 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { cn } from "@/lib/utils/cn";
+import {safeReturnPath} from "@/lib/security/navigation";
 
 type AuthMode = "login" | "register";
 
 export function AuthForm({ mode }: { mode: AuthMode }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") ?? "/dashboard";
+  const redirect = safeReturnPath(searchParams.get("redirect"));
   const needsSetup = searchParams.get("setup") === "database";
 
   const [email, setEmail] = useState("");
@@ -133,7 +134,7 @@ export function AuthForm({ mode }: { mode: AuthMode }) {
               id="password"
               type="password"
               required
-              minLength={6}
+              minLength={isRegister ? 12 : 1}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="m3-input w-full px-3 py-2"
