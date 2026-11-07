@@ -2,6 +2,7 @@
 
 
 import Script from "next/script";
+import {safeReturnPath} from "@/lib/security/navigation";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Delete, Leaf } from "lucide-react";
@@ -48,7 +49,7 @@ declare global {
 export function PinGate() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") ?? "/dashboard";
+  const redirect = safeReturnPath(searchParams.get("redirect"));
   const needsSetup = searchParams.get("setup") === "database";
 
   const [pin, setPin] = useState("");
