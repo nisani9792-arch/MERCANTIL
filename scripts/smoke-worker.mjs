@@ -9,7 +9,7 @@ const child=spawn(process.execPath,[path.resolve("node_modules/wrangler/bin/wran
 let logs="",exited=false;child.on("exit",()=>{exited=true;});child.stdout.on("data",v=>{logs=(logs+v).slice(-10000);});child.stderr.on("data",v=>{logs=(logs+v).slice(-10000);});
 try {
   let ready=false;
-  for(let i=0;i<150;i++){if(exited)throw new Error("Worker exited before readiness");try{const r=await fetch(base+"/deploy-version.txt",{signal:AbortSignal.timeout(1000)});if(r.ok){assert.equal((await r.text()).trim(),"audited-workspace-2026-11-07");ready=true;break;}}catch{ /* Runtime startup may still be in progress. */ }await delay(200);}
+  for(let i=0;i<150;i++){if(exited)throw new Error("Worker exited before readiness");try{const r=await fetch(base+"/deploy-version.txt",{signal:AbortSignal.timeout(1000)});if(r.ok){assert.equal((await r.text()).trim(),"audited-workspace-2026-11-08");ready=true;break;}}catch{ /* Runtime startup may still be in progress. */ }await delay(200);}
   assert.ok(ready,"Worker readiness timeout");
   assert.equal((await fetch(base+"/login")).status,200,"Worker login render");
   assert.equal((await fetch(base+"/api/ledger?monthKey=2026-11")).status,401,"Unauthenticated ledger");

@@ -58,7 +58,18 @@
     "baseline-browser-mapping@<2.11.0": "2.11.0",
     "source-map-js@<1.2.2": "1.2.2",
     "brace-expansion@>=2 <2.1.7": "2.1.7",
-    "uuid@<11.1.1": "11.1.1"
+    "uuid": "11.1.1",
+    "js-yaml@>=4 <4.3.2": "4.3.2",
+    "postcss@<=8.5.22": "8.5.23",
+    "glob@>=9 <14.0.2": "14.0.2",
+    "minimatch@>=7 <11.0.1": "11.0.1",
+    "brace-expansion@>=3 <5.0.12": "5.0.12",
+    "@capacitor/cli": {
+      "glob": "14.0.2",
+      "rimraf": {
+        "glob": "14.0.2"
+      }
+    }
   },
   "packageManager": "npm@10.9.2"
 }
