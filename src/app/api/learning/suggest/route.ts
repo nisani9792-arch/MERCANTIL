@@ -1,9 +1,10 @@
+import { withApi } from "@/lib/api/route";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { suggestFromNotes } from "@/lib/db/learning-rules";
 import type { CategoryType } from "@/types";
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -19,3 +20,5 @@ export async function GET(request: Request) {
 
   return NextResponse.json({ suggestion });
 }
+
+export const GET = withApi(GETHandler, "learning.suggest.get");

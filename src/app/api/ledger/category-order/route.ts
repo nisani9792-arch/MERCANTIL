@@ -1,10 +1,11 @@
+import { withApi } from "@/lib/api/route";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { saveMonthlyCategoryOrder } from "@/lib/db/monthly-ledger";
 import { apiError, readJson, RouteError } from "@/lib/api/route";
 import { categoryOrderSchema } from "@/lib/ledger/validation";
 
-export async function PATCH(request: Request) {
+async function PATCHHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new RouteError(401, "UNAUTHORIZED", "נדרשת התחברות");
@@ -15,3 +16,5 @@ export async function PATCH(request: Request) {
     return apiError(error, "ledger.category-order");
   }
 }
+
+export const PATCH = withApi(PATCHHandler, "ledger.category-order.patch");

@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
+import { UserScope } from "@/components/providers/UserScope";
 import { useEffect } from "react";
 import { BankHeader } from "@/components/bank/BankHeader";
 import {
@@ -15,12 +16,14 @@ import { MonthSync } from "@/components/providers/MonthSync";
 type BankShellProps = {
   children: React.ReactNode;
   userName: string;
+  userId?: string;
   setupRequired: boolean;
 };
 
 export function BankShell({
   children,
   userName,
+  userId = "preview",
   setupRequired,
 }: BankShellProps) {
   useRefetchOnVisible();
@@ -33,7 +36,7 @@ export function BankShell({
   }, [redirectingToSetup, router]);
 
   return (
-    <div className="bank-canvas flex min-h-[100dvh] flex-col">
+    <UserScope.Provider value={userId}><div className="bank-canvas flex min-h-[100dvh] flex-col">
       <a href="#main-content" className="sr-only focus:not-sr-only focus:p-3">
         דילוג לתוכן
       </a>
@@ -56,6 +59,6 @@ export function BankShell({
       </div>
       <BankMobileFab />
       <BankMobileNav />
-    </div>
+    </div></UserScope.Provider>
   );
 }

@@ -39,7 +39,7 @@ export function TransactionCard({
         className="flex min-w-0 flex-1 items-center justify-between gap-3 text-start"
       >
         <span className="min-w-0">
-          <b className="block truncate text-sm font-semibold">{entry.name}</b>
+          <b title={entry.name} className="block break-words text-sm font-semibold">{entry.name}</b>
           <small className="mt-1 flex items-center gap-2 text-[11px] text-on-surface-variant">
             <span className="ledger-kind">{entry.entry_kind === "cash_withdrawal" ? "העברה" : entry.type === "income" ? "הכנסה" : "הוצאה"}</span>
             <span className="truncate">
@@ -86,7 +86,7 @@ export function TransactionCard({
           <Check className="h-4 w-4" />
         </button>
       )}
-      <details className="relative shrink-0">
+      <details className="relative shrink-0" onKeyDown={(event)=>{if(event.key==="Escape"){event.currentTarget.open=false;event.currentTarget.querySelector("summary")?.focus();}}}>
         <summary
           aria-label={"פעולות עבור " + entry.name}
           className="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container"

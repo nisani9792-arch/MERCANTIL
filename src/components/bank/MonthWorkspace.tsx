@@ -9,6 +9,7 @@ import {
   LedgerBottomSheet,
   type LedgerSheetMode,
 } from "@/components/bank/LedgerBottomSheet";
+import { useUserScope } from "@/components/providers/UserScope";
 import { PaymentFolders } from "@/components/bank/PaymentFolders";
 import { TransactionCard } from "@/components/bank/TransactionCard";
 import { SmartEntryBar } from "@/components/bank/SmartEntryBar";
@@ -35,6 +36,7 @@ type LedgerResponse = {
 };
 
 export function MonthWorkspace() {
+  const userScope = useUserScope();
   const monthKey = useMonthStore((s) => s.monthKey);
   const [view, setView] = useState<"expense" | "income" | "all">("expense");
   const [search, setSearch] = useState("");
@@ -80,6 +82,7 @@ export function MonthWorkspace() {
   const saveMut = useMutation({
     mutationFn: async (payload: {
       id?: string;
+      clientRequestId?: string;
       name: string;
       amount: number;
       amountPending: boolean;
@@ -95,6 +98,7 @@ export function MonthWorkspace() {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            expectedUpdatedAt: sheetMode?.kind === "edit" ? sheetMode.entry.updated_at : undefined,
             name: payload.name,
             amount: payload.amount,
             amountPending: payload.amountPending,
@@ -117,6 +121,7 @@ export function MonthWorkspace() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             monthKey,
+            clientRequestId: payload.clientRequestId,
             name: payload.name,
             type: payload.type,
             amount: payload.amount,
@@ -173,7 +178,7 @@ export function MonthWorkspace() {
     mutationFn: async ({ entry, card }: { entry: MonthlyLedgerEntry; card: boolean }) => {
       const res = await mutateLive(`/api/ledger/${entry.id}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ paymentMethod: card ? "card" : "bank", dueDate: card ? `${entry.month_key}-10` : null }),
+        body: JSON.stringify({ expectedUpdatedAt: entry.updated_at, paymentMethod: card ? "card" : "bank", dueDate: card ? `${entry.month_key}-10` : null }),
       });
       const body = await res.json() as { entry?: MonthlyLedgerEntry; error?: string };
       if (!res.ok || !body.entry) throw new Error(body.error || "העברת ההוצאה לא נשמרה");
@@ -622,7 +627,7 @@ export function MonthWorkspace() {
       <LedgerBottomSheet
         open={sheetOpen}
         mode={sheetMode}
-        storageScope={monthKey}
+        storageScope={`${userScope}:${monthKey}`}
         onClose={() => {
           setSheetOpen(false);
           setSheetMode(null);

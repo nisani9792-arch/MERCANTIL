@@ -1,3 +1,5 @@
+import { logServerError } from "@/lib/api/route";
+import { withApi, readJson } from "@/lib/api/route";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { getSql } from "@/lib/db/client";
@@ -36,7 +38,7 @@ async function getOptionalTables() {
   };
 }
 
-export async function GET() {
+async function GETHandler() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -59,11 +61,11 @@ export async function GET() {
   });
 }
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = await request.json().catch(() => ({})) as {
+  const body = await readJson(request).catch(() => ({})) as {
     items?: SetupItem[];
     openingCash?: number;
   };
@@ -140,7 +142,7 @@ export async function POST(request: Request) {
   } catch (error) {
     const incidentId = crypto.randomUUID().slice(0, 8);
     const failureCode = databaseFailureCode(error);
-    console.error(`[setup-save:${incidentId}:${failureCode}]`, error);
+    logServerError(`[setup-save:${incidentId}:${failureCode}]`, error);
     return NextResponse.json(
       { error: "שמירת ההגדרות נכשלה", incidentId, failureCode },
       { status: 500, headers: { "Cache-Control": "no-store" } },
@@ -148,11 +150,11 @@ export async function POST(request: Request) {
   }
 }
 
-export async function DELETE(request: Request) {
+async function DELETEHandler(request: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = await request.json().catch(() => ({})) as { confirmation?: string };
+  const body = await readJson(request).catch(() => ({})) as { confirmation?: string };
   if (body.confirmation !== "RESET_ALL_FINANCIAL_DATA") {
     return NextResponse.json({ error: "נדרש אישור לאיפוס מלא" }, { status: 400 });
   }
@@ -196,7 +198,13 @@ export async function DELETE(request: Request) {
     });
   } catch (error) {
     const incidentId = crypto.randomUUID().slice(0, 8);
-    console.error(`[setup-reset:${incidentId}]`, error);
+    logServerError(`[setup-reset:${incidentId}]`, error);
     return NextResponse.json({ error: "האיפוס המלא נכשל", incidentId }, { status: 500 });
   }
 }
+
+export const GET = withApi(GETHandler, "setup.get");
+
+export const POST = withApi(POSTHandler, "setup.post");
+
+export const DELETE = withApi(DELETEHandler, "setup.delete");

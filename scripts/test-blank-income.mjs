@@ -25,10 +25,11 @@ class RouteError extends Error {
   constructor(status, code, message) { super(message); this.status = status; this.code = code; }
 }
 function ledger(sql) {
+  sql.transaction ??= queries=>Promise.all(queries);
   return load("src/lib/db/monthly-ledger.ts", {
     "@/lib/db/client": { getSql: () => sql },
     "@/lib/db/income-amounts": { ensureIncomeAmounts: async () => {} },
-    "@/lib/api/route": { RouteError },
+    "@/lib/api/route": { RouteError,logServerError:()=>"test" },
   });
 }
 
@@ -111,13 +112,13 @@ test("template loading passes an explicit per-item amount selection to atomic SQ
   const db = ledger(sql);
   const id = "11111111-1111-1111-1111-111111111111";
   await db.initMonthFromTemplates("owner", "2026-11", [id], []);
-  assert.match(calls[0].text, /case when.*then t.amount else 0 end/s);
-  assert.match(calls[0].text, /then t.amount_pending else true end/s);
-  assert.ok(calls[0].values.includes(false));
-  assert.match(calls[0].text, /on conflict do nothing/);
+  assert.match(calls[1].text, /case when.*then t.amount else 0 end/s);
+  assert.match(calls[1].text, /then t.amount_pending else true end/s);
+  assert.ok(calls[1].values.includes(false));
+  assert.match(calls[1].text, /on conflict do nothing/);
   calls.length = 0;
   await db.initMonthFromTemplates("owner", "2026-11", [id]);
-  assert.ok(calls[0].values.includes(true), "existing one-item action keeps stored amount");
+  assert.ok(calls[1].values.includes(true), "existing one-item action keeps stored amount");
 });
 
 

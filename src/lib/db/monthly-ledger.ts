@@ -1,3 +1,4 @@
+import { logServerError } from "@/lib/api/route";
 import { getSql } from "@/lib/db/client";
 import { ensureIncomeAmounts } from "@/lib/db/income-amounts";
 import { incomeAmountState } from "@/lib/ledger/income-amount";
@@ -76,8 +77,8 @@ function mapRow(row: Record<string, unknown>): MonthlyLedgerEntry {
     completed_at: completedAt ? (completedAt instanceof Date ? completedAt.toISOString() : String(completedAt)) : null,
     confirmation_source: (row.confirmation_source ?? "manual") as "manual" | "automatic",
     notes: row.notes ? String(row.notes) : null,
-    created_at: String(row.created_at),
-    updated_at: String(row.updated_at),
+    created_at: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
+    updated_at: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at),
   };
 }
 
@@ -94,7 +95,7 @@ async function writeLedgerChange(
       values (${userId}, ${entryId}, ${action}, ${beforeData === undefined ? null : JSON.stringify(beforeData)}::jsonb, ${afterData === undefined ? null : JSON.stringify(afterData)}::jsonb)`;
   } catch (error) {
     // An audit failure must never make a successfully committed financial edit look unsaved.
-    console.error("[ledger] audit write failed", error);
+    logServerError("[ledger] audit write failed", error);
   }
 }
 
@@ -322,7 +323,9 @@ export async function initMonthFromTemplates(
   if (chosenIds.length === 0) return { created: 0, skipped: true };
   // One atomic statement copies only missing templates. The unique index on
   // user/month/template also makes repeated or concurrent taps idempotent.
-  const rows = await sql`insert into monthly_ledger (
+  const results = await sql.transaction([
+    sql`select pg_advisory_xact_lock(hashtextextended(${userId + ":" + monthKey}, 0))`,
+    sql`insert into monthly_ledger (
       user_id, month_key, name, type, amount, amount_pending, category,
       is_from_template, template_id, is_variable, is_paid, notes, due_date, payment_method
     ) select t.user_id, ${monthKey}, t.name, t.type,
@@ -344,7 +347,9 @@ export async function initMonthFromTemplates(
           and (e.template_id = t.id or (e.entry_kind = 'transaction' and e.type = t.type
             and lower(trim(e.name)) = lower(trim(t.name)) and e.is_variable = t.is_variable)))
     on conflict do nothing
-    returning id`;
+    returning id`,
+  ]);
+  const rows = results[1];
   const created = rows.length;
   return { created, skipped: created === 0 };
 }
@@ -353,6 +358,7 @@ export async function addLedgerEntry(
   userId: string,
   input: {
     monthKey: string;
+    clientRequestId?: string;
     name: string;
     type: LedgerItemType;
     amount: number;
@@ -373,14 +379,16 @@ export async function addLedgerEntry(
     insert into monthly_ledger (
       user_id, month_key, name, type, amount, amount_pending, category,
       is_from_template, template_id, is_variable, is_paid, notes,
-      entry_kind, payment_method, due_date
+      entry_kind, payment_method, due_date, client_request_id
     )
     values (
       ${userId}, ${input.monthKey}, ${input.name}, ${input.type},
       ${amount.amount}, ${amount.amountPending}, ${category}, false, null, ${input.isVariable ?? false},
       false, ${input.notes ?? null}, ${input.entryKind ?? "transaction"},
-      ${input.paymentMethod ?? "bank"}, ${input.type === "expense" && input.paymentMethod === "card" ? `${input.monthKey}-10` : input.dueDate ?? null}
+      ${input.paymentMethod ?? "bank"}, ${input.type === "expense" && input.paymentMethod === "card" ? `${input.monthKey}-10` : input.dueDate ?? null}, ${input.clientRequestId ?? null}
     )
+    on conflict (user_id,client_request_id) where client_request_id is not null
+      do update set client_request_id = excluded.client_request_id
     returning *
   `;
   const entry = mapRow(rows[0] as Record<string, unknown>);
@@ -455,7 +463,7 @@ export async function createTemplatesFromMonth(userId: string, monthKey: string)
 export async function updateLedgerEntry(
   userId: string,
   id: string,
-  input: Partial<{ name: string; amount: number; amountPending: boolean; category: string; notes: string | null; isPaid: boolean; paymentMethod: PaymentMethod; isVariable: boolean; dueDate: string | null; confirmationSource: "manual" | "automatic" }>,
+  input: Partial<{ name: string; amount: number; amountPending: boolean; category: string; notes: string | null; isPaid: boolean; paymentMethod: PaymentMethod; isVariable: boolean; dueDate: string | null; confirmationSource: "manual" | "automatic"; expectedUpdatedAt: string }>,
 ): Promise<MonthlyLedgerEntry | null> {
   await ensureIncomeAmounts();
   const sql = getSql();
@@ -487,8 +495,9 @@ export async function updateLedgerEntry(
         payment_method = ${input.paymentMethod ?? cur.payment_method},
         is_variable = ${input.isVariable ?? cur.is_variable},
         notes = ${input.notes !== undefined ? input.notes : cur.notes},
-        updated_at = now()
+        updated_at = greatest(now(), updated_at + interval '1 millisecond')
     where id = ${id} and user_id = ${userId}
+      and date_trunc('milliseconds',updated_at) = date_trunc('milliseconds',${input.expectedUpdatedAt ?? cur.updated_at}::timestamptz)
     returning *), synced_template as (
       update fixed_templates t set payment_method = e.payment_method, updated_at = now()
       from updated e where ${input.paymentMethod !== undefined} and t.user_id = ${userId}
@@ -496,6 +505,7 @@ export async function updateLedgerEntry(
       returning t.id
     ) select * from updated
   `;
+  if (!rows.length) throw new RouteError(409,"CONFLICT","הרישום עודכן בינתיים. רענן את החודש ובדוק את הפרטים לפני שמירה חוזרת.");
   const updated = mapRow(rows[0] as Record<string, unknown>);
   const action = input.isPaid === true && !cur.is_paid ? "confirmed" : input.isPaid === false && cur.is_paid ? "reopened" : "updated";
   await writeLedgerChange(userId, id, action, cur, updated);

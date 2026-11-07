@@ -1,3 +1,4 @@
+import { logServerError } from "@/lib/api/route";
 import { getSql } from "@/lib/db/client";
 
 let schemaReady: Promise<void> | null = null;
@@ -314,7 +315,7 @@ async function initSchema() {
     on monthly_ledger (user_id, month_key, template_id)
     where template_id is not null
   `.catch((error) => {
-    console.warn("[schema] could not add monthly template uniqueness index", error);
+    logServerError("[schema] could not add monthly template uniqueness index", error);
   });
 
   await sql`create index if not exists transactions_user_date_idx on transactions (user_id, date desc)`;

@@ -1,3 +1,4 @@
+import { withApi } from "@/lib/api/route";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { apiError, noStoreHeaders, readJson, RouteError } from "@/lib/api/route";
@@ -10,7 +11,7 @@ import {
   listLedgerEntries,
 } from "@/lib/db/monthly-ledger";
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new RouteError(401, "UNAUTHORIZED", "נדרשת התחברות");
@@ -34,13 +35,14 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new RouteError(401, "UNAUTHORIZED", "נדרשת התחברות");
     const body = ledgerCreateSchema.parse(await readJson(request));
 
     const entry = await addLedgerEntry(session.userId, {
+      clientRequestId: body.clientRequestId,
       monthKey: body.monthKey ?? currentMonthKey(),
       name: body.name,
       type: body.entryKind === "cash_withdrawal" ? "expense" : body.type,
@@ -59,3 +61,7 @@ export async function POST(request: Request) {
     return apiError(error, "ledger.create");
   }
 }
+
+export const GET = withApi(GETHandler, "ledger.get");
+
+export const POST = withApi(POSTHandler, "ledger.post");

@@ -1,10 +1,11 @@
+import { withApi } from "@/lib/api/route";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { createTemplateFromLedgerEntry } from "@/lib/db/monthly-ledger";
 import { apiError, readJson, RouteError } from "@/lib/api/route";
 import { entryTemplateSchema } from "@/lib/ledger/validation";
 
-export async function POST(
+async function POSTHandler(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -21,3 +22,5 @@ export async function POST(
     return apiError(error, "ledger.template");
   }
 }
+
+export const POST = withApi(POSTHandler, "ledger.[id].template.post");

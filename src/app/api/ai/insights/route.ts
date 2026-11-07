@@ -1,3 +1,6 @@
+import { month } from "@/lib/api/schemas";
+import { enforceRateLimit } from "@/lib/security/rate-limit";
+import { withApi } from "@/lib/api/route";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { generateBudgetAnalysis } from "@/lib/ai/budget-insights";
@@ -8,12 +11,13 @@ import {
   getLedgerContextForAi,
 } from "@/lib/db/monthly-ledger";
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  await enforceRateLimit(request,"ai",session.userId,30,60);
 
   const { searchParams } = new URL(request.url);
-  const monthKey = searchParams.get("month") ?? currentMonthKey();
+  const monthKey = month.parse(searchParams.get("month") ?? currentMonthKey());
 
   const [{ summary, entries }, trend, templates] = await Promise.all([
     getLedgerContextForAi(session.userId, monthKey),
@@ -39,3 +43,5 @@ export async function GET(request: Request) {
     },
   );
 }
+
+export const GET = withApi(GETHandler, "ai.insights.get");

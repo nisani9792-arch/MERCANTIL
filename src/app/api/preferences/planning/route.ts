@@ -1,3 +1,4 @@
+import { withApi, readJson } from "@/lib/api/route";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { getSql } from "@/lib/db/client";
@@ -11,7 +12,7 @@ function ensureSchema() {
     check(amount is null or amount >= 0)
   )`.catch((error: unknown) => { schema = undefined; throw error; });
 }
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const month = new URL(request.url).searchParams.get("month");
@@ -20,10 +21,10 @@ export async function GET(request: Request) {
   const rows = await getSql()`select amount from monthly_planning_estimates where user_id = ${session.userId} and month_key = ${month}`;
   return NextResponse.json({ amount: rows[0]?.amount == null ? null : Number(rows[0].amount) }, { headers: { "Cache-Control": "no-store" } });
 }
-export async function PUT(request: Request) {
+async function PUTHandler(request: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const body = await request.json().catch(() => null);
+  const body = await readJson(request).catch(() => null) as {month?: unknown; amount?: unknown} | null;
   if (!body || !validMonth(body.month) || !(body.amount === null || (typeof body.amount === "number" && Number.isFinite(body.amount) && body.amount >= 0 && body.amount <= 999999999 && Math.abs(body.amount * 100 - Math.round(body.amount * 100)) < 0.00001))) {
     return NextResponse.json({ error: "יש להזין סכום תקין, עד שתי ספרות אחרי הנקודה" }, { status: 400 });
   }
@@ -31,3 +32,7 @@ export async function PUT(request: Request) {
   await getSql()`insert into monthly_planning_estimates(user_id, month_key, amount) values (${session.userId}, ${body.month}, ${body.amount}) on conflict(user_id, month_key) do update set amount = excluded.amount, updated_at = now()`;
   return NextResponse.json({ amount: body.amount });
 }
+
+export const GET = withApi(GETHandler, "preferences.planning.get");
+
+export const PUT = withApi(PUTHandler, "preferences.planning.put");

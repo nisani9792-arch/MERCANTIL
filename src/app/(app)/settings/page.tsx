@@ -1,4 +1,6 @@
 "use client";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import {
   Settings,
@@ -12,6 +14,21 @@ import {
 import { PageHeading } from "@/components/ui/Workspace";
 import { useTheme } from "@/components/providers/ThemeProvider";
 export default function SettingsPage() {
+  const qc = useQueryClient();
+  const [signingOut,setSigningOut] = useState(false);
+  const [logoutError,setLogoutError] = useState("");
+  async function logout() {
+    if (signingOut) return;
+    setSigningOut(true);setLogoutError("");
+    try {
+      const response = await fetch("/api/auth/logout",{method:"POST"});
+      if (!response.ok) throw new Error("היציאה לא אושרה");
+      qc.clear();
+      // A full navigation also drops in-memory financial drafts and user context.
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+      window.location.assign("/login");
+    } catch {setLogoutError("לא הצלחנו לצאת. אפשר לנסות שוב.");setSigningOut(false);}
+  }
   const { theme, toggleTheme } = useTheme();
   const items = [
     {
@@ -61,6 +78,10 @@ export default function SettingsPage() {
           )}
           {theme === "light" ? "מעבר למצב כהה" : "מעבר למצב בהיר"}
         </button>
+      </section>
+      <section className="finance-panel">
+        <button type="button" onClick={()=>void logout()} disabled={signingOut} className="workspace-button">{signingOut ? "יוצא…" : "יציאה מהחשבון"}</button>
+        {logoutError && <p role="alert" className="text-error text-sm mt-2">{logoutError}</p>}
       </section>
       <details className="finance-panel">
         <summary className="cursor-pointer text-sm font-bold">

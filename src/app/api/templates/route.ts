@@ -1,3 +1,5 @@
+import { templateCreate } from "@/lib/api/schemas";
+import { withApi, readJson } from "@/lib/api/route";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import {
@@ -5,7 +7,7 @@ import {
   listTemplates,
 } from "@/lib/db/recurring-templates";
 
-export async function GET() {
+async function GETHandler() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -13,29 +15,11 @@ export async function GET() {
   return NextResponse.json({ templates });
 }
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = (await request.json()) as {
-    name?: string;
-    type?: "income" | "expense";
-    amount?: number;
-    amountPending?: boolean;
-    frequency?: "monthly" | "bi-monthly";
-    dayOfMonth?: number | null;
-    isVariable?: boolean;
-  };
-
-  if (!body.name || !body.type || body.amount == null) {
-    return NextResponse.json({ error: "נתונים חסרים" }, { status: 400 });
-  }
-
-  if (!Number.isFinite(body.amount) || body.amount < 0 ||
-      (body.amountPending !== undefined && typeof body.amountPending !== "boolean") ||
-      (body.amountPending && (body.type !== "income" || body.amount !== 0))) {
-    return NextResponse.json({ error: "סכום לא תקין" }, { status: 400 });
-  }
+  const body = templateCreate.parse(await readJson(request));
 
   const template = await createTemplate(session.userId, {
     name: body.name,
@@ -49,3 +33,7 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ template }, { status: 201 });
 }
+
+export const GET = withApi(GETHandler, "templates.get");
+
+export const POST = withApi(POSTHandler, "templates.post");

@@ -24,6 +24,7 @@ export async function getOrCreateSoloUser(): Promise<UserRow> {
   const created = await sql`
     insert into users (email, password_hash, full_name)
     values (${SOLO_EMAIL}, ${passwordHash}, ${SOLO_NAME})
+    on conflict(email) do update set email = excluded.email
     returning id, email, password_hash, full_name, avatar_url,
               default_currency, locale, created_at, updated_at
   `;

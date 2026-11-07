@@ -1,3 +1,6 @@
+import {createHash} from "node:crypto";
+import {isDate, amount as validAmount} from "@/lib/api/schemas";
+import {validateXlsxArchive} from "./xlsx-limits";
 import ExcelJS from "exceljs";
 import { isRelevantTransaction } from "@/lib/filters/household-relevance";
 
@@ -12,14 +15,15 @@ export type MercantilBankRow = {
 };
 
 function cellToDate(value: unknown): string {
-  if (value instanceof Date) {
-    return value.toISOString().slice(0, 10);
-  }
+  if (value instanceof Date && Number.isFinite(value.getTime())) return value.toISOString().slice(0,10);
+  if (typeof value === "number" && Number.isFinite(value) && value > 0 && value < 2958466) return new Date(Date.UTC(1899,11,30)+Math.round(value*86400000)).toISOString().slice(0,10);
   if (typeof value === "string") {
-    const d = new Date(value);
-    if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+    const text=value.trim();
+    if(isDate(text))return text;
+    const parts=text.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
+    if(parts){const iso=`${parts[3]}-${parts[2].padStart(2,"0")}-${parts[1].padStart(2,"0")}`;if(isDate(iso))return iso;}
   }
-  return new Date().toISOString().slice(0, 10);
+  throw new Error("אחד מתאריכי התנועות אינו תקין. לא בוצע ייבוא.");
 }
 
 function cellToString(value: unknown): string {
@@ -42,12 +46,14 @@ function cellToNumber(value: unknown): number {
 export async function parseMercantilXlsx(
   buffer: ArrayBuffer | Buffer,
 ): Promise<{ accountHolder?: string; accountNumber?: string; rows: MercantilBankRow[] }> {
+  validateXlsxArchive(buffer instanceof ArrayBuffer ? Buffer.from(buffer) : buffer);
   const wb = new ExcelJS.Workbook();
   // @ts-expect-error exceljs accepts Buffer
   await wb.xlsx.load(buffer);
 
   const sheet = wb.worksheets[0];
   if (!sheet) return { rows: [] };
+  if(sheet.rowCount>10000)throw new Error("הקובץ מכיל יותר מדי שורות");
 
   let accountHolder: string | undefined;
   let accountNumber: string | undefined;
@@ -90,11 +96,13 @@ export async function parseMercantilXlsx(
     const description = cellToString(row.getCell(3).value);
     const amount = cellToNumber(row.getCell(4).value);
     if (!description || amount === 0) continue;
+    if (!validAmount.safeParse(Math.abs(amount)).success) throw new Error("אחד הסכומים אינו תקין. לא בוצע ייבוא.");
+    if (description.length>2000) throw new Error("תיאור תנועה ארוך מדי");
     if (!isRelevantTransaction(description)) continue;
 
     rows.push({
       date: cellToDate(row.getCell(1).value),
-      valueDate: cellToDate(row.getCell(2).value),
+      valueDate: row.getCell(2).value == null ? cellToDate(row.getCell(1).value) : cellToDate(row.getCell(2).value),
       description,
       amount,
       balance: cellToNumber(row.getCell(5).value),
@@ -107,5 +115,7 @@ export async function parseMercantilXlsx(
 }
 
 export function mercantilImportHash(row: MercantilBankRow): string {
-  return `${row.date}|${row.amount}|${row.description}|${row.reference}`.slice(0, 200);
+  return createHash("sha256").update(`${row.date}|${row.amount}|${row.description}|${row.reference}`).digest("hex");
 }
+
+export function legacyMercantilImportHash(row: MercantilBankRow) { return `${row.date}|${row.amount}|${row.description}|${row.reference}`.slice(0,200); }

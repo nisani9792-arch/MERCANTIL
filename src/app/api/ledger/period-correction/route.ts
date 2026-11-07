@@ -1,3 +1,4 @@
+import { withApi } from "@/lib/api/route";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { apiError, readJson, RouteError } from "@/lib/api/route";
@@ -7,7 +8,7 @@ import { previousMonthKey } from "@/lib/utils/month";
 
 const MONTH_KEY = /^\d{4}-(0[1-9]|1[0-2])$/;
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new RouteError(401, "UNAUTHORIZED", "נדרשת התחברות");
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new RouteError(401, "UNAUTHORIZED", "נדרשת התחברות");
@@ -34,3 +35,7 @@ export async function POST(request: Request) {
     return apiError(error, "ledger.period-correction");
   }
 }
+
+export const GET = withApi(GETHandler, "ledger.period-correction.get");
+
+export const POST = withApi(POSTHandler, "ledger.period-correction.post");

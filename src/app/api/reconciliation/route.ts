@@ -1,9 +1,10 @@
+import { withApi } from "@/lib/api/route";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { apiError, noStoreHeaders, RouteError } from "@/lib/api/route";
 import { listBankReconciliationItems } from "@/lib/db/reconciliation";
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new RouteError(401, "UNAUTHORIZED", "נדרשת התחברות");
@@ -17,3 +18,5 @@ export async function GET(request: Request) {
     return apiError(error, "reconciliation.list");
   }
 }
+
+export const GET = withApi(GETHandler, "reconciliation.get");

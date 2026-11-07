@@ -1,14 +1,16 @@
+import { date as validDate, amount as money } from "@/lib/api/schemas";
 import { z } from "zod";
 
 const monthKey = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
-const dueDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable();
+const dueDate = validDate.nullable();
 const text = (max: number) => z.string().trim().min(1).max(max);
 
 export const ledgerCreateSchema = z.object({
   monthKey: monthKey.optional(),
+  clientRequestId: z.string().uuid().optional(),
   name: text(120),
   type: z.enum(["income", "expense"]),
-  amount: z.number().finite().min(0).max(10_000_000),
+  amount: money,
   amountPending: z.boolean().optional(),
   isVariable: z.boolean().optional(),
   category: text(80).optional(),
@@ -19,8 +21,9 @@ export const ledgerCreateSchema = z.object({
 }).strict().refine((value) => !value.amountPending || (value.amount === 0 && value.entryKind !== "cash_withdrawal"), "סכום חסר מחייב סכום אפס ואינו מותר למשיכת מזומן");
 
 export const ledgerUpdateSchema = z.object({
+  expectedUpdatedAt: z.string().max(80).refine(v=>Number.isFinite(Date.parse(v))).optional(),
   name: text(120).optional(),
-  amount: z.number().finite().min(0).max(10_000_000).optional(),
+  amount: money.optional(),
   amountPending: z.boolean().optional(),
   category: text(80).optional(),
   notes: z.string().trim().max(2_000).nullable().optional(),

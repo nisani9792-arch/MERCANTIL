@@ -1,3 +1,5 @@
+import {currentMonthKey,shiftMonthKey} from "@/lib/utils/month";
+import { RouteError } from "@/lib/api/route";
 import { getSql } from "@/lib/db/client";
 import type { Transaction, TransactionWithCategory } from "@/types";
 
@@ -114,21 +116,15 @@ export async function createTransaction(
       user_id, amount, date, category_id, account_source, notes,
       is_fixed_recurring, recurring_day_of_month
     )
-    values (
-      ${userId},
-      ${input.amount},
-      ${input.date}::date,
-      ${input.categoryId},
-      ${input.accountSource ?? "ידני"},
-      ${input.notes ?? null},
-      ${fixed},
-      ${day}
-    )
+    select ${userId}, ${input.amount}, ${input.date}::date, c.id,
+      ${input.accountSource ?? "ידני"}, ${input.notes ?? null}, ${fixed}, ${day}
+    from categories c where c.id = ${input.categoryId} and (c.user_id is null or c.user_id = ${userId})
     returning id, user_id, amount, date, category_id, account_source, notes,
               import_hash, is_fixed_recurring, recurring_day_of_month,
               created_at, updated_at
   `;
-  const row = rows[0] as Record<string, unknown>;
+  const row = rows[0] as Record<string, unknown> | undefined;
+  if (!row) throw new RouteError(400,"INVALID_REQUEST","הקטגוריה אינה זמינה למשתמש");
   return {
     ...row,
     amount: Number(row.amount),
@@ -159,14 +155,17 @@ export async function updateTransaction(
       : existing.recurring_day_of_month;
 
   const sql = getSql();
-  await sql`
+  const changed = await sql`
     update transactions
     set category_id = ${categoryId},
         is_fixed_recurring = ${isFixed},
         recurring_day_of_month = ${day},
         updated_at = now()
     where id = ${transactionId} and user_id = ${userId}
+      and exists(select 1 from categories c where c.id = ${categoryId} and (c.user_id is null or c.user_id = ${userId}))
+    returning id
   `;
+  if (!changed.length) throw new RouteError(400,"INVALID_REQUEST","הקטגוריה אינה זמינה למשתמש");
 
   return getTransactionById(userId, transactionId);
 }
@@ -201,17 +200,16 @@ export type FinancialSummary = {
 
 export async function getFinancialSummary(userId: string): Promise<FinancialSummary> {
   const sql = getSql();
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-    .toISOString()
-    .slice(0, 10);
+  const month = currentMonthKey();
+  const monthStart = `${month}-01`;
+  const monthEnd = `${shiftMonthKey(month,1)}-01`;
 
   const rows = await sql`
     select
       coalesce(sum(case when c.type = 'income' then t.amount else 0 end), 0) as total_income,
       coalesce(sum(case when c.type = 'expense' then t.amount else 0 end), 0) as total_expense,
-      coalesce(sum(case when c.type = 'income' and t.date >= ${monthStart}::date then t.amount else 0 end), 0) as month_income,
-      coalesce(sum(case when c.type = 'expense' and t.date >= ${monthStart}::date then t.amount else 0 end), 0) as month_expense
+      coalesce(sum(case when c.type = 'income' and t.date >= ${monthStart}::date and t.date < ${monthEnd}::date then t.amount else 0 end), 0) as month_income,
+      coalesce(sum(case when c.type = 'expense' and t.date >= ${monthStart}::date and t.date < ${monthEnd}::date then t.amount else 0 end), 0) as month_expense
     from transactions t
     join categories c on c.id = t.category_id
     where t.user_id = ${userId}
@@ -278,10 +276,9 @@ export type CategoryMonthlyRow = {
 
 export async function getMonthlyCategoryBreakdown(userId: string) {
   const sql = getSql();
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-    .toISOString()
-    .slice(0, 10);
+  const month = currentMonthKey();
+  const monthStart = `${month}-01`;
+  const monthEnd = `${shiftMonthKey(month,1)}-01`;
 
   const rows = await sql`
     select
@@ -293,7 +290,7 @@ export async function getMonthlyCategoryBreakdown(userId: string) {
     from transactions t
     join categories c on c.id = t.category_id
     where t.user_id = ${userId}
-      and t.date >= ${monthStart}::date
+      and t.date >= ${monthStart}::date and t.date < ${monthEnd}::date
       and (t.notes is null or (
         t.notes not ilike '%חיוב זמני%'
         and t.notes not ilike '%temporary charge%'

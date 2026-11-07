@@ -1,3 +1,6 @@
+import { enforceRateLimit } from "@/lib/security/rate-limit";
+import { logServerError } from "@/lib/api/route";
+import { withApi, readJson } from "@/lib/api/route";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession } from "@/lib/auth/session";
@@ -17,12 +20,13 @@ const bodySchema = z.object({
   autoCreateCategories: z.boolean().optional(),
 });
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  await enforceRateLimit(request,"ai",session.userId,30,60);
 
   try {
-    const body = bodySchema.parse(await request.json());
+    const body = bodySchema.parse(await readJson(request));
     let categories = await listCategories(session.userId);
 
     const { results, suggestions } = await classifyTransactions(
@@ -82,16 +86,17 @@ export async function POST(request: Request) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: "נתונים לא תקינים" }, { status: 400 });
     }
-    console.error("[ai/categorize]", err);
+    logServerError("[ai/categorize]", err);
     return NextResponse.json({ error: "שגיאת שרת" }, { status: 500 });
   }
 }
 
-export async function PATCH(request: Request) {
+async function PATCHHandler(request: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  await enforceRateLimit(request,"ai",session.userId,30,60);
 
-  const body = (await request.json()) as {
+  const body = (await readJson(request)) as {
     transactionId?: string;
     categoryId?: string;
   };
@@ -108,3 +113,7 @@ export async function PATCH(request: Request) {
 
   return NextResponse.json({ ok });
 }
+
+export const POST = withApi(POSTHandler, "ai.categorize.post");
+
+export const PATCH = withApi(PATCHHandler, "ai.categorize.patch");

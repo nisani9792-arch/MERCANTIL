@@ -18,8 +18,7 @@ function getExpectedHostnames(): Set<string> {
 }
 
 function getClientIp(request: Request): string | undefined {
-  const forwarded = request.headers.get("x-forwarded-for");
-  const ip = forwarded?.split(",")[0]?.trim();
+  const ip = request.headers.get("cf-connecting-ip")?.trim();
   return ip || undefined;
 }
 

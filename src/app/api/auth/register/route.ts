@@ -1,3 +1,7 @@
+import { apiError } from "@/lib/api/route";
+import { enforceRateLimit } from "@/lib/security/rate-limit";
+import { logServerError } from "@/lib/api/route";
+import { withApi, readJson } from "@/lib/api/route";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthSetupError } from "@/lib/auth/env-check";
@@ -9,37 +13,22 @@ import { createUser, findUserByEmail } from "@/lib/auth/users";
 import { ensureAppSchema } from "@/lib/db/ensure-schema";
 
 const registerSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
-  fullName: z.string().optional(),
+  email: z.string().email().max(254),
+  password: z.string().min(12).max(256),
+  fullName: z.string().trim().max(120).optional(),
 });
 
-function mapAuthError(err: unknown): string {
-  if (err instanceof Error) {
-    if (err.message === "SESSION_SECRET_MISSING") {
-      return "SESSION_SECRET לא מוגדר בשרת (Render → Environment).";
-    }
-    if (err.message.includes("DATABASE_URL")) {
-      return "חיבור למסד הנתונים נכשל. בדוק DATABASE_URL.";
-    }
-    if (/relation "users" does not exist/i.test(err.message)) {
-      return "מסד הנתונים לא אותחל. הרץ db:init או נסה שוב.";
-    }
-    if (/duplicate key|unique constraint/i.test(err.message)) {
-      return "כתובת האימייל כבר רשומה";
-    }
-  }
-  return "שגיאת שרת";
-}
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   const setupError = getAuthSetupError();
   if (setupError) {
     return NextResponse.json({ error: setupError }, { status: 503 });
   }
 
   try {
-    const body = registerSchema.parse(await request.json());
+    await enforceRateLimit(request, "auth.register", undefined, 3, 3600);
+    const body = registerSchema.parse(await readJson(request));
+    if (body.email.trim().toLowerCase() === (process.env.SOLO_USER_EMAIL ?? "owner@mercantil.local").toLowerCase()) return NextResponse.json({error:"לא ניתן לרשום כתובת זו"},{status:400});
     await ensureAppSchema();
 
     const existing = await findUserByEmail(body.email);
@@ -68,7 +57,9 @@ export async function POST(request: Request) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: "נתונים לא תקינים" }, { status: 400 });
     }
-    console.error("[auth/register]", err);
-    return NextResponse.json({ error: mapAuthError(err) }, { status: 500 });
+    logServerError("[auth/register]", err);
+    return apiError(err, "auth.register");
   }
 }
+
+export const POST = withApi(POSTHandler, "auth.register.post");

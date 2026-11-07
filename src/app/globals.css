@@ -433,3 +433,24 @@ summary::-webkit-details-marker { display: none; }
 .ledger-row[draggable="true"] { cursor: grab; }
 .ledger-row[draggable="true"]:active { cursor: grabbing; }
 @media (max-width: 639px) { .credit-folder > summary { gap: 8px; padding: 10px 12px; } .credit-folder-total { font-size: 14px; } }
+
+/* Audited expressive foundations: readable labels, calm hierarchy and reduced motion. */
+:root { --m3-color-on-surface-variant: #52645b; --m3-motion-duration-short: 140ms; --m3-motion-duration-medium: 220ms; }
+[data-theme="dark"] { --m3-color-on-surface-variant: #b0beb5; }
+html { scroll-padding-block: 80px 100px; }
+button, a, input, select, textarea, summary { scroll-margin-block: 80px 100px; }
+.workspace-heading h1 { text-wrap: balance; }
+.workspace-button { transition: background-color var(--m3-motion-duration-short), color var(--m3-motion-duration-short); }
+.ledger-kind, .payment-count { font-size: 12px; }
+.ledger-row small { font-size: 12px; }
+.ledger-row small > .truncate { white-space: normal; overflow: visible; }
+.ledger-row > button:first-of-type > span { overflow-wrap: anywhere; }
+.month-summary .stat-card > small { font-size: 11px; }
+.workspace-main .workspace-muted { font-size: 12px; }
+@media(max-width:375px) { .ledger-row > button:first-of-type { flex-wrap: wrap; row-gap: 5px; } .ledger-row > button:first-of-type > span { flex-basis: 100%; } .workspace-heading-action { max-width: 100%; } .workspace-month-picker { min-width: 0; } }
+@media(prefers-reduced-motion:reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }
+
+/* Locally served Heebo subsets: reproducible builds without a Google Fonts request. */
+@font-face {font-family:Heebo;font-style:normal;font-weight:100 900;font-display:swap;src:url('/fonts/heebo-hebrew.woff2') format('woff2');unicode-range:U+0307-0308,U+0590-05FF,U+200C-2010,U+20AA,U+25CC,U+FB1D-FB4F;}
+@font-face {font-family:Heebo;font-style:normal;font-weight:100 900;font-display:swap;src:url('/fonts/heebo-latin.woff2') format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;}
+:root {--font-heebo: 'Heebo', Arial, sans-serif;}

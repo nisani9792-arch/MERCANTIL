@@ -81,3 +81,15 @@ export async function matchLearnedPattern(
   }
   return null;
 }
+
+
+export async function learnPatterns(userId: string, items: {description:string;categoryId:string}[], source="import_learning") {
+  const grouped=new Map<string,{pattern:string;category_id:string;hits:number}>();
+  for(const item of items){const pattern=item.description.slice(0,80).toLowerCase().trim();if(!pattern)continue;const previous=grouped.get(pattern);grouped.set(pattern,{pattern,category_id:item.categoryId,hits:(previous?.hits??0)+1});}
+  if(!grouped.size)return;
+  await getSql()`insert into ai_merchant_patterns(user_id,pattern,category_id,source,hit_count)
+    select ${userId},r.pattern,r.category_id,${source},r.hits
+    from jsonb_to_recordset(${JSON.stringify([...grouped.values()])}::jsonb) as r(pattern text,category_id uuid,hits integer)
+    join categories c on c.id=r.category_id and (c.user_id is null or c.user_id=${userId})
+    on conflict(user_id,pattern) do update set hit_count=ai_merchant_patterns.hit_count+excluded.hit_count,category_id=excluded.category_id`;
+}

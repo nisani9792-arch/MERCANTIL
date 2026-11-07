@@ -57,10 +57,10 @@ export function ImportWorkspace() {
       form.append("file", file);
       const res = await fetch("/api/import/xlsx", { method: "POST", body: form });
       if (!res.ok) throw new Error("failed");
-      return res.json() as Promise<{ imported: number; skipped: number; total: number }>;
+      return res.json() as Promise<{ imported: number; skipped: number; total: number; warning?: string }>;
     },
     onSuccess: (data) => {
-      setXlsxResult(`יובאו ${data.imported} תנועות (${data.skipped} כפולות דולגו) מתוך ${data.total}`);
+      setXlsxResult(`יובאו ${data.imported} תנועות (${data.skipped} כפולות דולגו) מתוך ${data.total}${data.warning ? ` · ${data.warning}` : ""}`);
     },
   });
 
@@ -81,7 +81,7 @@ export function ImportWorkspace() {
         <input
           ref={fileRef}
           type="file"
-          accept=".xlsx,.xls"
+          accept=".xlsx"
           className="mt-3 block w-full text-sm"
           onChange={(e) => {
             const f = e.target.files?.[0];

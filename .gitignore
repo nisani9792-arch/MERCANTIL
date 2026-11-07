@@ -41,3 +41,6 @@ next-env.d.ts
 /.open-next/
 .wrangler/
 cloudflare-env.d.ts
+
+/tests/integration/node_modules/
+/tests/integration/package-lock.json

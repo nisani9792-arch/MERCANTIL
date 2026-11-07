@@ -7,7 +7,7 @@ const templateRoute = fs.readFileSync("src/app/api/templates/route.ts", "utf8");
 const monthlyLedger = fs.readFileSync("src/lib/db/monthly-ledger.ts", "utf8");
 
 test("full reset clears every monthly row and verifies the result", () => {
-  const resetHandler = setupRoute.slice(setupRoute.indexOf("export async function DELETE"));
+  const resetHandler = setupRoute.slice(setupRoute.indexOf("async function DELETEHandler"));
   assert.match(resetHandler, /delete from monthly_ledger where user_id/);
   assert.doesNotMatch(resetHandler, /delete from monthly_ledger[\s\S]{0,80}month_key/);
   assert.match(setupRoute, /select count\(\*\) from monthly_ledger/);

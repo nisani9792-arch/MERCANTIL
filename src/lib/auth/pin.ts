@@ -1,14 +1,11 @@
 import { timingSafeEqual } from "node:crypto";
 
-/** Built-in solo-user PIN (override via APP_PIN env if needed) */
-export const BUILTIN_PIN = "1614";
-
 const PIN_RE = /^\d{4,6}$/;
 
 export function getConfiguredPin(): string {
   const envPin = process.env.APP_PIN?.trim();
   if (envPin && PIN_RE.test(envPin)) return envPin;
-  return BUILTIN_PIN;
+  return "";
 }
 
 export function isPinConfigured(): boolean {

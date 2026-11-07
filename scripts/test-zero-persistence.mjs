@@ -15,7 +15,7 @@ test("zero is accepted by every monthly planning API", () => {
   assert.match(sources.setupApi, /item\.amount >= 0/);
   assert.match(sources.ledgerApi, /ledgerCreateSchema/);
   assert.match(sources.ledgerItemApi, /ledgerUpdateSchema/);
-  assert.match(sources.templateItemApi, /body\.amount < 0/);
+  assert.match(sources.templateItemApi, /templateUpdate\.parse/);
 });
 
 test("zero is accepted by monthly and template editors", () => {

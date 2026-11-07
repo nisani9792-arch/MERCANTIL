@@ -1,3 +1,4 @@
+import { currentDateKey } from "@/lib/utils/month";
 import type { MonthlyLedgerEntry } from "@/types/ledger";
 
 export type CashflowCycle = {
@@ -32,7 +33,7 @@ export function buildCashflowCycle(
   today = new Date(),
 ): CashflowCycle {
   const { startDate, endDate } = cycleBounds(monthKey, startDay);
-  const todayKey = iso(today);
+  const todayKey = currentDateKey(today);
   const dated = entries.filter((entry) => entry.due_date && entry.due_date >= startDate && entry.due_date <= endDate);
   const confirmed = dated.filter((entry) => entry.is_paid);
   const pending = dated.filter((entry) => !entry.is_paid).sort((a, b) => (a.due_date ?? "").localeCompare(b.due_date ?? ""));

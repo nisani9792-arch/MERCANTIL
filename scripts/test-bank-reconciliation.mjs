@@ -9,7 +9,7 @@ const matchRoute = fs.readFileSync("src/app/api/reconciliation/[id]/route.ts", "
 test("bank imports enter an explicit unmatched reconciliation state", () => {
   assert.match(importRoute, /reconciliation_status/);
   assert.match(importRoute, /'unmatched'/);
-  assert.match(importRoute, /8 \* 1024 \* 1024/);
+  assert.match(importRoute, /8\s*\*\s*1024\s*\*\s*1024/);
 });
 
 test("reconciliation atomically marks only an eligible planned ledger entry as complete", () => {

@@ -1,3 +1,4 @@
+import { withApi, readJson } from "@/lib/api/route";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { apiError, noStoreHeaders, RouteError } from "@/lib/api/route";
@@ -12,7 +13,7 @@ function nextMonth(monthKey: string) {
   return `${month === 12 ? year + 1 : year}-${String(month === 12 ? 1 : month + 1).padStart(2, "0")}`;
 }
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new RouteError(401, "UNAUTHORIZED", "נדרשת התחברות");
@@ -35,11 +36,11 @@ export async function GET(request: Request) {
   }
 }
 
-export async function PATCH(request: Request) {
+async function PATCHHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new RouteError(401, "UNAUTHORIZED", "נדרשת התחברות");
-    const body = (await request.json().catch(() => ({}))) as { cycleStartDay?: unknown };
+    const body = (await readJson(request).catch(() => ({}))) as { cycleStartDay?: unknown };
     if (!Number.isInteger(body.cycleStartDay) || Number(body.cycleStartDay) < 1 || Number(body.cycleStartDay) > 28) {
       throw new RouteError(400, "INVALID_REQUEST", "יום תחילת המחזור חייב להיות בין 1 ל־28");
     }
@@ -50,3 +51,7 @@ export async function PATCH(request: Request) {
     return apiError(error, "cashflow.cycle.patch");
   }
 }
+
+export const GET = withApi(GETHandler, "cashflow.cycle.get");
+
+export const PATCH = withApi(PATCHHandler, "cashflow.cycle.patch");

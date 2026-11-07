@@ -30,6 +30,7 @@ export function getGenerativeModel(options: {
     model: MODEL_NAME,
     systemInstruction: options.systemInstruction,
     generationConfig: {
+      maxOutputTokens: 4096,
       temperature: options.temperature ?? 0.35,
       ...(options.json ? { responseMimeType: "application/json" } : {}),
     },
@@ -52,7 +53,7 @@ export async function askGemini(
   systemInstruction?: string,
 ): Promise<string> {
   const model = getGenerativeModel({ systemInstruction });
-  const result = await model.generateContent(prompt);
+  const result = await model.generateContent(prompt, {timeout: 15_000});
   return result.response.text();
 }
 
@@ -64,6 +65,6 @@ export async function askGeminiJson<T>(
     systemInstruction,
     json: true,
   });
-  const result = await model.generateContent(prompt);
+  const result = await model.generateContent(prompt, {timeout: 15_000});
   return JSON.parse(extractJsonBlock(result.response.text())) as T;
 }

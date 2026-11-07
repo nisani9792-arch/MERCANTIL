@@ -1,3 +1,4 @@
+import { withApi } from "@/lib/api/route";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession } from "@/lib/auth/session";
@@ -6,7 +7,7 @@ import { reconcileBankTransaction } from "@/lib/db/reconciliation";
 
 const reconcileSchema = z.object({ ledgerEntryId: z.string().uuid() }).strict();
 
-export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+async function PATCHHandler(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await getSession();
     if (!session) throw new RouteError(401, "UNAUTHORIZED", "נדרשת התחברות");
@@ -19,3 +20,5 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     return apiError(error, "reconciliation.match");
   }
 }
+
+export const PATCH = withApi(PATCHHandler, "reconciliation.[id].patch");

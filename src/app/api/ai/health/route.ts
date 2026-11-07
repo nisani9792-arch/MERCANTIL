@@ -1,9 +1,15 @@
+import { getSession } from "@/lib/auth/session";
+import { enforceRateLimit } from "@/lib/security/rate-limit";
+import { withApi } from "@/lib/api/route";
 import { NextResponse } from "next/server";
 import { isGeminiConfigured, askGemini } from "@/lib/ai/gemini";
 import { getSql, isDatabaseConfigured } from "@/lib/db/client";
 import { isSessionConfigured } from "@/lib/auth/session";
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({error:"Unauthorized"},{status:401});
+  await enforceRateLimit(request,"ai.health",session.userId,5,300);
   const { searchParams } = new URL(request.url);
   const full = searchParams.get("full") === "1";
 
@@ -16,8 +22,8 @@ export async function GET(request: Request) {
   if (isDatabaseConfigured()) {
     try {
       const sql = getSql();
-      const rows = await sql`select version()`;
-      status.database = (rows[0] as { version: string }).version.slice(0, 40);
+      await sql`select 1`;
+      status.database = "connected";
     } catch {
       status.database = "error";
     }
@@ -46,3 +52,5 @@ export async function GET(request: Request) {
 
   return NextResponse.json({ ok, services: status });
 }
+
+export const GET = withApi(GETHandler, "ai.health.get");

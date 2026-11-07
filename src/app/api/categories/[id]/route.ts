@@ -1,8 +1,9 @@
+import { withApi } from "@/lib/api/route";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { deleteCategory } from "@/lib/db/categories";
 
-export async function DELETE(
+async function DELETEHandler(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -15,3 +16,5 @@ export async function DELETE(
 
   return NextResponse.json({ ok: true });
 }
+
+export const DELETE = withApi(DELETEHandler, "categories.[id].delete");

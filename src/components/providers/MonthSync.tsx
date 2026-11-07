@@ -1,41 +1,48 @@
 "use client";
+import {useCallback,useEffect,useRef,useState} from "react";
+import {useMonthStore} from "@/stores/useMonthStore";
+import {isMonthKey} from "@/lib/utils/month";
 
-import { useEffect, useRef } from "react";
-import { useMonthStore } from "@/stores/useMonthStore";
-
-const isMonth = (value: unknown): value is string => typeof value === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(value);
-
-/** Shares the selected month between every device signed into the personal account. */
+/** One writer per device; a late read never overwrites a newer local selection. */
 export function MonthSync() {
-  const monthKey = useMonthStore((state) => state.monthKey);
-  const setMonthKey = useMonthStore((state) => state.setMonthKey);
-  const hydrated = useRef(false);
-  const lastRemote = useRef("");
-
-  useEffect(() => {
-    let cancelled = false;
-    const pull = async () => {
+  const monthKey=useMonthStore(s=>s.monthKey), setMonthKey=useMonthStore(s=>s.setMonthKey);
+  const hydrated=useRef(false),remote=useRef(""),queued=useRef<string|null>(null),running=useRef(false),cancelled=useRef(false);
+  const [error,setError]=useState("");
+  const push=useCallback(async(value:string)=>{
+    queued.current=value;if(running.current)return;running.current=true;
+    try {
+      while(queued.current&&!cancelled.current){
+        const next=queued.current;queued.current=null;if(next===remote.current)continue;
+        const response=await fetch("/api/preferences/month",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({monthKey:next})});
+        if(!response.ok)throw new Error("save");remote.current=next;if(!cancelled.current)setError("");
+      }
+    } catch {if(!cancelled.current)setError("החודש שנבחר עדיין לא הסתנכרן עם השרת.");}
+    finally{running.current=false;}
+  },[]);
+  useEffect(()=>{
+    cancelled.current=false;
+    const initialLocal=useMonthStore.getState().monthKey;
+    const pull=async()=>{
+      if(running.current||queued.current)return;
+      if(hydrated.current&&useMonthStore.getState().monthKey!==remote.current)return;
+      const startedWith=useMonthStore.getState().monthKey;
       try {
-        const response = await fetch("/api/preferences/month", { cache: "no-store" });
-        const data = await response.json() as { monthKey?: unknown };
-        if (!cancelled && isMonth(data.monthKey) && data.monthKey !== useMonthStore.getState().monthKey) {
-          lastRemote.current = data.monthKey;
-          setMonthKey(data.monthKey);
-        }
-      } catch { /* the active device keeps its last confirmed server view */ }
+        const response=await fetch("/api/preferences/month",{cache:"no-store"});if(!response.ok)throw new Error("read");
+        const data=await response.json() as {monthKey?:unknown};
+        if(cancelled.current)return;
+        if(typeof data.monthKey!=="string"||!isMonthKey(data.monthKey))throw new Error("invalid month");
+        if(running.current||queued.current)return;
+        remote.current=data.monthKey;setError("");
+        if(useMonthStore.getState().monthKey===startedWith&&data.monthKey!==startedWith)setMonthKey(data.monthKey);
+      } catch {if(!cancelled.current)setError("לא הצלחנו לסנכרן את החודש. אפשר להמשיך לעבוד ולנסות שוב.");}
     };
-    void pull().finally(() => { hydrated.current = true; });
-    const timer = window.setInterval(() => { if (document.visibilityState === "visible") void pull(); }, 30_000);
-    return () => { cancelled = true; window.clearInterval(timer); };
-  }, [setMonthKey]);
-
-  useEffect(() => {
-    if (!hydrated.current || monthKey === lastRemote.current) return;
-    const timer = window.setTimeout(() => {
-      void fetch("/api/preferences/month", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ monthKey }) });
-    }, 150);
-    return () => window.clearTimeout(timer);
-  }, [monthKey]);
-
-  return null;
+    void pull().finally(()=>{if(cancelled.current)return;hydrated.current=true;const value=useMonthStore.getState().monthKey;if((remote.current&&value!==remote.current)||value!==initialLocal)void push(value);});
+    const timer=window.setInterval(()=>{if(document.visibilityState==="visible"){void pull();}},30000);
+    return()=>{cancelled.current=true;window.clearInterval(timer);};
+  },[push,setMonthKey]);
+  useEffect(()=>{
+    if(!hydrated.current||monthKey===remote.current)return;
+    const timer=window.setTimeout(()=>void push(monthKey),200);return()=>window.clearTimeout(timer);
+  },[monthKey,push]);
+  return error?<div role="status" className="mx-4 my-2 rounded-lg border border-outline-variant bg-surface-container-lowest px-3 py-2 text-sm">{error} <button className="min-h-10 px-2 font-bold text-primary" onClick={()=>void push(useMonthStore.getState().monthKey)}>ניסיון חוזר</button></div>:null;
 }

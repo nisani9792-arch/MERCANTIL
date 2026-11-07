@@ -11,6 +11,7 @@ function loadLedger(created) {
     statement = sql(parts, ...values);
     return Promise.resolve(Array.from({ length: created }, (_, id) => ({ id })));
   };
+  query.transaction = (queries) => Promise.all(queries);
   const exports = {};
   const code = ts.transpileModule(fs.readFileSync("src/lib/db/monthly-ledger.ts", "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },

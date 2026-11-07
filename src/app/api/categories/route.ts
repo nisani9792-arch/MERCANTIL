@@ -1,8 +1,10 @@
+import { categoryCreate } from "@/lib/api/schemas";
+import { withApi, readJson } from "@/lib/api/route";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { listCategories, createCategory } from "@/lib/db/categories";
 
-export async function GET() {
+async function GETHandler() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -10,19 +12,11 @@ export async function GET() {
   return NextResponse.json({ categories });
 }
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = (await request.json()) as {
-    name?: string;
-    type?: "income" | "expense";
-    icon?: string;
-  };
-
-  if (!body.name || !body.type) {
-    return NextResponse.json({ error: "חסר שם או סוג" }, { status: 400 });
-  }
+  const body = categoryCreate.parse(await readJson(request));
 
   const category = await createCategory(session.userId, {
     name: body.name,
@@ -32,3 +26,7 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ category }, { status: 201 });
 }
+
+export const GET = withApi(GETHandler, "categories.get");
+
+export const POST = withApi(POSTHandler, "categories.post");

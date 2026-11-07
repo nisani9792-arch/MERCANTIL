@@ -7,7 +7,8 @@ function loadCycle() {
   const source = fs.readFileSync("src/lib/cashflow/cycle.ts", "utf8");
   const output = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
   const exports = {};
-  new Function("exports", output)(exports);
+  const month={};new Function("exports", ts.transpileModule(fs.readFileSync("src/lib/utils/month.ts","utf8"),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText)(month);
+  new Function("exports", "require", output)(exports,()=>month);
   return exports;
 }
 

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { currentMonthKey, shiftMonthKey } from "@/lib/utils/month";
+import { currentMonthKey, shiftMonthKey, isMonthKey } from "@/lib/utils/month";
 
 type MonthState = {
   monthKey: string;
@@ -12,7 +12,7 @@ export const useMonthStore = create<MonthState>()(
   persist(
     (set, get) => ({
       monthKey: currentMonthKey(),
-      setMonthKey: (monthKey) => set({ monthKey }),
+      setMonthKey: (monthKey) => { if(isMonthKey(monthKey))set({ monthKey }); },
       shiftMonth: (delta) => {
         set({ monthKey: shiftMonthKey(get().monthKey, delta) });
       },

@@ -30,6 +30,7 @@ export default async function AppLayout({
 
   return (
     <BankShell
+      userId={session.userId}
       userName={user.full_name ?? user.email}
       setupRequired={setupRequired}
     >

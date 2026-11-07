@@ -1,3 +1,4 @@
+import { logServerError } from "@/lib/api/route";
 const KEEP_ALIVE_INTERVAL_MS = 9 * 60 * 1000;
 const FIRST_PING_DELAY_MS = 60 * 1000;
 
@@ -19,13 +20,13 @@ async function pingPublicService() {
       signal: AbortSignal.timeout(10_000),
     });
   } catch (error) {
-    console.warn("[keep-alive] ping failed", error);
+    logServerError("[keep-alive] ping failed", error);
   }
 }
 
 export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs" || process.env.NODE_ENV !== "production") return;
-  if (process.env.KEEP_ALIVE_ENABLED === "false") return;
+  if (process.env.KEEP_ALIVE_ENABLED !== "true") return;
   if (!process.env.RENDER && !process.env.KEEP_ALIVE_URL) return;
   if (globalThis.__merkanpilKeepAliveStarted) return;
 

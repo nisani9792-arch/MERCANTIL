@@ -21,6 +21,7 @@ function apiHarness() {
     return rows.has(key) ? [{ amount: rows.get(key) }] : [];
   };
   const mocks = {
+    '@/lib/api/route': {withApi: fn=>fn, readJson: request=>request.json()},
     'next/server': { NextResponse: { json: (body, init) => Response.json(body, init) } },
     '@/lib/auth/session': { getSession: async () => user ? { userId: user } : null },
     '@/lib/db/client': { getSql: () => sql },

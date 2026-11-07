@@ -1,10 +1,11 @@
+import { withApi } from "@/lib/api/route";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { deleteLedgerEntry, updateLedgerEntry } from "@/lib/db/monthly-ledger";
 import { apiError, readJson, RouteError } from "@/lib/api/route";
 import { ledgerUpdateSchema } from "@/lib/ledger/validation";
 
-export async function PATCH(
+async function PATCHHandler(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -22,7 +23,7 @@ export async function PATCH(
   }
 }
 
-export async function DELETE(
+async function DELETEHandler(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -37,3 +38,7 @@ export async function DELETE(
     return apiError(error, "ledger.delete");
   }
 }
+
+export const PATCH = withApi(PATCHHandler, "ledger.[id].patch");
+
+export const DELETE = withApi(DELETEHandler, "ledger.[id].delete");

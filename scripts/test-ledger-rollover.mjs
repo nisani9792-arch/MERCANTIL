@@ -17,8 +17,8 @@ test("rollover protects completed history and avoids duplicate template entries"
 test("rollover API is authenticated, validated, and supports preview before mutation", () => {
   assert.match(route, /getSession/);
   assert.match(route, /ledgerRolloverSchema/);
-  assert.match(route, /export async function GET/);
-  assert.match(route, /export async function POST/);
+  assert.match(route, /export const GET/);
+  assert.match(route, /export const POST/);
 });
 
 test("month navigation is compact and rollover requires an explicit confirmation", () => {

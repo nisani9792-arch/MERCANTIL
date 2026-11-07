@@ -1,0 +1,10 @@
+{
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "test": "node verify-postgres.cjs && node verify-setup.cjs"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "0.5.11"
+  }
+}

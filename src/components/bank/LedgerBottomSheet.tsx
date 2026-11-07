@@ -42,6 +42,7 @@ type LedgerBottomSheetProps = {
     dayOfMonth: number | null;
   }) => Promise<{ created: boolean }>;
   onSave: (data: {
+    clientRequestId?: string;
     name: string;
     amount: number;
     amountPending: boolean;
@@ -68,6 +69,7 @@ export function LedgerBottomSheet({
   saving,
   error,
 }: LedgerBottomSheetProps) {
+  const [clientRequestId, setClientRequestId] = useState("");
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("אחר");
@@ -89,6 +91,7 @@ export function LedgerBottomSheet({
     if (!mode) return;
     const draftKey = getDraftKey(storageScope, mode);
     let restored: Partial<{
+      clientRequestId?: string;
       name: string;
       amount: string;
       category: string;
@@ -135,6 +138,7 @@ export function LedgerBottomSheet({
       setDueDate(restored.dueDate ?? "");
       setCategoryTouched(Boolean(mode.draft?.category));
     }
+    setClientRequestId(restored.clientRequestId && /^[0-9a-f-]{36}$/i.test(restored.clientRequestId) ? restored.clientRequestId : crypto.randomUUID());
     setReadyDraftKey(draftKey);
   }, [mode, storageScope]);
 
@@ -145,6 +149,7 @@ export function LedgerBottomSheet({
     localStorage.setItem(
       draftKey,
       JSON.stringify({
+        clientRequestId,
         name,
         amount,
         category,
@@ -154,6 +159,7 @@ export function LedgerBottomSheet({
       }),
     );
   }, [
+    clientRequestId,
     amount,
     category,
     dueDate,
@@ -208,6 +214,7 @@ export function LedgerBottomSheet({
       onClick={async () => {
         try {
           await onSave({
+            clientRequestId: mode.kind === "add" ? clientRequestId : undefined,
             name: name.trim(),
             amount: Number(amount),
             amountPending: !isWithdrawal && amount.trim() === "",

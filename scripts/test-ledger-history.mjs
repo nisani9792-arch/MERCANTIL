@@ -8,7 +8,7 @@ function harness() {
   const mocks={
     'next/server':{NextResponse:{json:(body,init)=>Response.json(body,init)}},
     '@/lib/auth/session':{getSession:async()=>user?{userId:user}:null},
-    '@/lib/api/route':{RouteError,noStoreHeaders:{'Cache-Control':'no-store'},apiError:(e)=>Response.json({error:e.message},{status:e.status??500})},
+    '@/lib/api/route':{withApi:fn=>fn,readJson:request=>request.json(),RouteError,noStoreHeaders:{'Cache-Control':'no-store'},apiError:(e)=>Response.json({error:e.message},{status:e.status??500})},
     '@/lib/db/ledger-history':{listHistoryChoices:async(...args)=>{calls.push(args);return [];},addFromHistory:async(...args)=>{calls.push(args);return {created:1};}},
   };
   const api={};new Function('exports','require',ts.transpileModule(fs.readFileSync('src/app/api/ledger/history/route.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText)(api,name=>mocks[name]);

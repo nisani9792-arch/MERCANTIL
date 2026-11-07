@@ -8,7 +8,7 @@ export function ensureIncomeAmounts(): Promise<void> {
     const sql = getSql();
     ready = (async () => {
       try {
-        const rows = await sql`select exists(select 1 from app_schema_migrations where name = 'income_amounts_card_v2') as ready`;
+        const rows = await sql`select exists(select 1 from app_schema_migrations where name = 'income_amounts_card_v3') as ready`;
         if (rows[0]?.ready) return;
       } catch (error) {
         if ((error as {code?: string}).code !== "42P01") throw error;
@@ -19,6 +19,8 @@ export function ensureIncomeAmounts(): Promise<void> {
       sql`alter table fixed_templates add column if not exists amount_pending boolean not null default false`,
       sql`alter table monthly_ledger add column if not exists amount_pending boolean not null default false`,
       sql`alter table fixed_templates add column if not exists payment_method text not null default 'bank'`,
+      sql`alter table monthly_ledger add column if not exists client_request_id uuid`,
+      sql`create unique index if not exists monthly_ledger_request_unique on monthly_ledger(user_id,client_request_id) where client_request_id is not null`,
       // Early versions rejected zero, which was the reason for the 0.10 workaround.
       sql`do $$
         declare c record;
@@ -52,7 +54,7 @@ export function ensureIncomeAmounts(): Promise<void> {
           insert into app_schema_migrations (name) values ('blank_monthly_expenses_v1');
         end if;
       end $$`,
-      sql`insert into app_schema_migrations (name) values ('income_amounts_card_v2') on conflict do nothing`,
+      sql`insert into app_schema_migrations (name) values ('income_amounts_card_v3') on conflict do nothing`,
       ]);
     })().catch((error) => {
       ready = null;

@@ -1,3 +1,4 @@
+import { categoryCreate } from "@/lib/api/schemas";
 import { getSql } from "@/lib/db/client";
 import type { Category, CategoryType } from "@/types";
 
@@ -16,6 +17,7 @@ export async function createCategory(
   userId: string,
   input: { name: string; type: CategoryType; icon?: string },
 ): Promise<Category> {
+  input = categoryCreate.parse(input);
   const sql = getSql();
   const rows = await sql`
     insert into categories (user_id, name, type, icon)

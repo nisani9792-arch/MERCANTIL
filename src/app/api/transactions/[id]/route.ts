@@ -1,3 +1,5 @@
+import { transactionUpdate } from "@/lib/api/schemas";
+import { withApi, readJson } from "@/lib/api/route";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { learnFromEntry, upsertLearningRule } from "@/lib/db/learning-rules";
@@ -6,13 +8,8 @@ import {
   updateTransaction,
 } from "@/lib/db/transactions";
 
-type PatchBody = {
-  categoryId?: string;
-  isFixedRecurring?: boolean;
-  recurringDayOfMonth?: number | null;
-};
 
-export async function PATCH(
+async function PATCHHandler(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -20,7 +17,7 @@ export async function PATCH(
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const body = (await request.json()) as PatchBody;
+  const body = transactionUpdate.parse(await readJson(request));
 
   const existing = await getTransactionById(session.userId, id);
   if (!existing) {
@@ -62,3 +59,5 @@ export async function PATCH(
 
   return NextResponse.json({ ok: true, transaction: updated });
 }
+
+export const PATCH = withApi(PATCHHandler, "transactions.[id].patch");

@@ -1,3 +1,4 @@
+import { withApi } from "@/lib/api/route";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { apiError, noStoreHeaders, readJson, RouteError } from "@/lib/api/route";
@@ -6,7 +7,7 @@ import { listRolloverCandidates, rollOverUnpaidEntries } from "@/lib/db/monthly-
 
 const MONTH_KEY = /^\d{4}-(0[1-9]|1[0-2])$/;
 
-export async function GET(request: Request) {
+async function GETHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new RouteError(401, "UNAUTHORIZED", "נדרשת התחברות");
@@ -23,7 +24,7 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+async function POSTHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new RouteError(401, "UNAUTHORIZED", "נדרשת התחברות");
@@ -35,3 +36,7 @@ export async function POST(request: Request) {
     return apiError(error, "ledger.rollover.apply");
   }
 }
+
+export const GET = withApi(GETHandler, "ledger.rollover.get");
+
+export const POST = withApi(POSTHandler, "ledger.rollover.post");
