@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import {getSession} from "@/lib/auth/session";
-import {withApi,RouteError,logServerError} from "@/lib/api/route";
+import {withApi,RouteError,logServerError,readFormData} from "@/lib/api/route";
 import {listCategories,createCategory} from "@/lib/db/categories";
 import {classifyTransactions} from "@/lib/ai/categorize";
 import {parseMercantilXlsx,mercantilImportHash,legacyMercantilImportHash} from "@/lib/parsers/mercantil-xlsx";
@@ -13,7 +13,7 @@ import {enforceRateLimit} from "@/lib/security/rate-limit";
 async function POSTHandler(request:Request) {
   const session=await getSession();if(!session)throw new RouteError(401,"UNAUTHORIZED","נדרשת התחברות");
   await enforceRateLimit(request,"import",session.userId,5,3600);
-  const form=await request.formData(),file=form.get("file");
+  const form=await readFormData(request),file=form.get("file");
   if(!(file instanceof File)||file.size===0||file.size>8*1024*1024||!/\.xlsx$/i.test(file.name))throw new RouteError(400,"INVALID_REQUEST","יש להעלות קובץ XLSX עד 8MB");
   let parsed;
   try {parsed=await parseMercantilXlsx(Buffer.from(await file.arrayBuffer()));}

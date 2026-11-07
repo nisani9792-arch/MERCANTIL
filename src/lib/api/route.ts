@@ -69,3 +69,17 @@ export async function readJson(request: Request): Promise<unknown> {
 }
 
 export const noStoreHeaders = { "Cache-Control": "no-store, no-cache, must-revalidate" } as const;
+
+/** Bound actual multipart bytes even when Content-Length is missing or forged. */
+export async function readFormData(request: Request): Promise<FormData> {
+  const reader=request.body?.getReader();
+  if(!reader)throw new RouteError(400,"INVALID_REQUEST","קובץ חסר");
+  const chunks:Uint8Array[]=[];let bytes=0;
+  try {
+    while(true){const {done,value}=await reader.read();if(done)break;bytes+=value.byteLength;
+      if(bytes>9*1024*1024){await reader.cancel();throw new RouteError(413,"INVALID_REQUEST","הקובץ גדול מדי");}chunks.push(value);}
+    const buffer=new Uint8Array(bytes);let offset=0;for(const chunk of chunks){buffer.set(chunk,offset);offset+=chunk.byteLength;}
+    return await new Response(buffer,{headers:{"Content-Type":request.headers.get("content-type")??""}}).formData();
+  } catch(error){if(error instanceof RouteError)throw error;throw new RouteError(400,"INVALID_REQUEST","העלאת הקובץ אינה תקינה");}
+  finally{reader.releaseLock();}
+}

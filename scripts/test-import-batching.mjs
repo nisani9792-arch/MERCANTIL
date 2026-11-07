@@ -10,7 +10,7 @@ function harness(duplicate=false,source=fs.readFileSync('src/app/api/import/xlsx
  sql.transaction=queries=>Promise.all(queries);
  const mocks={
  'next/server':{NextResponse:{json:(v,i)=>Response.json(v,i)}},
- '@/lib/api/route':{withApi:f=>f,RouteError:Error,logServerError:()=>{}},
+ '@/lib/api/route':{withApi:f=>f,readFormData:r=>r.formData(),RouteError:Error,logServerError:()=>{}},
  '@/lib/auth/session':{getSession:async()=>({userId:'owner'})},
  '@/lib/security/rate-limit':{enforceRateLimit:async()=>{}},
  '@/lib/db/categories':{listCategories:async()=>[category],findCategoryByName:async()=>{calls.categories++;return category;},createCategory:async()=>{throw new Error('unexpected category creation');}},
