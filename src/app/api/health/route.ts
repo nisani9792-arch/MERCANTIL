@@ -5,6 +5,8 @@ import { isSessionConfigured } from "@/lib/auth/session";
 import { getSql, isDatabaseConfigured } from "@/lib/db/client";
 
 async function GETHandler() {
+  const started=performance.now();
+  let databaseMs=0;
   const status = {
     ok: false,
     database: "not_configured" as string,
@@ -15,8 +17,10 @@ async function GETHandler() {
 
   if (isDatabaseConfigured()) {
     try {
+      const dbStarted=performance.now();
       const sql = getSql();
       const tables = await sql`select to_regclass('public.monthly_ledger') as ledger, to_regclass('public.fixed_templates') as templates, to_regclass('public.user_finance_preferences') as preferences`;
+      databaseMs=performance.now()-dbStarted;
       status.database = "connected";
       // Health checks must stay cheap on Workers. Full schema creation is a
       // provisioning task, not a request-path operation.
@@ -34,7 +38,7 @@ async function GETHandler() {
     }
   }
 
-  return NextResponse.json(status, { status: status.ok ? 200 : 503 });
+  return NextResponse.json(status, { status: status.ok ? 200 : 503, headers:{"Server-Timing":`db;dur=${databaseMs.toFixed(1)}, app;dur=${(performance.now()-started).toFixed(1)}`} });
 }
 
 export const GET = withApi(GETHandler, "health.get");

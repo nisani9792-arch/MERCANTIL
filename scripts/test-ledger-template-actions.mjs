@@ -42,6 +42,6 @@ test("ordinary ledger writes do not run schema migrations on the save path", () 
 });
 
 test("payment reversal never sends a display-formatted timestamp back to PostgreSQL", () => {
-  assert.match(db, /completedAt instanceof Date \? completedAt\.toISOString\(\)/);
+  assert.match(db, /timestamp\(completedAt\)/);
   assert.match(db, /else completed_at end/);
 });

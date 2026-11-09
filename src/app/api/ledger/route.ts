@@ -1,14 +1,12 @@
 import { withApi } from "@/lib/api/route";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { apiError, noStoreHeaders, readJson, RouteError } from "@/lib/api/route";
 import { ledgerCreateSchema } from "@/lib/ledger/validation";
 import {
   addLedgerEntry,
   currentMonthKey,
-  getMonthSummary,
-  getMonthlyCategoryOrder,
-  listLedgerEntries,
+  getMonthlyWorkspace,
 } from "@/lib/db/monthly-ledger";
 
 async function GETHandler(request: Request) {
@@ -23,11 +21,7 @@ async function GETHandler(request: Request) {
     }
     const monthKey = requestedMonth ?? currentMonthKey();
 
-    const [entries, categoryOrder] = await Promise.all([
-      listLedgerEntries(session.userId, monthKey),
-      getMonthlyCategoryOrder(session.userId, monthKey),
-    ]);
-    const summary = await getMonthSummary(session.userId, monthKey, entries);
+    const {entries,summary,categoryOrder} = await getMonthlyWorkspace(session.userId,monthKey);
 
     return NextResponse.json({ entries, summary, monthKey, categoryOrder }, { headers: noStoreHeaders });
   } catch (error) {
@@ -54,7 +48,7 @@ async function POSTHandler(request: Request) {
       entryKind: body.entryKind,
       paymentMethod: body.paymentMethod,
       dueDate: body.dueDate,
-    });
+    }, task=>after(task));
 
     return NextResponse.json({ entry }, { status: 201 });
   } catch (error) {

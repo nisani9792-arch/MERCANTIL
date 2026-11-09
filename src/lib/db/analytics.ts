@@ -1,6 +1,6 @@
 import { ensureIncomeAmounts } from "@/lib/db/income-amounts";
 import { getSql } from "@/lib/db/client";
-import { getMonthSummary } from "@/lib/db/monthly-ledger";
+import { getMonthlyWorkspace } from "@/lib/db/monthly-ledger";
 import type {
   AnalyticsPayload,
   ExpenseBreakdownItem,
@@ -110,11 +110,14 @@ export async function getAnalytics(
   userId: string,
   monthKey: string,
 ): Promise<AnalyticsPayload> {
-  const [summary, trend, expenseBreakdown] = await Promise.all([
-    getMonthSummary(userId, monthKey),
-    getSixMonthTrend(userId, monthKey),
-    getExpenseBreakdown(userId, monthKey),
-  ]);
+  const keys=monthKeysBack(6,monthKey);
+  const snapshot=await getMonthlyWorkspace(userId,monthKey,keys);
+  const summary=snapshot.summary;
+  const byMonth=new Map((snapshot.trendRows??[]).map(row=>[String(row.month_key),{income:Number(row.income),expense:Number(row.expense)}]));
+  const trend:MonthTrendPoint[]=keys.map(key=>{const point=byMonth.get(key)??{income:0,expense:0};return {monthKey:key,hasData:byMonth.has(key),...point,net:Math.round((point.income-point.expense)*100)/100};});
+  const byCategory=new Map<string,number>();
+  for(const entry of snapshot.entries){if(entry.type==='expense'&&entry.entry_kind==='transaction')byCategory.set(entry.category,(byCategory.get(entry.category)??0)+Math.round(entry.amount*100));}
+  const expenseBreakdown:ExpenseBreakdownItem[]=Array.from(byCategory,([category,cents])=>({category,amount:cents/100})).sort((a,b)=>b.amount-a.amount);
   const averages = getHistoricalAveragesFromTrend(trend);
 
   return { monthKey, summary, trend, expenseBreakdown, averages };

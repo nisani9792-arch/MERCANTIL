@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth/session";
-import { findUserById } from "@/lib/auth/users";
+import {getWorkspaceProfile} from "@/lib/db/workspace-profile";
 import { isDatabaseConfigured } from "@/lib/db/client";
-import { hasFinancialSetup } from "@/lib/db/setup";
+import {currentMonthKey} from "@/lib/utils/month";
 import { BankShell } from "@/components/bank/BankShell";
 
 // Every screen below this layout depends on the request session.  Do not let
@@ -22,16 +22,15 @@ export default async function AppLayout({
   const session = await getSession();
   if (!session) redirect("/login");
 
-  const [user, configured] = await Promise.all([
-    findUserById(session.userId), hasFinancialSetup(session.userId),
-  ]);
-  if (!user) redirect("/login");
-  const setupRequired = !configured;
+  const profile=await getWorkspaceProfile(session.userId);
+  if(!profile)redirect("/login");
+  const setupRequired=!profile.configured;
 
   return (
     <BankShell
       userId={session.userId}
-      userName={user.full_name ?? user.email}
+      userName={profile.fullName ?? profile.email}
+      initialMonthKey={profile.monthKey ?? currentMonthKey()}
       setupRequired={setupRequired}
     >
       {children}

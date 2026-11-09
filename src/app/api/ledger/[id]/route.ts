@@ -1,5 +1,5 @@
 import { withApi } from "@/lib/api/route";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
 import { deleteLedgerEntry, updateLedgerEntry } from "@/lib/db/monthly-ledger";
 import { apiError, readJson, RouteError } from "@/lib/api/route";
@@ -15,7 +15,7 @@ async function PATCHHandler(
 
     const { id } = await params;
     const body = ledgerUpdateSchema.parse(await readJson(request));
-    const entry = await updateLedgerEntry(session.userId, id, body);
+    const entry = await updateLedgerEntry(session.userId, id, body,task=>after(task));
     if (!entry) throw new RouteError(404, "NOT_FOUND", "התנועה לא נמצאה");
     return NextResponse.json({ entry });
   } catch (error) {
@@ -31,7 +31,7 @@ async function DELETEHandler(
     const session = await getSession();
     if (!session) throw new RouteError(401, "UNAUTHORIZED", "נדרשת התחברות");
     const { id } = await params;
-    const ok = await deleteLedgerEntry(session.userId, id);
+    const ok = await deleteLedgerEntry(session.userId, id,task=>after(task));
     if (!ok) throw new RouteError(404, "NOT_FOUND", "התנועה לא נמצאה");
     return NextResponse.json({ ok: true });
   } catch (error) {

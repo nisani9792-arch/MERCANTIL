@@ -22,13 +22,15 @@ async function ensurePaymentTrackingSchema() {
       await ensureIncomeAmounts();
       const version = await sql`select exists(select 1 from app_schema_migrations where name = 'payment_tracking_schema_v1') as ready`;
       if (version[0]?.ready) return;
-      await sql`alter table monthly_ledger add column if not exists due_date date`;
-      await sql`alter table monthly_ledger add column if not exists completed_at timestamptz`;
-      await sql`alter table monthly_ledger add column if not exists confirmation_source text not null default 'manual'`;
-      await sql`alter table fixed_templates add column if not exists source_ledger_entry_id uuid references monthly_ledger (id) on delete set null`;
-      await sql`create index if not exists monthly_ledger_user_due_idx on monthly_ledger (user_id, due_date) where due_date is not null`;
-      await sql`create unique index if not exists fixed_templates_source_ledger_unique on fixed_templates (source_ledger_entry_id) where source_ledger_entry_id is not null`;
-      await sql`create table if not exists ledger_change_log (
+      await sql.transaction([
+        sql`select pg_advisory_xact_lock(742026102)`,
+        sql`alter table monthly_ledger add column if not exists due_date date`,
+        sql`alter table monthly_ledger add column if not exists completed_at timestamptz`,
+        sql`alter table monthly_ledger add column if not exists confirmation_source text not null default 'manual'`,
+        sql`alter table fixed_templates add column if not exists source_ledger_entry_id uuid references monthly_ledger (id) on delete set null`,
+        sql`create index if not exists monthly_ledger_user_due_idx on monthly_ledger (user_id, due_date) where due_date is not null`,
+        sql`create unique index if not exists fixed_templates_source_ledger_unique on fixed_templates (source_ledger_entry_id) where source_ledger_entry_id is not null`,
+        sql`create table if not exists ledger_change_log (
         id uuid primary key default gen_random_uuid(),
         user_id uuid not null references users (id) on delete cascade,
         ledger_entry_id uuid references monthly_ledger (id) on delete set null,
@@ -37,16 +39,17 @@ async function ensurePaymentTrackingSchema() {
         before_data jsonb,
         after_data jsonb,
         created_at timestamptz not null default now()
-      )`;
-      await sql`create index if not exists ledger_change_log_user_created_idx on ledger_change_log (user_id, created_at desc)`;
-      await sql`create table if not exists monthly_ledger_preferences (
+      )`,
+        sql`create index if not exists ledger_change_log_user_created_idx on ledger_change_log (user_id, created_at desc)`,
+        sql`create table if not exists monthly_ledger_preferences (
         user_id uuid not null references users (id) on delete cascade,
         month_key text not null,
         category_order jsonb not null default '[]'::jsonb,
         updated_at timestamptz not null default now(),
         primary key (user_id, month_key)
-      )`;
-      await sql`insert into app_schema_migrations (name) values ('payment_tracking_schema_v1') on conflict do nothing`;
+      )`,
+        sql`insert into app_schema_migrations (name) values ('payment_tracking_schema_v1') on conflict do nothing`,
+      ]);
     })().catch((error) => {
       paymentTrackingSchemaReady = null;
       throw error;
@@ -56,6 +59,7 @@ async function ensurePaymentTrackingSchema() {
 }
 
 function mapRow(row: Record<string, unknown>): MonthlyLedgerEntry {
+  const timestamp=(value:unknown)=>{const date=value instanceof Date?value:new Date(String(value));return Number.isFinite(date.getTime())?date.toISOString():String(value);};
   const dueDate = row.due_date;
   const completedAt = row.completed_at;
   return {
@@ -74,11 +78,11 @@ function mapRow(row: Record<string, unknown>): MonthlyLedgerEntry {
     entry_kind: (row.entry_kind ?? "transaction") as LedgerEntryKind,
     payment_method: (row.payment_method ?? "bank") as PaymentMethod,
     due_date: dueDate ? (dueDate instanceof Date ? dueDate.toISOString().slice(0, 10) : String(dueDate).slice(0, 10)) : null,
-    completed_at: completedAt ? (completedAt instanceof Date ? completedAt.toISOString() : String(completedAt)) : null,
+    completed_at: completedAt ? (timestamp(completedAt)) : null,
     confirmation_source: (row.confirmation_source ?? "manual") as "manual" | "automatic",
     notes: row.notes ? String(row.notes) : null,
-    created_at: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
-    updated_at: row.updated_at instanceof Date ? row.updated_at.toISOString() : String(row.updated_at),
+    created_at: timestamp(row.created_at),
+    updated_at: timestamp(row.updated_at),
   };
 }
 
@@ -97,6 +101,12 @@ async function writeLedgerChange(
     // An audit failure must never make a successfully committed financial edit look unsaved.
     logServerError("[ledger] audit write failed", error);
   }
+}
+
+export type DeferLedgerAudit = (task: () => Promise<void>) => void;
+async function persistLedgerChange(defer: DeferLedgerAudit | undefined, ...args: Parameters<typeof writeLedgerChange>) {
+  if(defer){try{defer(()=>writeLedgerChange(...args));return;}catch{ /* Outside a request lifecycle, keep the synchronous fallback. */ }}
+  await writeLedgerChange(...args);
 }
 
 export async function listLedgerEntries(
@@ -254,6 +264,7 @@ export async function getMonthSummary(
   userId: string,
   monthKey: string,
   providedEntries?: MonthlyLedgerEntry[],
+  cashSnapshot?: { withdrawn: number; spent: number },
 ): Promise<MonthSummary> {
   const entries = providedEntries ?? await listLedgerEntries(userId, monthKey);
   const transactions = entries.filter((e) => e.entry_kind === "transaction");
@@ -271,7 +282,7 @@ export async function getMonthSummary(
   const actualExpenses = sum(transactions.filter(e => e.type === 'expense' && e.is_paid));
 
   const sql = getSql();
-  const cashRows = await sql`
+  const cashRows = cashSnapshot ? [cashSnapshot] : await sql`
     select
       coalesce(sum(case when entry_kind = 'cash_withdrawal' or (type = 'income' and payment_method = 'cash') then amount else 0 end), 0) as withdrawn,
       coalesce(sum(case when entry_kind = 'transaction' and type = 'expense' and payment_method = 'cash' then amount else 0 end), 0) as spent
@@ -370,6 +381,7 @@ export async function addLedgerEntry(
     paymentMethod?: PaymentMethod;
     dueDate?: string | null;
   },
+  deferAudit?: DeferLedgerAudit,
 ): Promise<MonthlyLedgerEntry> {
   await ensureIncomeAmounts();
   const amount = incomeAmountState(input.type, input.amount, input.amountPending);
@@ -392,7 +404,7 @@ export async function addLedgerEntry(
     returning *
   `;
   const entry = mapRow(rows[0] as Record<string, unknown>);
-  await writeLedgerChange(userId, entry.id, "created", undefined, entry);
+  await persistLedgerChange(deferAudit, userId, entry.id, "created", undefined, entry);
   return entry;
 }
 
@@ -464,6 +476,7 @@ export async function updateLedgerEntry(
   userId: string,
   id: string,
   input: Partial<{ name: string; amount: number; amountPending: boolean; category: string; notes: string | null; isPaid: boolean; paymentMethod: PaymentMethod; isVariable: boolean; dueDate: string | null; confirmationSource: "manual" | "automatic"; expectedUpdatedAt: string }>,
+  deferAudit?: DeferLedgerAudit,
 ): Promise<MonthlyLedgerEntry | null> {
   await ensureIncomeAmounts();
   const sql = getSql();
@@ -508,17 +521,17 @@ export async function updateLedgerEntry(
   if (!rows.length) throw new RouteError(409,"CONFLICT","הרישום עודכן בינתיים. רענן את החודש ובדוק את הפרטים לפני שמירה חוזרת.");
   const updated = mapRow(rows[0] as Record<string, unknown>);
   const action = input.isPaid === true && !cur.is_paid ? "confirmed" : input.isPaid === false && cur.is_paid ? "reopened" : "updated";
-  await writeLedgerChange(userId, id, action, cur, updated);
+  await persistLedgerChange(deferAudit, userId, id, action, cur, updated);
   return updated;
 }
 
-export async function deleteLedgerEntry(userId: string, id: string): Promise<boolean> {
+export async function deleteLedgerEntry(userId: string, id: string, deferAudit?: DeferLedgerAudit): Promise<boolean> {
   const sql = getSql();
   const existing = await sql`select * from monthly_ledger where id = ${id} and user_id = ${userId} limit 1`;
   const rows = await sql`
     delete from monthly_ledger where id = ${id} and user_id = ${userId} returning id
   `;
-  if (rows.length && existing.length) await writeLedgerChange(userId, null, "deleted", mapRow(existing[0] as Record<string, unknown>));
+  if (rows.length && existing.length) await persistLedgerChange(deferAudit, userId, null, "deleted", mapRow(existing[0] as Record<string, unknown>));
   return rows.length > 0;
 }
 
@@ -546,4 +559,38 @@ export async function getLedgerContextForAi(userId: string, monthKey: string) {
   const entries = await listLedgerEntries(userId, monthKey);
   const summary = await getMonthSummary(userId, monthKey, entries);
   return { summary, entries };
+}
+
+
+/** One read-only database round trip for an already-provisioned month. No financial cache. */
+export async function getMonthlyWorkspace(userId: string, monthKey: string, trendMonths?: string[]) {
+  const sql=getSql();
+  const read=async()=>{
+    const rows=await sql`select
+      coalesce((select jsonb_agg(to_jsonb(e) order by e.type desc,e.is_variable asc,e.name)
+        from monthly_ledger e where e.user_id=${userId} and e.month_key=${monthKey}), '[]'::jsonb) as entries,
+      coalesce((select p.category_order from monthly_ledger_preferences p where p.user_id=${userId} and p.month_key=${monthKey}), '[]'::jsonb) as category_order,
+      cash.withdrawn,cash.spent,
+      case when ${!!trendMonths} then coalesce((select jsonb_agg(to_jsonb(t) order by t.month_key) from (
+        select e.month_key,
+          coalesce(sum(case when e.type='income' and e.entry_kind='transaction' then e.amount else 0 end),0) as income,
+          coalesce(sum(case when e.type='expense' and e.entry_kind='transaction' then e.amount else 0 end),0) as expense
+        from monthly_ledger e where e.user_id=${userId} and e.month_key=any(${trendMonths??[]}::text[]) group by e.month_key
+      ) t),'[]'::jsonb) else '[]'::jsonb end as trend,
+      (exists(select 1 from app_schema_migrations where name='income_amounts_card_v3')
+        and exists(select 1 from app_schema_migrations where name='payment_tracking_schema_v1')) as schema_ready
+      from (select
+        coalesce(sum(case when entry_kind='cash_withdrawal' or (type='income' and payment_method='cash') then amount else 0 end),0) as withdrawn,
+        coalesce(sum(case when entry_kind='transaction' and type='expense' and payment_method='cash' then amount else 0 end),0) as spent
+        from monthly_ledger where user_id=${userId} and month_key<=${monthKey} and is_paid=true) cash`;
+    return rows[0];
+  };
+  let snapshot;
+  try {snapshot=await read();}
+  catch(error){if(!['42P01','42703'].includes(String((error as {code?:string}).code)))throw error;}
+  if(!snapshot?.schema_ready){await ensurePaymentTrackingSchema();snapshot=await read();}
+  const entries=(Array.isArray(snapshot?.entries)?snapshot.entries:[]).map(row=>mapRow(row as Record<string,unknown>));
+  const categoryOrder=Array.isArray(snapshot?.category_order)?snapshot.category_order.filter((v):v is string=>typeof v==='string').slice(0,30):[];
+  const summary=await getMonthSummary(userId,monthKey,entries,{withdrawn:Number(snapshot?.withdrawn??0),spent:Number(snapshot?.spent??0)});
+  return {entries,summary,categoryOrder,...(trendMonths?{trendRows:Array.isArray(snapshot?.trend)?snapshot.trend as Record<string,unknown>[]:[]}: {})};
 }

@@ -2,7 +2,7 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "test": "node verify-postgres.cjs && node verify-setup.cjs && node verify-month-sync.cjs"
+    "test": "node verify-postgres.cjs && node verify-setup.cjs && node verify-month-sync.cjs && node verify-month-bootstrap.cjs"
   },
   "dependencies": {
     "@electric-sql/pglite": "0.5.11",

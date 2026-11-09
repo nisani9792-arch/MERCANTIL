@@ -187,10 +187,10 @@ export function MonthWorkspace() {
       if (!res.ok || !body.entry) throw new Error(body.error || "העברת ההוצאה לא נשמרה");
       return body.entry;
     },
-    onSuccess: async (saved) => {
+    onSuccess: (saved) => {
       qc.setQueryData<LedgerResponse>(["ledger", saved.month_key], (current) => current ? { ...current, entries: current.entries.map((entry) => entry.id === saved.id ? saved : entry) } : current);
       showSaveMessage(saved.payment_method === "card" ? "ההוצאה הועברה לכרטיס האשראי — חיוב בעשירי" : "ההוצאה הועברה לתשלום ידני");
-      await Promise.allSettled([refetchAll(), qc.invalidateQueries({queryKey: ["templates"]}), qc.invalidateQueries({queryKey: ["cashflow-cycle", monthKey]})]);
+      void Promise.allSettled([refetchAll(), qc.invalidateQueries({queryKey: ["templates"]}), qc.invalidateQueries({queryKey: ["cashflow-cycle", monthKey]})]);
     },
   });
 

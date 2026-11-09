@@ -4,7 +4,7 @@ import {useMonthStore} from "@/stores/useMonthStore";
 import {isMonthKey} from "@/lib/utils/month";
 
 /** One writer per device; a late read never overwrites a newer local selection. */
-export function MonthSync() {
+export function MonthSync({initialMonthKey,onReady}:{initialMonthKey?:string;onReady?:()=>void}={}) {
   const monthKey=useMonthStore(s=>s.monthKey), setMonthKey=useMonthStore(s=>s.setMonthKey);
   const hydrated=useRef(false),remote=useRef(""),queued=useRef<string|null>(null),running=useRef(false),cancelled=useRef(false);
   const [error,setError]=useState("");
@@ -36,10 +36,11 @@ export function MonthSync() {
         if(useMonthStore.getState().monthKey===startedWith&&data.monthKey!==startedWith)setMonthKey(data.monthKey);
       } catch {if(!cancelled.current)setError("לא הצלחנו לסנכרן את החודש. אפשר להמשיך לעבוד ולנסות שוב.");}
     };
-    void pull().finally(()=>{if(cancelled.current)return;hydrated.current=true;const value=useMonthStore.getState().monthKey;if((remote.current&&value!==remote.current)||value!==initialLocal)void push(value);});
+    const initialPull=initialMonthKey&&isMonthKey(initialMonthKey) ? Promise.resolve().then(()=>{remote.current=initialMonthKey;if(useMonthStore.getState().monthKey===initialLocal&&initialLocal!==initialMonthKey)setMonthKey(initialMonthKey);}) : pull();
+    void initialPull.catch(()=>{if(!cancelled.current)setError("לא הצלחנו לסנכרן את החודש. אפשר לנסות שוב.");}).finally(()=>{if(cancelled.current)return;hydrated.current=true;onReady?.();const value=useMonthStore.getState().monthKey;if((remote.current&&value!==remote.current)||value!==initialLocal)void push(value);});
     const timer=window.setInterval(()=>{if(document.visibilityState==="visible"){void pull();}},30000);
     return()=>{cancelled.current=true;window.clearInterval(timer);};
-  },[push,setMonthKey]);
+  },[initialMonthKey,onReady,push,setMonthKey]);
   useEffect(()=>{
     if(!hydrated.current||monthKey===remote.current)return;
     const timer=window.setTimeout(()=>void push(monthKey),200);return()=>window.clearTimeout(timer);
