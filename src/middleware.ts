@@ -12,7 +12,7 @@ export function middleware(request: NextRequest) {
   }
   const hasSession = Boolean(request.cookies.get("mercantil_session")?.value);
   return NextResponse.redirect(
-    new URL(hasSession ? "/dashboard" : "/login", request.url),
+    new URL(hasSession ? "/month" : "/login", request.url),
   );
 }
 

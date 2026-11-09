@@ -1,5 +1,5 @@
 "use client";
-import { Check, CreditCard, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { Check, CreditCard, MoreHorizontal, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils/format";
 import type { MonthlyLedgerEntry } from "@/types/ledger";
 import { paymentStatus, statusLabel } from "@/lib/ledger/payment-status";
@@ -99,13 +99,7 @@ export function TransactionCard({
             className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-sm hover:bg-surface-container">
             <CreditCard className="h-4 w-4" />{entry.payment_method === "card" ? "לתשלום ידני" : "לכרטיס האשראי"}
           </button>}
-          <button
-            onClick={onTap}
-            className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 text-sm hover:bg-surface-container"
-          >
-            <Pencil className="h-4 w-4" />
-            עריכת פרטים
-          </button>
+
           <button
             onClick={() => {
               if (window.confirm("למחוק את הרישום?")) onDelete();

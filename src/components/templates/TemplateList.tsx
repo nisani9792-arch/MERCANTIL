@@ -19,6 +19,7 @@ import { useMonthStore } from "@/stores/useMonthStore";
 import { PageHeading, StatCard } from "@/components/ui/Workspace";
 import { BottomSheet } from "@/components/ui/BottomSheet";
 import { incomeAmountInput } from "@/lib/ledger/income-amount";
+import {formatMonthLabel} from "@/lib/utils/month";
 import { formatCurrency } from "@/lib/utils/format";
 import type { RecurringTemplate } from "@/types/ledger";
 
@@ -42,7 +43,7 @@ const EMPTY_DRAFT: Draft = {
   isVariable: false,
 };
 
-export function TemplateList() {
+export function TemplateList({ pickerOnly = false, onLoaded }: { pickerOnly?: boolean; onLoaded?: (created: number) => void } = {}) {
   const qc = useQueryClient();
   const monthKey = useMonthStore((s) => s.monthKey);
   const addToMonth = useMutation({
@@ -67,11 +68,12 @@ export function TemplateList() {
           qc.invalidateQueries({ queryKey: [key, monthKey] }),
         ),
       );
+      onLoaded?.(result.created);
     },
   });
   const [loadingTemplate, setLoadingTemplate] = useState(false);
-  const [selectedTemplates, setSelectedTemplates] = useState<string[]>([]);
-  const [copyAmounts, setCopyAmounts] = useState<string[]>([]);
+  const [selectedTemplates, setSelectedTemplates] = useState<string[] | null>(pickerOnly ? null : []);
+  const [copyAmounts, setCopyAmounts] = useState<string[] | null>(pickerOnly ? null : []);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [initialDraft, setInitialDraft] = useState<Draft | null>(null);
   const [message, setMessage] = useState("");
@@ -146,7 +148,8 @@ export function TemplateList() {
     [...applicable].sort((a, b) => (a.updated_at ?? "").localeCompare(b.updated_at ?? ""))
       .map((item) => [JSON.stringify([item.name.trim().toLocaleLowerCase(), item.type, item.is_variable]), item]),
   ).values());
-  const selectedIds = selectedTemplates.filter((id) => eligible.some((item) => item.id === id));
+  const selectedIds = (selectedTemplates ?? eligible.map(item => item.id)).filter((id) => eligible.some((item) => item.id === id));
+  const amountIds = copyAmounts ?? eligible.filter(item => item.type === "expense" && !item.is_variable && !item.amount_pending).map(item => item.id);
   const income = templates.filter(
     (item) => item.type === "income" && item.name.includes(search.trim()),
   );
@@ -193,6 +196,53 @@ export function TemplateList() {
       actionMut.mutate({ id: item.id, method: "DELETE" }),
   };
 
+  const loadButton = (
+          <button className="m3-btn-primary min-h-11 w-full"
+            disabled={addToMonth.isPending || selectedIds.length === 0}
+            onClick={() => addToMonth.mutate({ ids: selectedIds, copyAmountIds: amountIds.filter((id) => selectedIds.includes(id)) })}>
+            {addToMonth.isPending ? "טוען…" : `הוספת ${selectedIds.length} פריטים לחודש`}
+          </button>
+  );
+  const pickerContent = (<>
+        <p className="mb-4 text-sm text-on-surface-variant">
+          בחר מה להוסיף ל{formatMonthLabel(monthKey)}. סמן ״העתקת סכום״ רק כשצריך לשמור את המספר מהתבנית.
+          משכורות והוצאות משתנות ממתינות כברירת מחדל לסכום חדש.
+        </p>
+        {applicable.length > eligible.length && <p className="mb-2 text-xs text-on-surface-variant">פריטים כפולים בתבנית מוצגים פעם אחת, לפי העדכון האחרון. התבנית המקורית נשמרת.</p>}
+        <button type="button" className="min-h-11 text-sm font-bold text-primary"
+          disabled={addToMonth.isPending}
+          onClick={() => setSelectedTemplates(selectedIds.length === eligible.length ? [] : eligible.map((item) => item.id))}>
+          {selectedIds.length === eligible.length ? "ניקוי הבחירה" : "בחירת הכול"}
+        </button>
+        <div className="divide-y divide-outline-variant">
+          {eligible.map((item) => (
+            <div key={item.id} className="flex flex-wrap min-h-16 items-center gap-3 py-3">
+              <label className="flex min-w-0 flex-1 items-center gap-3"><input type="checkbox" className="h-5 w-5 accent-primary"
+                checked={selectedIds.includes(item.id)} disabled={addToMonth.isPending}
+                onChange={() => setSelectedTemplates((ids) => (ids ?? selectedIds).includes(item.id) ? (ids ?? selectedIds).filter((id) => id !== item.id) : [...(ids ?? selectedIds), item.id])} />
+              <span className="min-w-0 flex-1"><b className="block text-sm">{item.name}</b>
+                <span className="text-xs text-on-surface-variant">{item.type === "income" ? "הכנסה" : "הוצאה"}</span>
+              </span>
+              </label>
+              <label className="flex min-h-11 items-center gap-2 text-xs">
+                <input type="checkbox" className="h-5 w-5 accent-primary"
+                  aria-label={`העתקת סכום עבור ${item.name}`}
+                  checked={amountIds.includes(item.id)}
+                  disabled={!selectedIds.includes(item.id) || !!item.amount_pending || addToMonth.isPending}
+                  onChange={() => setCopyAmounts((ids) => (ids ?? amountIds).includes(item.id) ? (ids ?? amountIds).filter((id) => id !== item.id) : [...(ids ?? amountIds), item.id])} />
+                {item.amount_pending ? "סכום להשלמה" : `העתקת סכום ${formatCurrency(item.amount)}`}
+              </label>
+            </div>
+          ))}
+        </div>
+        {addToMonth.isError && <p role="alert" className="text-sm text-error">הטעינה נכשלה. הבחירה נשמרה ואפשר לנסות שוב.</p>}
+
+  </>);
+  if (pickerOnly) return <section className="month-template-picker">
+    {isLoading ? <p role="status">טוען את התבנית…</p> : isError ? <p role="alert">לא הצלחנו לטעון את התבנית. סגור ונסה שוב.</p> : eligible.length ? <>{pickerContent}<div className="sticky bottom-0 bg-surface-container-lowest py-3">{loadButton}</div></> : <p className="workspace-muted">עדיין אין פריטים קבועים בתבנית לחודש הזה.</p>}
+    {message && <p role="status">{message}</p>}
+    <Link href="/templates" className="mt-4 inline-flex min-h-11 items-center text-sm text-primary">עריכת הפריטים הקבועים ←</Link>
+  </section>;
   return (
     <div className="workspace-page">
       <PageHeading
@@ -241,7 +291,7 @@ export function TemplateList() {
           disabled={isLoading || isError || eligible.length === 0 || addToMonth.isPending}
           onClick={() => {
             setSelectedTemplates(eligible.map((item) => item.id));
-            setCopyAmounts(eligible.filter((item) => item.type === "expense" && !item.amount_pending).map((item) => item.id));
+            setCopyAmounts(eligible.filter((item) => item.type === "expense" && !item.is_variable && !item.amount_pending).map((item) => item.id));
             addToMonth.reset();
             setLoadingTemplate(true);
           }}
@@ -301,48 +351,9 @@ export function TemplateList() {
         open={loadingTemplate}
         onClose={() => { if (!addToMonth.isPending) setLoadingTemplate(false); }}
         title="טעינת חודש מתבנית"
-        footer={
-          <button className="m3-btn-primary min-h-11 w-full"
-            disabled={addToMonth.isPending || selectedIds.length === 0}
-            onClick={() => addToMonth.mutate({ ids: selectedIds, copyAmountIds: copyAmounts.filter((id) => selectedIds.includes(id)) })}>
-            {addToMonth.isPending ? "טוען…" : `הוספת ${selectedIds.length} פריטים לחודש`}
-          </button>
-        }
+        footer={loadButton}
       >
-        <p className="mb-4 text-sm text-on-surface-variant">
-          טעינה לחודש {monthKey}. אפשר לשנות את הבחירה לפני ההוספה.
-          סמן ״העתקת סכום״ כדי לשמור סכום קבוע; ללא הסימון הפריט ימתין למילוי בחודש הזה.
-          פריטים שכבר נטענו מהתבנית לא יתווספו שוב, ועריכות קיימות יישמרו.
-          פריטים לא פעילים או שאינם חלים בחודש הזה אינם נכללים.
-        </p>
-        {applicable.length > eligible.length && <p className="mb-2 text-xs text-on-surface-variant">פריטים כפולים בתבנית מוצגים פעם אחת, לפי העדכון האחרון. התבנית המקורית נשמרת.</p>}
-        <button type="button" className="min-h-11 text-sm font-bold text-primary"
-          disabled={addToMonth.isPending}
-          onClick={() => setSelectedTemplates(selectedIds.length === eligible.length ? [] : eligible.map((item) => item.id))}>
-          {selectedIds.length === eligible.length ? "ניקוי הבחירה" : "בחירת הכול"}
-        </button>
-        <div className="divide-y divide-outline-variant">
-          {eligible.map((item) => (
-            <div key={item.id} className="flex flex-wrap min-h-16 items-center gap-3 py-3">
-              <label className="flex min-w-0 flex-1 items-center gap-3"><input type="checkbox" className="h-5 w-5 accent-primary"
-                checked={selectedIds.includes(item.id)} disabled={addToMonth.isPending}
-                onChange={() => setSelectedTemplates((ids) => ids.includes(item.id) ? ids.filter((id) => id !== item.id) : [...ids, item.id])} />
-              <span className="min-w-0 flex-1"><b className="block text-sm">{item.name}</b>
-                <span className="text-xs text-on-surface-variant">{item.type === "income" ? "הכנסה" : "הוצאה"}</span>
-              </span>
-              </label>
-              <label className="flex min-h-11 items-center gap-2 text-xs">
-                <input type="checkbox" className="h-5 w-5 accent-primary"
-                  aria-label={`העתקת סכום עבור ${item.name}`}
-                  checked={copyAmounts.includes(item.id)}
-                  disabled={!selectedIds.includes(item.id) || !!item.amount_pending || addToMonth.isPending}
-                  onChange={() => setCopyAmounts((ids) => ids.includes(item.id) ? ids.filter((id) => id !== item.id) : [...ids, item.id])} />
-                {item.amount_pending ? "סכום להשלמה" : `העתקת סכום ${formatCurrency(item.amount)}`}
-              </label>
-            </div>
-          ))}
-        </div>
-        {addToMonth.isError && <p role="alert" className="text-sm text-error">הטעינה נכשלה. הבחירה נשמרה ואפשר לנסות שוב.</p>}
+        {pickerContent}
       </BottomSheet>
       <BottomSheet
         open={Boolean(draft)}

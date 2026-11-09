@@ -9,7 +9,7 @@ import {
   Moon,
   Sun,
   ArrowLeft,
-  BarChart3,
+  History,
 } from "lucide-react";
 import { PageHeading } from "@/components/ui/Workspace";
 import { useTheme } from "@/components/providers/ThemeProvider";
@@ -38,10 +38,10 @@ export default function SettingsPage() {
       icon: LayoutTemplate,
     },
     {
-      href: "/dashboard#statistics",
-      title: "סטטיסטיקות",
-      description: "להסתכל על התמונה שנבנית לאורך החודשים",
-      icon: BarChart3,
+      href: "/library",
+      title: "פריטים מחודשים קודמים",
+      description: "היסטוריית הפריטים שלך לבחירה חוזרת",
+      icon: History,
     },
   ];
   return (

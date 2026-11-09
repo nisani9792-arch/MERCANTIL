@@ -1,15 +1,13 @@
 "use client";
 import Link from "next/link";
-import { Settings, Moon, Sun, Leaf } from "lucide-react";
-import { useTheme } from "@/components/providers/ThemeProvider";
+import { Settings, Leaf } from "lucide-react";
 export function BankHeader({ userName }: { userName: string }) {
-  const { theme, toggleTheme } = useTheme();
   return (
     <header className="bank-header safe-top z-30 border-b border-outline-variant">
       <div className="flex h-16 items-center justify-between gap-3 px-4 lg:px-7">
         <Link
-          href="/dashboard"
-          aria-label="מרכנפיל — מבט על"
+          href="/month"
+          aria-label="מרכנפיל — החודש שלי"
           className="flex items-center gap-2.5"
         >
           <span className="rounded-xl bg-primary p-2 text-on-primary">
@@ -26,17 +24,7 @@ export function BankHeader({ userName }: { userName: string }) {
           <span className="me-2 hidden max-w-40 truncate text-xs text-on-surface-variant sm:block">
             {userName}
           </span>
-          <button
-            onClick={toggleTheme}
-            aria-label={theme === "light" ? "מצב כהה" : "מצב בהיר"}
-            className="flex h-10 w-10 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container"
-          >
-            {theme === "light" ? (
-              <Moon className="h-4 w-4" />
-            ) : (
-              <Sun className="h-4 w-4" />
-            )}
-          </button>
+
           <Link
             href="/settings"
             aria-label="הגדרות"

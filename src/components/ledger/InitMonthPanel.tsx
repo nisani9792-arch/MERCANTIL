@@ -25,6 +25,7 @@ type Props = {
   initialized: boolean;
   initiallyOpen?: boolean;
   title?: string;
+  onAdded?: (created: number) => void;
 };
 
 export function InitMonthPanel(props: Props) {
@@ -35,6 +36,7 @@ function HistoryPicker({
   initialized,
   initiallyOpen = false,
   title,
+  onAdded,
 }: Props) {
   const qc = useQueryClient();
   const [choosing, setChoosing] = useState(initiallyOpen);
@@ -82,6 +84,7 @@ function HistoryPicker({
           qc.invalidateQueries({ queryKey: [key, monthKey] }),
         ),
       );
+      onAdded?.(body.created ?? 0);
     },
   });
   const items = history.data?.items ?? [];

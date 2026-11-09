@@ -3,10 +3,8 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import {
-  ArrowLeft,
   Plus,
   CircleAlert,
-  CalendarDays,
   Library,
 } from "lucide-react";
 import { MonthNavigator } from "@/components/ui/MonthNavigator";
@@ -54,9 +52,8 @@ export function DashboardView() {
   return (
     <div className="workspace-page">
       <PageHeading
-        eyebrow="עושים סדר, חודש אחרי חודש"
-        title="סקירה וסטטיסטיקות"
-        description="ההכנסות, ההתחייבויות ומה שנשאר בתכנון שלך."
+        title="סיכום החודש"
+        description="תמונה ברורה של התכנון שלך, עם תרשימים ומגמות."
         action={
           <div className="workspace-month-picker">
             <MonthNavigator />
@@ -85,37 +82,10 @@ export function DashboardView() {
         <>
           {summary.initialized ? (
             <>
-              <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-                <StatCard
-                  label="יתרה משוערת לתכנון"
-                  value={plan.remaining}
-                  featured
-                  note={missing ? "התכנון חלקי — יש סכומים להשלמה" : "הכנסות פחות הוצאות בתכנון"}
-                />
-                <StatCard
-                  label="הכנסות שהוזנו"
-                  tone="income"
-                  value={summary.totalIncome}
-                  note={
-                    missingIncome > 0 ? "יש סכומים להשלמה" : "לפי הרישומים שלך"
-                  }
-                />
-                <StatCard
-                  label="הוצאות קבועות"
-                  tone="expense"
-                  value={summary.totalFixedExpenses}
-                  note="חשבונות והתחייבויות"
-                />
-                <StatCard
-                  label="הוצאות משתנות בתכנון"
-                  tone="expense"
-                  value={plan.variable}
-                  note={
-                    estimate.data.amount === null
-                      ? "ללא הערכת מחיה"
-                      : "כולל הערכת המחיה"
-                  }
-                />
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                <StatCard label="הכנסות" tone="income" value={summary.totalIncome}/>
+                <StatCard label="הוצאות בתכנון" tone="expense" value={summary.totalFixedExpenses + plan.variable} note={estimate.data.amount === null ? "לפי הרישומים שלך" : "כולל הערכת המחיה"}/>
+                <StatCard label="נשאר בתכנון" value={plan.remaining} featured note={missing ? "יש סכומים להשלמה" : "לפי מה שהוזן"}/>
               </div>
               {missing > 0 && (
                 <Link
@@ -139,7 +109,7 @@ export function DashboardView() {
               action={
                 <div className="mt-2 flex flex-wrap justify-center gap-2">
                   <Link
-                    href="/library"
+                    href="/month?source=template"
                     className="workspace-button workspace-button-primary"
                   >
                     <Library className="h-4 w-4" />
@@ -158,8 +128,6 @@ export function DashboardView() {
               <SectionHeading
                 title="הכנסות מול הוצאות"
                 description="החודשים שבהם הזנת נתונים"
-                href="#statistics"
-                linkText="לממוצעים"
               />
               <CashflowChart data={analytics.data.trend} />
             </section>
@@ -180,38 +148,6 @@ export function DashboardView() {
             </div> : <p className="workspace-muted">נרשמו {analytics.data.averages.monthsIncluded} חודשים. ממוצעים יוצגו לאחר לפחות 3 חודשי נתונים.</p>}
             <p className="workspace-muted mt-3">חודשים ריקים אינם נספרים כאפס. רישומים חלקיים עשויים להשפיע על הממוצעים.</p>
           </section>
-          <div className="workspace-shortcuts grid gap-3 sm:grid-cols-2">
-            <Link
-              href="/month"
-              className="finance-panel flex items-center gap-4"
-            >
-              <span className="rounded-xl bg-primary-container p-3 text-primary">
-                <CalendarDays className="h-5 w-5" />
-              </span>
-              <span className="flex-1">
-                <b className="block text-sm">החודש שלי</b>
-                <span className="mt-1 block text-xs text-on-surface-variant">
-                  לעבור על הרשימה ולעדכן סכומים
-                </span>
-              </span>
-              <ArrowLeft className="h-4 w-4 text-primary" />
-            </Link>
-            <Link
-              href="/library"
-              className="finance-panel flex items-center gap-4"
-            >
-              <span className="rounded-xl bg-surface-container p-3 text-primary">
-                <Library className="h-5 w-5" />
-              </span>
-              <span className="flex-1">
-                <b className="block text-sm">ספריית הפריטים</b>
-                <span className="mt-1 block text-xs text-on-surface-variant">
-                  להוסיף מההיסטוריה בלי להקליד מחדש
-                </span>
-              </span>
-              <ArrowLeft className="h-4 w-4 text-primary" />
-            </Link>
-          </div>
           {summary.initialized && (
             <details className="finance-panel">
               <summary className="cursor-pointer text-sm font-semibold">

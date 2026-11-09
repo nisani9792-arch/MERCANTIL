@@ -13,5 +13,5 @@ export default async function HomePage() {
   }
 
   const session = await getSession();
-  redirect(session ? "/dashboard" : "/login");
+  redirect(session ? "/month" : "/login");
 }

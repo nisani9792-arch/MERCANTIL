@@ -1,7 +1,6 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Settings } from "lucide-react";
 import { navItems } from "@/components/bank/nav-items";
 export function BankNavSidebar() {
   const pathname = usePathname();
@@ -38,17 +37,7 @@ export function BankNavSidebar() {
             </Link>
           ))}
         </nav>
-        <div className="mt-6 border-t border-outline-variant pt-4">
 
-          <Link
-            href="/settings"
-            aria-current={pathname === "/settings" ? "page" : undefined}
-            className="flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm text-on-surface-variant"
-          >
-            <Settings className="h-4 w-4" />
-            הגדרות
-          </Link>
-        </div>
       </div>
 
     </aside>

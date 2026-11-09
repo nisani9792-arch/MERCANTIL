@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/set-state-in-effect -- deep-link action intentionally opens the requested editor */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Banknote, LayoutTemplate, Plus, Search, Library } from "lucide-react";
+import { Banknote, LayoutTemplate, Plus, Search, Library, MoreHorizontal } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
@@ -13,7 +13,8 @@ import { useUserScope } from "@/components/providers/UserScope";
 import { PaymentFolders } from "@/components/bank/PaymentFolders";
 import { TransactionCard } from "@/components/bank/TransactionCard";
 import { SmartEntryBar } from "@/components/bank/SmartEntryBar";
-import Link from "next/link";
+import {BottomSheet} from "@/components/ui/BottomSheet";
+import {MonthSources} from "@/components/bank/MonthSources";
 import { PageHeading, StatCard, EmptyState } from "@/components/ui/Workspace";
 import { MonthNavigator } from "@/components/ui/MonthNavigator";
 import { filterMonthEntries } from "@/lib/ledger/workspace";
@@ -43,6 +44,8 @@ export function MonthWorkspace() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [sheetMode, setSheetMode] = useState<LedgerSheetMode | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [sourcesOpen,setSourcesOpen] = useState(false);
+  const [toolsOpen,setToolsOpen] = useState(false);
   const [advancedLoaded, setAdvancedLoaded] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
   const messageTimer = useRef<number | null>(null);
@@ -333,12 +336,14 @@ export function MonthWorkspace() {
   const visible = filterMonthEntries(entries, view, search, statusFilter);
 
   function openAdd(type: "income" | "expense" | "cash_withdrawal") {
+    setToolsOpen(false);
     saveMut.reset();
     setSheetMode({ kind: "add", type });
     setSheetOpen(true);
   }
 
   function openEdit(entry: MonthlyLedgerEntry) {
+    setToolsOpen(false);
     saveMut.reset();
     setSheetMode({ kind: "edit", entry });
     setSheetOpen(true);
@@ -346,6 +351,7 @@ export function MonthWorkspace() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    if (params.get("source") === "template") setSourcesOpen(true);
     if (params.get("view") === "income") setView("income");
     if (params.get("action") === "add") {
       setSheetMode({
@@ -379,25 +385,8 @@ export function MonthWorkspace() {
             <Plus className="h-4 w-4" />
             {view === "income" ? "הכנסה חדשה" : "הוצאה חדשה"}
           </button>
-          <details className="workspace-source-menu"
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                event.currentTarget.open = false;
-                event.currentTarget.querySelector("summary")?.focus();
-              }
-            }}
-            onBlur={(event) => {
-              if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false;
-            }}
-          >
-            <summary className="workspace-button cursor-pointer list-none">
-              <Library className="h-4 w-4" /> מהספרייה <span aria-hidden="true">⌄</span>
-            </summary>
-            <div className="workspace-source-options">
-              <Link href="/library"><b>מחודשים קודמים</b><small>בחירת פריטים מההיסטוריה</small></Link>
-              <Link href="/templates"><b>טעינת חודש מתבנית</b><small>בחירת פריטים והעתקת סכומים</small></Link>
-            </div>
-          </details>
+          <button className="workspace-button" onClick={()=>setSourcesOpen(true)}><Library className="h-4 w-4"/>מילוי החודש</button>
+          <button className="workspace-button month-more" aria-label="כלים נוספים לחודש" onClick={()=>setToolsOpen(true)}><MoreHorizontal className="h-4 w-4"/><span>עוד</span></button>
         </div>
           </div>
         }
@@ -428,20 +417,20 @@ export function MonthWorkspace() {
         data && (
           <>
             <div className="month-summary grid grid-cols-3 gap-2 sm:gap-3">
-              <StatCard tone="income" label="הכנסות" value={data.summary.totalIncome} />
+              <StatCard tone="income" label="הכנסות" value={data.summary.initialized ? data.summary.totalIncome : null} note={data.summary.pendingIncomeCount ? "יש סכומים להשלמה" : undefined}/>
               <StatCard
                 label="הוצאות"
                 tone="expense"
                 value={
-                  data.summary.totalFixedExpenses +
-                  data.summary.totalVariableExpenses
+                  data.summary.initialized ? data.summary.totalFixedExpenses +
+                  data.summary.totalVariableExpenses : null
                 }
               />
               <StatCard
-                label="יתרה מהזנה"
-                value={data.summary.disposableRemaining}
+                label="נשאר בתכנון"
+                value={data.summary.initialized ? data.summary.disposableRemaining : null}
                 featured
-                note="ללא הערכת המחיה"
+                note={(data.summary.pendingIncomeCount ?? 0) + (data.summary.pendingExpenseCount ?? 0) > 0 ? "תכנון חלקי — יש סכומים להשלמה" : "לפי מה שהוזן, לפני מחיה"}
               />
             </div>
             <section className="space-y-4">
@@ -500,7 +489,7 @@ export function MonthWorkspace() {
                 role="tabpanel"
                 aria-labelledby={"month-tab-" + view}
               >
-                {(visible.length || view !== "income") ? (
+                {visible.length > 0 ? (
                   <PaymentFolders
                     entries={visible} allEntries={entries} showExpenses={view !== "income"}
                     busy={paymentGroupMut.isPending || togglePaidMut.isPending}
@@ -518,25 +507,21 @@ export function MonthWorkspace() {
                     description={
                       data.summary.initialized
                         ? "אפשר לשנות את הסינון, להוסיף פריט או לבחור מהספרייה."
-                        : "בחר מהחודשים הקודמים או הוסף פריט חדש. לא צריך למלא הכול בבת אחת."
+                        : "לחץ על ״מילוי החודש״ כדי לבחור מהתבנית, או הוסף פריט חדש."
                     }
-                    action={
-                      <Link href="/library" className="workspace-button">
-                        <Library className="h-4 w-4" />
-                        לספריית הפריטים
-                      </Link>
-                    }
+
                   />
                 )}
               </div>
               <p className="workspace-muted">
-                {visible.length} פריטים בתצוגה · לחיצה על פריט פותחת עריכה.
-                סימון ✓ מיועד למעקב ביצוע לפי בחירתך.
+                {visible.length} פריטים · לוחצים על פריט לעדכון סכום ופרטים.
               </p>
             </section>
           </>
         )
       )}
+      <MonthSources key={monthKey} open={sourcesOpen} onClose={()=>setSourcesOpen(false)} monthKey={monthKey} onLoaded={(created)=>{setSourcesOpen(false);showSaveMessage(created ? `נוספו ${created} פריטים לחודש` : "הפריטים שבחרת כבר נמצאים בחודש");}}/>
+      <BottomSheet open={toolsOpen} onClose={()=>setToolsOpen(false)} title="כלים נוספים לחודש">
       <div className="workspace-tools" aria-label="כלי עבודה נוספים">
       <details className="finance-panel">
         <summary className="cursor-pointer text-sm font-semibold">
@@ -545,6 +530,7 @@ export function MonthWorkspace() {
         <div className="mt-4">
           <SmartEntryBar
             onParsed={(mode) => {
+              setToolsOpen(false);
               setSheetMode(mode);
               setSheetOpen(true);
             }}
@@ -624,6 +610,7 @@ export function MonthWorkspace() {
         </div>
       </details>
       </div>
+      </BottomSheet>
       <LedgerBottomSheet
         open={sheetOpen}
         mode={sheetMode}

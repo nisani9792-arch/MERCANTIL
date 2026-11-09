@@ -47,12 +47,12 @@ export function PaymentFolders({ entries, allEntries, showExpenses, busy, onMove
         onDrop={(e) => drop(e, true)}>
         <summary>
           <CreditCard aria-hidden="true" className="h-5 w-5 shrink-0" />
-          <span className="min-w-0 flex-1"><b>כרטיס האשראי <span className="payment-count">{card.length}</span></b><small>חיוב אוטומטי ב־10 · גררו הוצאות לכאן</small></span>
+          <span className="min-w-0 flex-1"><b>כרטיס האשראי <span className="payment-count">{card.length}</span></b><small>מחויב ב־10 בכל חודש</small></span>
           <span className="credit-folder-total"><strong dir="ltr">{formatCurrency(card.reduce((sum, e) => sum + Math.round(e.amount * 100), 0) / 100)}</strong>
             {card.some((e) => e.amount_pending) && <small>יש סכומים להשלמה</small>}
           </span><span aria-hidden="true" className="credit-folder-chevron">⌄</span>
         </summary>
-        <p className="payment-folder-hint">גרור לכאן הוצאות, או בחר ״לכרטיס האשראי״ בתפריט ⋯ של ההוצאה. השיוך מסדר את התכנון; אישור הביצוע נשאר לבדיקתך.</p>
+        {card.length === 0 && <p className="payment-folder-hint">גרור לכאן הוצאות, או בחר ״לכרטיס האשראי״ בתפריט ⋯ של ההוצאה. השיוך מסדר את התכנון; אישור הביצוע נשאר לבדיקתך.</p>}
         {card.length > 0 ? rows(card) : <p className="payment-empty">אין הוצאות בכרטיס בתצוגה הזו</p>}
       </details>
       <section className="manual-payment-group" aria-label="לתשלום ידני" data-drag-over={over === "manual"}
