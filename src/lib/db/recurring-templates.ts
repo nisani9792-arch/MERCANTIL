@@ -119,8 +119,9 @@ export async function deleteTemplate(userId: string, id: string): Promise<boolea
 export function templateAppliesToMonth(
   frequency: RecurringFrequency,
   monthKey: string,
+  startMonth: string | null = null,
 ): boolean {
   if (frequency === "monthly") return true;
   const month = Number(monthKey.split("-")[1]);
-  return month % 2 === 1;
+  return (!startMonth || monthKey >= startMonth) && month % 2 === (startMonth ? Number(startMonth.slice(5)) % 2 : 1);
 }

@@ -225,7 +225,7 @@ function HistoryPicker({
           {history.isSuccess && items.length > 0 && (
             <>
               <p className="text-xs text-on-surface-variant">
-                סמן ״העתקת סכום״ רק לפריטים שבהם הסכום מתאים החודש. הכנסות נשארות למילוי. ממוצע
+                סמן ״העתקת סכום״ רק לפריטים שבהם הסכום מתאים החודש. ללא סימון, הסכום נשאר למילוי. ממוצע
                 מוצג כשיש לפחות 3 חודשי נתונים.
               </p>
               <div className="rounded-xl border border-outline-variant divide-y divide-outline-variant">
@@ -276,12 +276,12 @@ function HistoryPicker({
                           <Check className="h-4 w-4" />
                           כבר נוסף
                         </span>
-                      ) : item.type === "income" || item.amountPending ? (
+                      ) : !copyAmounts.includes(item.id) || item.amountPending ? (
                         "סכום להשלמה"
                       ) : (
                         <span dir="ltr">{formatCurrency(item.amount)}</span>
                       )}
-                      {item.type === "expense" && !item.amountPending && !item.alreadyAdded && (
+                      {!item.amountPending && !item.alreadyAdded && (
                         <span className="mt-2 flex items-center justify-end gap-1.5 font-normal">
                           <input type="checkbox" className="h-4 w-4 accent-primary"
                             aria-label={`העתקת סכום עבור ${item.name}`}

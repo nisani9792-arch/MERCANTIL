@@ -67,8 +67,8 @@ export async function addFromHistory(userId: string, month: string, ids: string[
       category, is_from_template, template_id, is_variable, is_paid, notes,
       entry_kind, payment_method, due_date, history_source_id)
     select ${userId}, ${month}, s.name, s.type,
-      case when s.type = 'income' or s.amount_pending or not (s.id = any(${copyAmountIds}::uuid[])) then 0 else s.amount end,
-      (s.type = 'income' or s.amount_pending or not (s.id = any(${copyAmountIds}::uuid[]))),
+      case when s.amount_pending or not (s.id = any(${copyAmountIds}::uuid[])) then 0 else s.amount end,
+      (s.amount_pending or not (s.id = any(${copyAmountIds}::uuid[]))),
       s.category, s.is_from_template, s.template_id, s.is_variable, false, null,
       'transaction', s.payment_method,
       case when s.due_date is null then null else
