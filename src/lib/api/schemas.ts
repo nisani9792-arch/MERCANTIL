@@ -11,7 +11,7 @@ export const amount = z.number().finite().min(0).max(10_000_000).refine(v=>Math.
 const name = z.string().trim().min(1).max(120);
 const type = z.enum(["income","expense"]);
 export const categoryCreate = z.object({name,type,icon:z.string().trim().max(40).optional()}).strict();
-const templateFields = z.object({name,type,amount,amountPending:z.boolean().optional(),frequency:z.enum(["monthly","bi-monthly"]).optional(),dayOfMonth:z.number().int().min(1).max(31).nullable().optional(),isActive:z.boolean().optional(),isVariable:z.boolean().optional()}).strict();
+const templateFields = z.object({name,type,amount,amountPending:z.boolean().optional(),frequency:z.enum(["monthly","bi-monthly"]).optional(),startMonth:month.nullable().optional(),dayOfMonth:z.number().int().min(1).max(31).nullable().optional(),isActive:z.boolean().optional(),isVariable:z.boolean().optional()}).strict();
 export const templateCreate = templateFields.refine(v=>!v.amountPending || v.amount===0,"סכום חסר אינו יכול לכלול מספר");
 export const templateUpdate = templateFields.partial().refine(v=>Object.keys(v).length>0).refine(v=>!v.amountPending || v.amount===undefined || v.amount===0);
 export const transactionCreate = z.object({amount:amount.refine(v=>v>0),date,categoryId:uuid,accountSource:z.string().trim().max(120).optional(),notes:z.string().trim().max(2000).optional(),isFixedRecurring:z.boolean().optional(),recurringDayOfMonth:z.number().int().min(1).max(31).nullable().optional()}).strict();

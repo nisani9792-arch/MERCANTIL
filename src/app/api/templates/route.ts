@@ -27,6 +27,7 @@ async function POSTHandler(request: Request) {
     amount: Math.abs(body.amount),
     amountPending: body.amountPending,
     frequency: body.frequency,
+    startMonth: body.startMonth,
     dayOfMonth: body.dayOfMonth,
     isVariable: body.isVariable,
   });

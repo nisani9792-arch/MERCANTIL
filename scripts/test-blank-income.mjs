@@ -28,6 +28,7 @@ function ledger(sql) {
   sql.transaction ??= queries=>Promise.all(queries);
   return load("src/lib/db/monthly-ledger.ts", {
     "@/lib/db/client": { getSql: () => sql },
+    "@/lib/db/template-cycle": { ensureTemplateCycle: async () => {} },
     "@/lib/db/income-amounts": { ensureIncomeAmounts: async () => {} },
     "@/lib/api/route": { RouteError,logServerError:()=>"test" },
   });

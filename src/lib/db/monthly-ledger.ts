@@ -1,3 +1,4 @@
+import { ensureTemplateCycle } from "@/lib/db/template-cycle";
 import { logServerError } from "@/lib/api/route";
 import { getSql } from "@/lib/db/client";
 import { ensureIncomeAmounts } from "@/lib/db/income-amounts";
@@ -325,7 +326,7 @@ export async function initMonthFromTemplates(
   templateIds?: string[],
   copyAmountIds?: string[],
 ): Promise<{ created: number; skipped: boolean }> {
-  await ensureIncomeAmounts();
+  await ensureTemplateCycle();
   const sql = getSql();
   const chosenIds = Array.from(new Set((templateIds ?? []).filter((id) => /^[0-9a-f-]{36}$/i.test(id))));
   const copyIds = Array.from(new Set((copyAmountIds ?? []).filter((id) => /^[0-9a-f-]{36}$/i.test(id))));
@@ -350,7 +351,9 @@ export async function initMonthFromTemplates(
       select distinct on (lower(trim(name)), type, is_variable) * from fixed_templates
       where user_id = ${userId} and is_active = true
         and id = any(${chosenIds}::uuid[])
-        and (frequency = 'monthly' or ${Number(monthKey.slice(5))} % 2 = 1)
+        and (frequency = 'monthly' or (
+          (start_month is null or start_month <= ${monthKey})
+          and ${Number(monthKey.slice(5))} % 2 = coalesce(substring(start_month from 6 for 2)::int % 2, 1)))
       order by lower(trim(name)), type, is_variable, updated_at desc, id
     ) t
     where not exists (select 1 from monthly_ledger e
@@ -572,7 +575,7 @@ export async function getMonthlyWorkspace(userId: string, monthKey: string, tren
       coalesce((select p.category_order from monthly_ledger_preferences p where p.user_id=${userId} and p.month_key=${monthKey}), '[]'::jsonb) as category_order,
       cash.withdrawn,cash.spent,
       case when ${!!trendMonths} then coalesce((select jsonb_agg(to_jsonb(t) order by t.month_key) from (
-        select e.month_key,
+        select e.month_key, count(*) filter(where e.amount_pending and e.entry_kind='transaction') as pending_count,
           coalesce(sum(case when e.type='income' and e.entry_kind='transaction' then e.amount else 0 end),0) as income,
           coalesce(sum(case when e.type='expense' and e.entry_kind='transaction' then e.amount else 0 end),0) as expense
         from monthly_ledger e where e.user_id=${userId} and e.month_key=any(${trendMonths??[]}::text[]) group by e.month_key

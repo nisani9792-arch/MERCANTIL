@@ -41,6 +41,7 @@ function HistoryPicker({
   const qc = useQueryClient();
   const [choosing, setChoosing] = useState(initiallyOpen);
   const [selected, setSelected] = useState<string[]>([]);
+  const [copyAmounts, setCopyAmounts] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "income" | "expense">("all");
   const [message, setMessage] = useState("");
@@ -58,7 +59,7 @@ function HistoryPicker({
       const res = await mutateLive("/api/ledger/history", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ month: monthKey, ids }),
+        body: JSON.stringify({ month: monthKey, ids, copyAmountIds: copyAmounts.filter((id) => ids.includes(id)) }),
       });
       const body = (await res.json().catch(() => ({}))) as {
         created?: number;
@@ -79,12 +80,12 @@ function HistoryPicker({
           ? `נוספו ${body.created} פריטים לחודש. אפשר לערוך כל סכום.`
           : "הפריטים שבחרת כבר נמצאים בחודש.",
       );
-      await Promise.all(
+      onAdded?.(body.created ?? 0);
+      void Promise.all(
         ["ledger", "analytics", "ledger-history", "ai-insights"].map((key) =>
           qc.invalidateQueries({ queryKey: [key, monthKey] }),
         ),
       );
-      onAdded?.(body.created ?? 0);
     },
   });
   const items = history.data?.items ?? [];
@@ -224,12 +225,12 @@ function HistoryPicker({
           {history.isSuccess && items.length > 0 && (
             <>
               <p className="text-xs text-on-surface-variant">
-                הוצאות מגיעות עם הסכום האחרון; הכנסות נשארות למילוי החודש. ממוצע
+                סמן ״העתקת סכום״ רק לפריטים שבהם הסכום מתאים החודש. הכנסות נשארות למילוי. ממוצע
                 מוצג כשיש לפחות 3 חודשי נתונים.
               </p>
               <div className="rounded-xl border border-outline-variant divide-y divide-outline-variant">
                 {visible.map((item) => (
-                  <label
+                  <div
                     key={item.id}
                     className={
                       "flex min-h-16 cursor-pointer items-center gap-3 p-3 " +
@@ -242,6 +243,7 @@ function HistoryPicker({
                   >
                     <input
                       type="checkbox"
+                      aria-label={`הוספת ${item.name} לחודש`}
                       checked={item.alreadyAdded || selected.includes(item.id)}
                       disabled={
                         item.alreadyAdded ||
@@ -279,8 +281,18 @@ function HistoryPicker({
                       ) : (
                         <span dir="ltr">{formatCurrency(item.amount)}</span>
                       )}
+                      {item.type === "expense" && !item.amountPending && !item.alreadyAdded && (
+                        <span className="mt-2 flex items-center justify-end gap-1.5 font-normal">
+                          <input type="checkbox" className="h-4 w-4 accent-primary"
+                            aria-label={`העתקת סכום עבור ${item.name}`}
+                            checked={copyAmounts.includes(item.id)}
+                            disabled={add.isPending || !selected.includes(item.id)}
+                            onChange={() => setCopyAmounts((ids) => ids.includes(item.id) ? ids.filter((value) => value !== item.id) : [...ids, item.id])} />
+                          העתקת הסכום
+                        </span>
+                      )}
                     </span>
-                  </label>
+                  </div>
                 ))}
                 {visible.length === 0 && (
                   <p className="p-5 text-center text-sm">

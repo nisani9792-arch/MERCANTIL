@@ -1,4 +1,5 @@
 "use client";
+import { monthlyPlan } from "@/lib/ledger/planning";
 /* eslint-disable react-hooks/set-state-in-effect -- deep-link action intentionally opens the requested editor */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -72,6 +73,12 @@ export function MonthWorkspace() {
     queryFn: () => fetchLive<LedgerResponse>(`/api/ledger?month=${monthKey}`),
     staleTime: 30_000,
   });
+
+  const estimate = useQuery({
+    queryKey: ["planning", monthKey],
+    queryFn: () => fetchLive<{amount: number | null}>("/api/preferences/planning?month=" + monthKey),
+  });
+  const plan = data && estimate.isSuccess ? monthlyPlan(data.summary.totalIncome, data.summary.totalFixedExpenses, data.summary.totalVariableExpenses, estimate.data.amount) : null;
 
   async function refetchAll() {
     await Promise.all([
@@ -422,15 +429,14 @@ export function MonthWorkspace() {
                 label="הוצאות"
                 tone="expense"
                 value={
-                  data.summary.initialized ? data.summary.totalFixedExpenses +
-                  data.summary.totalVariableExpenses : null
+                  data.summary.initialized && plan ? data.summary.totalFixedExpenses + plan.variable : null
                 }
               />
               <StatCard
                 label="נשאר בתכנון"
-                value={data.summary.initialized ? data.summary.disposableRemaining : null}
+                value={data.summary.initialized && plan ? plan.remaining : null}
                 featured
-                note={(data.summary.pendingIncomeCount ?? 0) + (data.summary.pendingExpenseCount ?? 0) > 0 ? "תכנון חלקי — יש סכומים להשלמה" : "לפי מה שהוזן, לפני מחיה"}
+                note={(data.summary.pendingIncomeCount ?? 0) + (data.summary.pendingExpenseCount ?? 0) > 0 ? "תכנון חלקי — יש סכומים להשלמה" : estimate.isError ? "הערכת המחיה לא נטענה" : estimate.data?.amount == null ? "לפי מה שהוזן" : "כולל הערכת מחיה"}
               />
             </div>
             <section className="space-y-4">

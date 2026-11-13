@@ -13,6 +13,7 @@ export type FixedTemplate = {
   amount: number;
   amount_pending?: boolean;
   frequency: RecurringFrequency;
+  start_month?: string | null;
   day_of_month: number | null;
   is_active: boolean;
   is_variable: boolean;
@@ -71,6 +72,7 @@ export type MonthSummary = {
 export type MonthTrendPoint = {
   monthKey: string;
   hasData?: boolean;
+  pendingCount?: number;
   income: number;
   expense: number;
   net: number;

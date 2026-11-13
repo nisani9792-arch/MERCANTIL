@@ -30,6 +30,7 @@ type Draft = {
   type: "income" | "expense";
   frequency: "monthly" | "bi-monthly";
   dayOfMonth: string;
+  startMonth: string;
   isActive: boolean;
   isVariable: boolean;
 };
@@ -39,6 +40,7 @@ const EMPTY_DRAFT: Draft = {
   type: "expense",
   frequency: "monthly",
   dayOfMonth: "",
+  startMonth: "",
   isActive: true,
   isVariable: false,
 };
@@ -63,12 +65,12 @@ export function TemplateList({ pickerOnly = false, onLoaded }: { pickerOnly?: bo
           ? `נוספו ${result.created} פריטים לחודש הנבחר`
           : "הפריט כבר קיים בחודש או שאינו חל בו לפי התדירות",
       );
-      await Promise.all(
+      onLoaded?.(result.created);
+      void Promise.all(
         ["ledger", "analytics", "ledger-history"].map((key) =>
           qc.invalidateQueries({ queryKey: [key, monthKey] }),
         ),
       );
-      onLoaded?.(result.created);
     },
   });
   const [loadingTemplate, setLoadingTemplate] = useState(false);
@@ -100,6 +102,7 @@ export function TemplateList({ pickerOnly = false, onLoaded }: { pickerOnly?: bo
             amountPending:
               value.type === "income" && value.amount.trim() === "",
             frequency: value.frequency,
+            startMonth: value.startMonth || null,
             dayOfMonth: value.dayOfMonth ? Number(value.dayOfMonth) : null,
             isActive: value.isActive,
             isVariable: value.isVariable,
@@ -143,7 +146,7 @@ export function TemplateList({ pickerOnly = false, onLoaded }: { pickerOnly?: bo
 
   const templates = data?.templates ?? [];
   const applicable = templates.filter((item) => item.is_active &&
-    (item.frequency === "monthly" || Number(monthKey.slice(5)) % 2 === 1));
+    (item.frequency === "monthly" || ((!item.start_month || item.start_month <= monthKey) && Number(monthKey.slice(5)) % 2 === (item.start_month ? Number(item.start_month.slice(5)) % 2 : 1))));
   const eligible = Array.from(new Map(
     [...applicable].sort((a, b) => (a.updated_at ?? "").localeCompare(b.updated_at ?? ""))
       .map((item) => [JSON.stringify([item.name.trim().toLocaleLowerCase(), item.type, item.is_variable]), item]),
@@ -177,6 +180,7 @@ export function TemplateList({ pickerOnly = false, onLoaded }: { pickerOnly?: bo
       amount: incomeAmountInput(item),
       type: item.type,
       frequency: item.frequency,
+      startMonth: item.start_month ?? "",
       dayOfMonth: item.day_of_month ? String(item.day_of_month) : "",
       isActive: item.is_active,
       isVariable: item.is_variable,
@@ -591,6 +595,12 @@ function TemplateForm({
           <option value="bi-monthly">כל חודשיים</option>
         </select>
       </label>
+      {draft.frequency === "bi-monthly" && <label>
+        <span className="m3-label">חודש ראשון במחזור</span>
+        <input type="month" className="m3-input mt-1 w-full px-3 py-3" value={draft.startMonth}
+          onChange={(event) => setDraft({...draft, startMonth: event.target.value})}/>
+        <small>התשלום יחול בחודש שבחרת ובכל חודשיים אחריו. ריק שומר את המחזור הקיים של חודשים אי־זוגיים.</small>
+      </label>}
       {draft.type === "expense" && (
         <label className="flex min-h-12 items-center gap-3 rounded-xl bg-surface-container/50 px-3 text-sm">
           <input

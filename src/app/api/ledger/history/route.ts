@@ -18,11 +18,16 @@ async function POSTHandler(request: Request) {
   try {
     const session = await getSession();
     if (!session) throw new RouteError(401, "UNAUTHORIZED", "נדרשת התחברות");
-    const body = await readJson(request).catch(() => null) as {month?: unknown; ids?: unknown} | null;
+    const body = await readJson(request).catch(() => null) as {month?: unknown; ids?: unknown; copyAmountIds?: unknown} | null;
     if (!body || !monthValid(body.month) || !Array.isArray(body.ids) || body.ids.length === 0 || body.ids.length > 100 || body.ids.some((id: unknown) => typeof id !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))) {
       throw new RouteError(400, "INVALID_REQUEST", "יש לבחור עד 100 פריטים תקינים");
     }
-    return NextResponse.json(await addFromHistory(session.userId, body.month, [...new Set<string>(body.ids)]), { headers: noStoreHeaders });
+    const ids = body.ids as string[];
+    const copyIds = body.copyAmountIds;
+    if (copyIds !== undefined && (!Array.isArray(copyIds) || copyIds.length > 100 || copyIds.some((id: unknown) => typeof id !== "string" || !ids.includes(id)))) {
+      throw new RouteError(400, "INVALID_REQUEST", "בחירת סכומים אינה תקינה");
+    }
+    return NextResponse.json(await addFromHistory(session.userId, body.month, [...new Set(ids)], [...new Set<string>((copyIds as string[] | undefined) ?? [])]), { headers: noStoreHeaders });
   } catch (error) { return apiError(error, "history.add"); }
 }
 

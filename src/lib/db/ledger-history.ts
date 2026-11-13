@@ -50,7 +50,7 @@ export async function listHistoryChoices(userId: string, month: string) {
   }));
 }
 
-export async function addFromHistory(userId: string, month: string, ids: string[]) {
+export async function addFromHistory(userId: string, month: string, ids: string[], copyAmountIds: string[] = []) {
   await ensureHistorySchema();
   const sql = getSql();
   // Serialize additions for this user/month. The insert sees the committed rows
@@ -67,7 +67,8 @@ export async function addFromHistory(userId: string, month: string, ids: string[
       category, is_from_template, template_id, is_variable, is_paid, notes,
       entry_kind, payment_method, due_date, history_source_id)
     select ${userId}, ${month}, s.name, s.type,
-      case when s.type = 'income' then 0 else s.amount end, (s.type = 'income' or s.amount_pending),
+      case when s.type = 'income' or s.amount_pending or not (s.id = any(${copyAmountIds}::uuid[])) then 0 else s.amount end,
+      (s.type = 'income' or s.amount_pending or not (s.id = any(${copyAmountIds}::uuid[]))),
       s.category, s.is_from_template, s.template_id, s.is_variable, false, null,
       'transaction', s.payment_method,
       case when s.due_date is null then null else

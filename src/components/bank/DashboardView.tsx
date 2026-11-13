@@ -146,7 +146,7 @@ export function DashboardView() {
               <StatCard label="ממוצע הוצאות" value={analytics.data.averages.avgExpense} tone="expense" />
               <StatCard label="נטו ממוצע" value={analytics.data.averages.avgNet} />
             </div> : <p className="workspace-muted">נרשמו {analytics.data.averages.monthsIncluded} חודשים. ממוצעים יוצגו לאחר לפחות 3 חודשי נתונים.</p>}
-            <p className="workspace-muted mt-3">חודשים ריקים אינם נספרים כאפס. רישומים חלקיים עשויים להשפיע על הממוצעים.</p>
+            <p className="workspace-muted mt-3">חודשים ריקים אינם נספרים כאפס. החודש הנוכחי וחודשים עם סכומים חסרים אינם נכללים בממוצעים.</p>
           </section>
           {summary.initialized && (
             <details className="finance-panel">

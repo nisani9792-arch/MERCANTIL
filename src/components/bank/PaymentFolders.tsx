@@ -24,7 +24,9 @@ export function PaymentFolders({ entries, allEntries, showExpenses, busy, onMove
   const [over, setOver] = useState<string | null>(null);
   const expenses = entries.filter((e) => e.type === "expense");
   const card = expenses.filter((e) => e.payment_method === "card");
-  const manual = expenses.filter((e) => e.payment_method !== "card");
+  const bank = expenses.filter((e) => e.payment_method === "bank");
+  const cash = expenses.filter((e) => e.payment_method === "cash");
+  const manual = [...bank, ...cash];
   const income = entries.filter((e) => e.type === "income");
   function drop(event: DragEvent, targetCard: boolean) {
     event.preventDefault(); setOver(null);
@@ -59,9 +61,11 @@ export function PaymentFolders({ entries, allEntries, showExpenses, busy, onMove
         onDragOver={(e) => { e.preventDefault(); if (!busy) setOver("manual"); }}
         onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOver(null); }}
         onDrop={(e) => drop(e, false)}>
-        <div className="payment-group-label"><HandCoins aria-hidden="true" className="h-4 w-4" /><h3>לתשלום ידני</h3>
+        <div className="payment-group-label"><HandCoins aria-hidden="true" className="h-4 w-4" /><h3>לתשלום מהבנק / מזומן</h3>
           <span className="payment-count">{manual.length}</span><strong className="ms-auto" dir="ltr">{formatCurrency(manual.reduce((sum, e) => sum + Math.round(e.amount * 100), 0) / 100)}</strong></div>
-        {manual.length > 0 ? rows(manual) : <p className="payment-empty">אין פריטים לתשלום ידני בתצוגה הזו</p>}
+        {bank.length > 0 ? <section aria-label="לתשלום מהבנק"><h4 className="payment-folder-hint">לתשלום מהבנק</h4>{rows(bank)}</section> : null}
+        {cash.length > 0 ? <section aria-label="לתשלום במזומן"><h4 className="payment-folder-hint">לתשלום במזומן</h4>{rows(cash)}</section> : null}
+        {manual.length === 0 && <p className="payment-empty">אין הוצאות מהבנק או במזומן בתצוגה הזו</p>}
       </section>
     </>}
   </div>;

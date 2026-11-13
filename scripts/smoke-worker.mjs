@@ -9,7 +9,7 @@ const child=spawn(process.execPath,[path.resolve("node_modules/wrangler/bin/wran
 let logs="",exited=false;child.on("exit",()=>{exited=true;});child.stdout.on("data",v=>{logs=(logs+v).slice(-10000);});child.stderr.on("data",v=>{logs=(logs+v).slice(-10000);});
 try {
   let ready=false;
-  for(let i=0;i<150;i++){if(exited)throw new Error("Worker exited before readiness");try{const r=await fetch(base+"/deploy-version.txt",{signal:AbortSignal.timeout(1000)});if(r.ok){assert.equal((await r.text()).trim(),"fast-month-queries-2026-11-09");ready=true;break;}}catch{ /* Runtime startup may still be in progress. */ }await delay(200);}
+  for(let i=0;i<150;i++){if(exited)throw new Error("Worker exited before readiness");try{const r=await fetch(base+"/deploy-version.txt",{signal:AbortSignal.timeout(1000)});if(r.ok){assert.equal((await r.text()).trim(),"clear-planning-cycle-2026-11-13");ready=true;break;}}catch{ /* Runtime startup may still be in progress. */ }await delay(200);}
   assert.ok(ready,"Worker readiness timeout");
   assert.equal((await fetch(base+"/login")).status,200,"Worker login render");
   assert.equal((await fetch(base+"/api/ledger?monthKey=2026-11")).status,401,"Unauthenticated ledger");
@@ -18,3 +18,4 @@ try {
   console.log("PASS Workers runtime: login 200, protected API 401, cross-origin write 403, release marker correct.");
 } catch(error){console.error(logs);throw error;}
 finally{if(!exited){if(process.platform==="win32"){try{execFileSync("taskkill",["/PID",String(child.pid),"/T","/F"],{windowsHide:true,stdio:"ignore"});}catch{ /* Already closed. */ }}else child.kill("SIGTERM");}}
+
